@@ -6,16 +6,13 @@ namespace Cmteh;
 
 use DOMDocument;
 
+require_once __DIR__ . '/EditorialDefaults.php';
+
 final class StorefrontPages
 {
-    public const INFO = [
-        'about' => ['О компании', 'СМ ТЕХНО — поставка запчастей для спецтехники и сельскохозяйственной техники.'],
-        'contacts' => ['Контакты', 'Контакты СМ ТЕХНО для заявок и подбора запчастей для спецтехники.'],
-        'delivery' => ['Доставка запчастей', 'Условия доставки B2B-заказов запчастей для спецтехники.'],
-        'payment' => ['Оплата', 'Условия оплаты B2B-заказов запчастей для юридических лиц.'],
-    ];
+    public const INFO = ['about', 'contacts', 'delivery', 'payment'];
+    public const SYSTEM = ['catalog', 'brands', 'articles', 'request'];
 
-    private const SYSTEM = ['catalog', 'brands', 'articles', 'request'];
     private const RESERVED = ['admin', 'api', 'account', 'brand', 'cart', 'category', 'checkout', 'extension', 'image',
         'information', 'install', 'product', 'sitemaps', 'system', '_cmteh_platform'];
 
@@ -30,7 +27,7 @@ final class StorefrontPages
 
     public static function reserved(string $slug): bool
     {
-        return isset(self::INFO[$slug]) || in_array($slug, self::SYSTEM, true) || in_array($slug, self::RESERVED, true);
+        return in_array($slug, self::INFO, true) || in_array($slug, self::SYSTEM, true) || in_array($slug, self::RESERVED, true);
     }
 
     public function record(string $path): ?array
@@ -42,12 +39,9 @@ final class StorefrontPages
         if (count($parts) === 1) {
             [$slug] = $parts;
             if (in_array($slug, self::SYSTEM, true)) {
-                return [$slug, []];
+                return [$slug, $this->catalog->content('page', $slug) ?? ['is_indexable' => false]];
             }
-            if (isset(self::INFO[$slug])) {
-                return ['page', $this->catalog->content('page', $slug) ?? []];
-            }
-            if (self::reserved($slug) || !self::slug($slug)) {
+            if ((!in_array($slug, self::INFO, true) && self::reserved($slug)) || !self::slug($slug)) {
                 return null;
             }
             $page = $this->catalog->content('page', $slug);
@@ -77,15 +71,24 @@ final class StorefrontPages
 
         [$page, $record] = $route;
         $params = $this->params($rawParams);
-        $site = $this->catalog->content('site') ?? [];
+        $site = self::htmlFields($this->catalog->content('site') ?? []);
+        $site['logo_url'] = EditorialDefaults::imageUrl($site['logo'] ?? null);
+        $home = self::htmlFields($page === 'home' ? $record : ($this->catalog->content('home') ?? []));
+        $home['hero_image_url'] = EditorialDefaults::imageUrl($home['hero_image_path'] ?? null)
+            ?? $this->seo->assetUrl($home['hero_image'] ?? null);
+        $home['hero_mobile_image_url'] = EditorialDefaults::imageUrl($home['hero_mobile_image_path'] ?? null);
         $navigation = $this->catalog->content('navigation') ?? [];
         $model = [
             'brands' => $this->brands(), 'categories' => $this->categories(),
-            'home' => self::htmlFields($page === 'home' ? $record : ($this->catalog->content('home') ?? [])),
+            'home' => $home,
+            'landing' => in_array($page, self::SYSTEM, true) ? self::htmlFields($record) : [],
         ];
         $meta = [
             'canonical' => $this->seo->canonical($path, $record['canonical_url'] ?? null),
             'robots' => ($record['is_indexable'] ?? true) ? null : 'noindex,follow',
+            'title' => ($record['seo_title'] ?? '') ?: (($record['h1'] ?? '') ?: ($record['title'] ?? '')),
+            'description' => ($record['seo_description'] ?? '') ?: ($record['intro'] ?? ''),
+            'image' => $this->editorialImage($record['og_image'] ?? null, $record['og_image_path'] ?? null),
         ];
         $graphs = [$this->seo->organization($site)];
         $homeCrumb = ['Главная', $this->seo->url('/')];
@@ -94,16 +97,13 @@ final class StorefrontPages
         switch ($page) {
             case 'home':
                 $model += $this->catalog->products(['limit' => 6]);
-                $model['entries'] = $this->catalog->content('articles')['items'];
-                $meta['title'] = ($record['seo_title'] ?? '') ?: (($record['h1'] ?? '') ?: (($record['hero_title'] ?? '') ?: 'Запчасти для спецтехники'));
-                $meta['description'] = ($record['seo_description'] ?? '') ?: (($record['hero_text'] ?? '') ?: 'Найдите деталь по артикулу или отправьте список позиций для расчёта');
-                $meta['image'] = $this->seo->assetUrl($record['hero_image'] ?? null)
-                    ?? $this->seo->url('/extension/cmteh/catalog/view/assets/images/hero-industrial-v3.webp');
+                $model['entries'] = array_map(self::htmlFields(...), $this->catalog->content('articles')['items']);
+                $meta['title'] = $meta['title'] ?: ($record['hero_title'] ?? '');
+                $meta['description'] = $meta['description'] ?: ($record['hero_text'] ?? '');
+                $meta['image'] ??= $home['hero_image_url'] ? (str_starts_with($home['hero_image_url'], '/') ? $this->seo->url($home['hero_image_url']) : $home['hero_image_url']) : null;
                 break;
             case 'catalog':
                 $model += $this->catalog->products($params + ['limit' => 12]);
-                $meta['title'] = 'Каталог запчастей';
-                $meta['description'] = 'Мультибрендовый B2B-каталог запчастей для спецтехники с поиском по артикулу и OEM-коду.';
                 if ($this->filtered($rawParams)) {
                     $meta['robots'] = 'noindex,follow';
                 } elseif ($params['page'] > 1) {
@@ -111,8 +111,6 @@ final class StorefrontPages
                 }
                 break;
             case 'brands':
-                $meta['title'] = 'Бренды запчастей';
-                $meta['description'] = 'Каталог брендов запчастей для спецтехники: Caterpillar, Komatsu, JCB, John Deere и другие.';
                 break;
             case 'brand':
             case 'category':
@@ -120,12 +118,13 @@ final class StorefrontPages
                 $model[$page] = $record;
                 $name = $record['name'] ?? $record['title'];
                 if ($page === 'brand') {
-                    $meta['title'] = 'Запчасти ' . $name;
-                    $meta['description'] = trim(($record['description'] ?? '') . ' Поиск и заявка на запчасти ' . $name . ' для юридических лиц.');
+                    $meta['title'] = $meta['title'] ?: 'Запчасти ' . $name;
+                    $meta['description'] = $meta['description'] ?: ($record['description'] ?? '');
                 } else {
                     $meta['title'] = ($record['seo_title'] ?? '') ?: (($record['h1'] ?? '') ?: $name);
                     $meta['description'] = ($record['seo_description'] ?? '') ?: ($record['description'] ?? '');
-                    $meta['image'] = $this->seo->assetUrl($record['image'] ?? null);
+                    $meta['image'] ??= !empty($record['image_url'])
+                        ? $this->seo->url($record['image_url']) : $this->seo->assetUrl($record['image'] ?? null);
                 }
                 $graphs[] = $this->seo->collection($record, $model['products'], $page, $meta['canonical']);
                 $graphs[] = $this->seo->breadcrumbs([$homeCrumb, $catalogCrumb, [$name, $meta['canonical']]]);
@@ -136,28 +135,32 @@ final class StorefrontPages
                 $model['heading'] = self::heading($record);
                 $model['related'] = $this->relatedProducts($record);
                 $meta['title'] = ($record['seo_title'] ?? '') ?: $model['heading'];
-                $meta['description'] = ($record['seo_description'] ?? '') ?: (($record['short_description'] ?? '')
-                    ?: "Запчасть {$record['brand']} {$record['sku']}. B2B-заявка и поставка.");
-                $meta['image'] = $this->seo->assetUrl($record['main_image']);
+                $meta['description'] = ($record['seo_description'] ?? '') ?: ($record['short_description'] ?? '');
+                $meta['image'] = !empty($record['main_image_url'])
+                    ? $this->seo->url($record['main_image_url']) : $this->seo->assetUrl($record['main_image'] ?? null);
                 if ($meta['image'] === null) {
                     foreach ($record['images'] as $image) {
-                        $meta['image'] = $this->seo->assetUrl($image['image']);
+                        $meta['image'] = !empty($image['image_url'])
+                            ? $this->seo->url($image['image_url']) : $this->seo->assetUrl($image['image'] ?? null);
                         if ($meta['image'] !== null) {
                             break;
                         }
                     }
                 }
                 $graphs[] = $this->seo->product($record, $model['heading'], $meta['canonical'], $meta['image']);
-                $graphs[] = $this->seo->breadcrumbs([$homeCrumb, $catalogCrumb,
-                    [$record['brand'], $this->seo->url('/brand/' . $record['brand_slug'])], [$record['sku'], $meta['canonical']]]);
+                $crumbs = [$homeCrumb, $catalogCrumb];
+                if (!empty($record['brand_slug']) && !empty($record['brand'])) {
+                    $crumbs[] = [$record['brand'], $this->seo->url('/brand/' . $record['brand_slug'])];
+                }
+                $crumbs[] = [$record['sku'], $meta['canonical']];
+                $graphs[] = $this->seo->breadcrumbs($crumbs);
                 break;
             case 'articles':
                 $articlePage = $this->catalog->content('articles', null, $params['page']);
-                $model += ['entries' => $articlePage['items']] + $articlePage;
-                $meta['title'] = 'Статьи и рекомендации';
-                $meta['description'] = 'Материалы о поиске запчастей и подготовке заявки.';
+                $model += ['entries' => array_map(self::htmlFields(...), $articlePage['items'])] + $articlePage;
                 if ($params['page'] > 1) {
-                    $meta['title'] .= ' — страница ' . $params['page'];
+                    $suffix = 'Страница ' . $params['page'];
+                    $meta['title'] = $meta['title'] === '' ? $suffix : $meta['title'] . ' — ' . mb_strtolower($suffix);
                     $meta['canonical'] .= '?page=' . $params['page'];
                 }
                 break;
@@ -168,34 +171,28 @@ final class StorefrontPages
                 $model['relatedLinks'] = $this->articleCategoryLinks($record);
                 foreach ($this->catalog->content('articles')['items'] as $candidate) {
                     if ($candidate['id'] !== $record['id']) {
-                        $model['related'] = $candidate;
+                        $model['related'] = self::htmlFields($candidate);
                         break;
                     }
                 }
                 $meta['title'] = ($record['seo_title'] ?? '') ?: $record['title'];
                 $meta['description'] = ($record['seo_description'] ?? '') ?: (($record['excerpt'] ?? '') ?: $record['title']);
-                $meta['image'] = $this->seo->assetUrl(($record['og_image'] ?? null) ?: ($record['cover_image'] ?? null));
+                $meta['image'] ??= $this->editorialImage($record['cover_image'] ?? null, $record['cover_image_path'] ?? null);
                 $graphs[] = $this->seo->article($record, $site, $meta['canonical']);
                 $graphs[] = $this->seo->breadcrumbs([$homeCrumb, ['Статьи', $this->seo->url('/articles')], [$record['title'], $meta['canonical']]]);
                 break;
             case 'page':
                 $slug = substr($path, 1);
-                [$defaultTitle, $defaultDescription] = self::INFO[$slug] ?? [$slug, ''];
                 $model['slug'] = $slug;
                 $model['content'] = self::htmlFields($record);
-                $meta['title'] = ($record['seo_title'] ?? '') ?: (($record['title'] ?? '') ?: $defaultTitle);
-                $meta['description'] = ($record['seo_description'] ?? '') ?: (($record['intro'] ?? '') ?: $defaultDescription);
-                $meta['image'] = $this->seo->assetUrl($record['og_image'] ?? null);
                 break;
             case 'request':
-                $meta['title'] = 'Корзина';
-                $meta['description'] = 'Проверьте список товаров и отправьте заявку на расчёт.';
                 $meta['robots'] = 'noindex,nofollow';
                 break;
         }
 
-        if ($page !== 'home') {
-            $meta['title'] .= ' | ' . (($site['company_name'] ?? '') ?: 'СМ ТЕХНО');
+        if ($page !== 'home' && !empty($site['company_name'])) {
+            $meta['title'] = $meta['title'] === '' ? $site['company_name'] : $meta['title'] . ' | ' . $site['company_name'];
         }
         $meta['description'] = StorefrontSeo::text($meta['description']);
         $jsonLd = [];
@@ -307,16 +304,25 @@ final class StorefrontPages
 
     private static function htmlFields(array $record): array
     {
-        if (isset($record['content']) && is_string($record['content'])) {
-            $record['body_html'] = $record['content'];
+        $record['body_html'] = is_string($record['content'] ?? null) ? $record['content'] : '';
+        $record['cover_url'] = EditorialDefaults::imageUrl($record['cover_image_path'] ?? null);
+        if (!is_array($record['sections'] ?? null)) {
+            $record['sections'] = [];
         }
-        foreach ($record['sections'] ?? [] as $index => $section) {
-            if (is_array($section) && isset($section['text']) && is_string($section['text'])) {
-                $record['sections'][$index]['text_html'] = $section['text'];
-            }
+        $record['sections'] = array_values(array_filter($record['sections'], 'is_array'));
+        foreach ($record['sections'] as &$section) {
+            $section['text_html'] = is_string($section['text'] ?? null) ? $section['text'] : '';
+            $section['image_url'] = EditorialDefaults::imageUrl($section['image_path'] ?? null);
         }
+        unset($section);
 
         return $record;
+    }
+
+    private function editorialImage(mixed $uuid, mixed $path): ?string
+    {
+        $image = EditorialDefaults::imageUrl($path);
+        return $image === null ? $this->seo->assetUrl($uuid) : $this->seo->url($image);
     }
 
     private static function articleBody(string $html): array

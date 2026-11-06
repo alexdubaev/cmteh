@@ -1,0 +1,8 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set cover = content.cover_url|default('') ?: ui.asset(content.cover_image|default('')) %}
+{% if cover %}<figure class="article-cover"><img src="{{ cover }}" alt="{{ content.image_alt|default('') }}"></figure>{% endif %}
+{% if content.body_html|default('') %}<section class="panel prose">{{ content.body_html|raw }}</section>{% endif %}
+{% if content.sections|default([]) %}{% include templates ~ 'sections.twig' with {sections: content.sections} %}{% endif %}
+{% if content.seo_text|default('') %}<section class="panel prose cms-seo-text"><p>{{ content.seo_text }}</p></section>{% endif %}
+{% endautoescape %}

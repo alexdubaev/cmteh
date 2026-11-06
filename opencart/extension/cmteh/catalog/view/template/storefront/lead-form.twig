@@ -2,7 +2,7 @@
 {% set rfq = leadType == 'request' %}
 <form class="lead-form panel" action="/api/lead" method="post" data-lead="{{ leadType }}" aria-busy="false">
   <h2>{{ rfq ? 'Данные для ответа' : 'Написать нам' }}</h2>
-  <p class="form-hint">* Обязательные поля{% if rfq %}. Уточним наличие и стоимость и свяжемся с вами.{% endif %}</p>
+  <p class="form-hint">* Обязательные поля{% if rfq and site.request_form_hint|default('') %}. {{ site.request_form_hint }}{% endif %}</p>
   <label>Компания<input name="company" autocomplete="organization" maxlength="255" placeholder="ООО «Пример»"></label>
   <label>Контактное лицо *<input name="name" autocomplete="name" required minlength="2" maxlength="100" placeholder="Имя" aria-describedby="{{ leadType }}-name-error"><span id="{{ leadType }}-name-error" class="field-error" hidden></span></label>
   <div class="form-row">

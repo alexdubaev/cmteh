@@ -1,30 +1,34 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
-{% set articles = footerNav|filter(item => item.url|default('')|split('?')|first|trim('/') == 'articles') %}
-{% set contactLabel = site.inn|default('') or site.kpp|default('') or site.ogrn|default('') ? 'Контакты и реквизиты' : 'Контакты' %}
 <footer class="site-footer">
   <div class="shell footer-grid">
-    <div><div class="brand footer-brand"><img class="brand-logo" src="{{ assets }}images/sm-techno-logo-transparent.webp" alt="{{ company }}" width="240" height="93"></div>
-      <p>{{ site.footer_text|default('B2B-каталог и поставка запчастей для спецтехники.') }}</p>
+    <div>
+      <div class="brand footer-brand">
+        {% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="{{ company }}" width="240" height="93">{% elseif company %}<strong>{{ company }}</strong>{% endif %}
+      </div>
+      {% if site.footer_text|default('') %}<p>{{ site.footer_text }}</p>{% endif %}
     </div>
-    <div><strong>Разделы</strong>
-      {% for item in footerNav|filter(item => item not in articles) %}{{ ui.nav(item) }}{% endfor %}
-      {% if footerNav is empty %}<a href="/catalog">Каталог</a><a href="/delivery">Доставка</a><a href="/payment">Оплата</a><a href="/request">Корзина</a><a href="/about">О компании</a><a href="/contacts">Контакты</a>{% endif %}
-      {{ ui.nav(articles|first|default({url: '/articles'}), 'Статьи') }}
-    </div>
-    <div><strong>Контакты</strong>
-      {% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
-      {% if tel matches '/^\d+$/' %}<a href="tel:{{ site.phone starts with '+' ? '+' : '' }}{{ tel }}">{{ site.phone }}</a>{% endif %}
-      {% if site.address|default('') %}<span>{{ [site.city|default(''), site.address]|filter(value => value)|join(', ') }}</span>{% endif %}
-      {% if site.working_hours|default('') %}<span>{{ site.working_hours }}</span>{% endif %}
-    </div>
-    <div class="footer-note"><span>B2B</span><p>{{ site.footer_disclaimer|default('Условия поставки, оплаты и документы подтверждаются менеджером при оформлении заявки.') }}</p></div>
+    {% if footerNav %}
+      <div>{% if site.footer_sections_title|default('') %}<strong>{{ site.footer_sections_title }}</strong>{% endif %}
+        {% for item in footerNav %}{{ ui.nav(item) }}{% endfor %}
+      </div>
+    {% endif %}
+    {% if site.footer_contacts_title|default('') or site.email|default('') or tel or site.address|default('') or site.working_hours|default('') %}
+      <div>{% if site.footer_contacts_title|default('') %}<strong>{{ site.footer_contacts_title }}</strong>{% endif %}
+        {% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+        {% if tel %}<a href="{{ tel }}">{{ site.phone }}</a>{% endif %}
+        {% if site.city|default('') or site.address|default('') %}<span>{{ [site.city|default(''), site.address|default('')]|filter(value => value)|join(', ') }}</span>{% endif %}
+        {% if site.working_hours|default('') %}<span>{{ site.working_hours }}</span>{% endif %}
+      </div>
+    {% endif %}
+    {% if site.footer_brand_label|default('') or site.footer_disclaimer|default('') %}
+      <div class="footer-note">{% if site.footer_brand_label|default('') %}<span>{{ site.footer_brand_label }}</span>{% endif %}{% if site.footer_disclaimer|default('') %}<p>{{ site.footer_disclaimer }}</p>{% endif %}</div>
+    {% endif %}
   </div>
+  {% if site.sections|default([]) %}<div class="shell">{% include templates ~ 'sections.twig' with {sections: site.sections} %}</div>{% endif %}
   <div class="shell footer-bottom">
-    <span>© {{ 'now'|date('Y') }} {{ company }}</span>
-    <div class="footer-legal">
-      {% for item in legalNav %}{{ ui.nav(item, item.url == '/contacts' ? contactLabel : '') }}{% else %}<a href="/contacts">{{ contactLabel }}</a>{% endfor %}
-    </div>
+    {% if site.footer_copyright|default('') %}<span>{{ site.footer_copyright }}</span>{% elseif company %}<span>© {{ 'now'|date('Y') }} {{ company }}</span>{% endif %}
+    {% if legalNav %}<div class="footer-legal">{% for item in legalNav %}{{ ui.nav(item) }}{% endfor %}</div>{% endif %}
   </div>
 </footer>
 {% endautoescape %}

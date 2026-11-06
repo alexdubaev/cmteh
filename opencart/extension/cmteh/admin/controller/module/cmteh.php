@@ -14,6 +14,11 @@ final class Cmteh extends Controller
 {
     private const ROUTE = 'extension/cmteh/module/cmteh';
     private const EVENT_CODE = 'cmteh_storefront_route';
+    private const NATIVE_CATALOG_ACTIONS = [
+        'category' => ['addCategory', 'editCategory', 'deleteCategory'],
+        'manufacturer' => ['addManufacturer', 'editManufacturer', 'deleteManufacturer'],
+        'product' => ['addProduct', 'editProduct', 'deleteProduct'],
+    ];
 
     public function index(): void
     {
@@ -63,6 +68,20 @@ final class Cmteh extends Controller
             ]);
         }
 
+        foreach ($this->nativeCatalogEvents() as $code => [$trigger, $action]) {
+            if (!$this->model_setting_event->getEventByCode($code)) {
+                $this->model_setting_event->addEvent([
+                    'code' => $code,
+                    'description' => 'СМ ТЕХНО: синхронизация каталога OpenCart',
+                    'trigger' => $trigger,
+                    'action' => $action,
+                    'status' => true,
+                    'sort_order' => 0,
+                ]);
+            }
+        }
+        $this->clearCompiledTemplates();
+
         if (!touch(Database::privateDir() . '/storefront.ready')) {
             throw new \RuntimeException('Cannot activate the storefront.');
         }
@@ -110,6 +129,47 @@ final class Cmteh extends Controller
 
         $this->load->model('setting/event');
         $this->model_setting_event->deleteEventByCode(self::EVENT_CODE);
+        foreach (array_keys($this->nativeCatalogEvents()) as $code) {
+            $this->model_setting_event->deleteEventByCode($code);
+        }
+    }
+
+    private function nativeCatalogEvents(): array
+    {
+        $events = [];
+        $handler = 'extension/cmteh/event/cmteh_catalog';
+        foreach (self::NATIVE_CATALOG_ACTIONS as $model => $methods) {
+            foreach ($methods as $method) {
+                $events['cmteh_native_' . $method] = ["admin/model/catalog/$model.$method/after", $handler . '.synchronize'];
+            }
+            foreach (['save', 'delete'] as $method) {
+                $events['cmteh_native_report_' . $model . '_' . $method] = [
+                    "admin/controller/catalog/$model.$method/after", $handler . '.reportSyncFailure',
+                ];
+            }
+        }
+        return $events;
+    }
+
+    private function clearCompiledTemplates(): void
+    {
+        $directory = DIR_CACHE . 'template';
+        if (!is_dir($directory)) {
+            return;
+        }
+        // Extracted templates can be older than compiled PHP from the prior release.
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS));
+        foreach ($files as $file) {
+            if (!$file->isFile() || $file->isLink() || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $path = $file->getPathname();
+            $source = @file_get_contents($path);
+            if (is_string($source) && str_contains($source, 'return "extension/cmteh/')
+                && !@unlink($path) && is_file($path)) {
+                throw new \RuntimeException('Cannot invalidate the compiled CMTEH template.');
+            }
+        }
     }
 
     private function migrate(): void
@@ -122,7 +182,9 @@ final class Cmteh extends Controller
 
         if (is_file($system . 'Catalog.php')) {
             require_once $system . 'Catalog.php';
-            (new Catalog($pdo, DB_PREFIX, (int) $this->config->get('config_language_id'), 0, $private))->migrate();
+            $catalog = new Catalog($pdo, DB_PREFIX, (int) $this->config->get('config_language_id'), 0, $private);
+            $catalog->migrate();
+            $catalog->migrateEditorialContent();
         }
         if (is_file($system . 'Lead.php')) {
             require_once $system . 'Lead.php';

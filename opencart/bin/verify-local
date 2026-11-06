@@ -13,8 +13,8 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dev"))
-from release_checks import (admin_roles, check_recovery, collect_browser, import_fixture, lint,
-                            preflight, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
+from release_checks import (admin_roles, check_recovery, collect_browser, editorial_content, import_fixture, lint,
+                            native_catalog_editor, preflight, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
 from runtime import LocalOpenCart, build
 
 
@@ -56,7 +56,7 @@ def main() -> None:
 
         runtime.smoke()
         lint(runtime)
-        demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 49, "release-demo")
+        demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 36, "release-demo", expected_updated=13)
         run_php_suite(runtime, "catalog-integration.php")
         run_php_suite(runtime, "lead-integration.php")
         run_http(runtime, evidence)
@@ -65,6 +65,8 @@ def main() -> None:
         lead_id = submit_lead(runtime, "до снимка")
         admin_roles(runtime, lead_id)
         check_recovery(runtime, upstream, lead_id)
+        editorial_content(runtime)
+        native_catalog_editor(runtime)
         require(extension_hash == sha256(runtime.directory / "cmteh.ocmod.zip"),
                 "The application source changed during verification. Re-run from stable sources.")
 

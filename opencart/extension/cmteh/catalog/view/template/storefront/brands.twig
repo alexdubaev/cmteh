@@ -1,10 +1,12 @@
 {% autoescape 'html' %}
 <div class="shell page-shell">
   <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>Бренды</span></div>
-  <div class="page-title"><h1>Бренды техники</h1><p>Выберите производителя, чтобы посмотреть запчасти в каталоге.</p></div>
+  {% set landing = model.landing|default({}) %}
+  <div class="page-title"><h1>{{ landing.h1|default(landing.title|default('Бренды')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
+  {% include templates ~ 'editorial.twig' with {content: landing} %}
   <div class="brand-cards">
     {% for brand in brands %}
-      <a class="brand-card panel" href="/brand/{{ brand.slug|url_encode }}"><span class="brand-card-code">{{ brand.name|slice(0, 3)|upper }}</span><h2>{{ brand.name }}</h2><p>{{ brand.description }}</p><strong>Открыть каталог →</strong></a>
+      <a class="brand-card panel" href="/brand/{{ brand.slug|url_encode }}">{% if brand.image_url|default('') %}<img class="brand-card-code" src="{{ brand.image_url }}" alt="" loading="lazy">{% else %}<span class="brand-card-code">{{ brand.name|slice(0, 3)|upper }}</span>{% endif %}<h2>{{ brand.name }}</h2><p>{{ brand.description }}</p><strong>Открыть каталог →</strong></a>
     {% else %}<p>В каталоге пока нет опубликованных брендов.</p>{% endfor %}
   </div>
 </div>
