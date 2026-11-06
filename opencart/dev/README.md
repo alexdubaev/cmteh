@@ -12,14 +12,12 @@ PHP 8.3.36, MySQL 8.4.13 и Apache. Кандидат ядра закреплён
 IPv4-подсетью, например /28, после проверки существующих сетей.
 
 ```text
-python opencart/bin/verify-local --upstream PATH_TO_OFFICIAL_ZIP --runtime-dir PRIVATE_RUNTIME_DIR --port 3154
+python opencart/bin/verify-local --upstream PATH_TO_OFFICIAL_ZIP --runtime-dir NEW_PRIVATE_RUNTIME_DIR --reference-dir REFERENCE_PNG_DIR --port 3156
 ```
 
-Команда собирает расширение, использует штатный CLI установщика OpenCart,
-ставит пакет и модуль через админку, применяет миграции и проверяет HTTP,
-PDO/MySQL и PHP lint. С существующим тестовым runtime копирует новые файлы
-расширения и снова запускает миграции. Для проверки чистой установки
-используйте новый runtime и незанятый порт.
+Полный gate описан в [README OpenCart](../README.md). Он использует новый
+runtime и незанятый порт. Для обновления существующего тестового стенда
+используйте `runtime.py ... start --upstream PATH_TO_OFFICIAL_ZIP --refresh`.
 
 ```text
 python opencart/dev/runtime.py --runtime-dir PRIVATE_RUNTIME_DIR --port 3154 compose exec -T web php -v

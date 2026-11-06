@@ -2,30 +2,82 @@
 """Verify the OpenCart package on the isolated local PHP/MySQL stack."""
 
 import argparse
+import hashlib
+import json
 from pathlib import Path
+import socket
+import subprocess
 import sys
+from urllib.error import URLError
+from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dev"))
-from runtime import LocalOpenCart
+from release_checks import (admin_roles, check_recovery, collect_browser, import_fixture, lint,
+                            preflight, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
+from runtime import LocalOpenCart, build
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upstream", type=Path, required=True)
     parser.add_argument("--runtime-dir", type=Path, required=True)
-    parser.add_argument("--port", type=int, default=3154)
+    parser.add_argument("--reference-dir", type=Path, required=True, help="18 PNG captures of the locked Next.js reference")
+    parser.add_argument("--browser-tooling", type=Path, default=ROOT.parent,
+                        help="checkout containing the locked Playwright installation")
+    parser.add_argument("--port", type=int, default=3156)
     args = parser.parse_args()
 
     runtime = LocalOpenCart(args.runtime_dir, args.port)
-    runtime.start(args.upstream, refresh=True)
-    runtime.smoke()
-    runtime.docker("exec", "-T", "web", "sh", "-c",
-                   "find /workspace -name '*.php' -type f -exec php -l '{}' ';' | "
-                   "awk '/^No syntax errors detected/ { good++; next } { print; bad++ } "
-                   "END { print good+0, \"PHP files linted\"; exit (bad > 0 || good == 0) }'")
-    runtime.docker("exec", "-T", "web", "php", "--version")
-    runtime.docker("exec", "-T", "db", "mysqld", "--version")
+    upstream = args.upstream.resolve()
+    evidence = runtime.directory / "evidence"
+    artifacts = runtime.directory / "artifacts"
+    try:
+        require(not runtime.directory.exists() or not any(runtime.directory.iterdir()),
+                "The release gate requires a new empty runtime directory and an unused loopback port.")
+        with socket.socket() as port_check:
+            port_check.bind(("127.0.0.1", runtime.port))
+        existing = subprocess.check_output(
+            ["docker", "volume", "ls", "-q", "--filter", "label=com.docker.compose.project=" + runtime.project],
+            text=True,
+        )
+        require(not existing.strip(), "The selected runtime path already has Compose volumes. Choose a new path.")
+        preflight(args.browser_tooling.resolve(), args.reference_dir.resolve())
+        package = build(upstream, artifacts)
+        evidence.mkdir()
+
+        runtime.start(upstream, refresh=False)
+        with ZipFile(package) as archive:
+            extension_hash = hashlib.sha256(archive.read("cmteh.ocmod.zip")).hexdigest()
+            upstream_hash = hashlib.sha256(archive.read("opencart-4.1.0.4.zip")).hexdigest()
+        require(extension_hash == sha256(runtime.directory / "cmteh.ocmod.zip")
+                and upstream_hash == sha256(upstream), "The installed input differs from the candidate archive.")
+        print("PASS: the native installation used the candidate's OpenCart and extension bytes", flush=True)
+
+        runtime.smoke()
+        lint(runtime)
+        demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 49, "release-demo")
+        run_php_suite(runtime, "catalog-integration.php")
+        run_php_suite(runtime, "lead-integration.php")
+        run_http(runtime, evidence)
+        collect_browser(runtime, args.browser_tooling.resolve(), args.reference_dir.resolve(), evidence)
+        media = verify_media(runtime)
+        lead_id = submit_lead(runtime, "до снимка")
+        admin_roles(runtime, lead_id)
+        check_recovery(runtime, upstream, lead_id)
+        require(extension_hash == sha256(runtime.directory / "cmteh.ocmod.zip"),
+                "The application source changed during verification. Re-run from stable sources.")
+
+        php = runtime.docker("exec", "-T", "web", "php", "--version", capture=True).stdout.splitlines()[0]
+        mysql = runtime.docker("exec", "-T", "db", "mysqld", "--version", capture=True).stdout.strip()
+        data = {"local_gate": "PASS", "origin": runtime.origin, "opencart": "4.1.0.4",
+                "php": php, "mysql": mysql, "upstream_sha256": upstream_hash, "extension_sha256": extension_hash,
+                "candidate": package.name, "sha256": sha256(package),
+                "imports": {"demo": demo, "media": media}, "staging": "NOT RUN", "production": "NOT RUN"}
+        (evidence / "release.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"PASS: {php}, {mysql}\nCandidate: {package}\nSHA-256: {data['sha256']}\nEvidence: {evidence}", flush=True)
+    except (OSError, URLError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f"Release gate failed: {error}\n")
 
 
 if __name__ == "__main__":
