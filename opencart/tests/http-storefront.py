@@ -73,6 +73,8 @@ def main():
     home, _ = request("/")
     assert '<h1' in home.decode() and 'Запчасти для спецтехники' in home.decode(), "expected Twig homepage"
     assert schemas(home, "Organization"), "missing Organization"
+    tracked_home, _ = request("/?utm_source=legacy")
+    assert metadata(tracked_home, "canonical") == base + "/"
     print("PASS Twig homepage and Organization")
 
     static_paths = (
@@ -189,6 +191,21 @@ def main():
         print("PASS only confirmed zero price receives a visible Offer")
         _, headers = request("/http-test-old", 301)
         assert headers["Location"] == base + "/product/jd-re568158"
+        _, headers = request("/catalog/CATERPILLAR", 301)
+        assert headers["Location"] == base + "/brand/caterpillar"
+        _, headers = request("/catalog/%D0%9D%D0%BE%D0%B2%D0%B8%D0%BD%D0%BA%D0%B8", 301)
+        assert headers["Location"] == base + "/articles"
+        for path in ("/catalog/CATERPILLAR?&page=2", "/catalog/CATERPILLAR/?page=2"):
+            _, headers = request(path, 301)
+            assert headers["Location"] == base + "/category/filters"
+        _, headers = request("/?page=3", 301)
+        assert headers["Location"] == base + "/catalog"
+        _, headers = request("/news?sid=2", 301)
+        assert headers["Location"] == base + "/articles"
+        for path in ("/catalog/caterpillar", "/catalog/unknown", "/catalog/CATERPILLAR?page=1",
+                     "/catalog/CATERPILLAR?page=2&page=3", "/catalog/CATERPILLAR?sort=price",
+                     "/catalog/CATERPILLAR?page=1000", "/?page=2", "/news?sid=4", "/news?sid=2&sid=3"):
+            request(path, 404)
         request("/http-test-gone", 410)
         request("/http-test-chain", 404)
         request("/http-test-loop", 404)
@@ -200,7 +217,7 @@ def main():
         request("/api/assets/22222222-2222-4222-8222-222222222222", 404)
         _, headers = request("/api/assets/33333333-3333-4333-8333-333333333333", 301)
         assert headers["Location"] == base + "/api/assets/11111111-1111-4111-8111-111111111111"
-        print("PASS imported redirect, 410, chain/loop guard, full-path slug and public/private media")
+        print("PASS exact legacy paths and selectors, imported redirect, 410, chain/loop guard, full-path slug and public/private media")
 
 
 if __name__ == "__main__":

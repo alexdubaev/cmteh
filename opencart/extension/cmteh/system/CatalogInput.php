@@ -13,6 +13,9 @@ use InvalidArgumentException;
 
 final class CatalogInput
 {
+    private const LEGACY_CATALOG_PATHS = ['/catalog/JOHN-DEERE', '/catalog/CATERPILLAR', '/catalog/MILEQUIP',
+        '/catalog/Analogi', '/catalog/Новинки', '/catalog/Хиты-продаж', '/catalog/Товары-на-главной'];
+
     public static function text(mixed $value, int $max, string $field, bool $required = false): string
     {
         if ($value === null && !$required) {
@@ -97,6 +100,40 @@ final class CatalogInput
             throw new InvalidArgumentException('path: требуется полный путь сайта без query');
         }
         return $path;
+    }
+
+    public static function routeSource(mixed $value): string
+    {
+        $source = self::text($value, 512, 'path', true);
+        if (str_contains($source, '?')) {
+            [$path, $query] = explode('?', $source, 2);
+            $path = self::path($path);
+            $query = self::legacyRouteQuery($path, $query);
+            if ($query === null) {
+                throw new InvalidArgumentException('path: недопустимый источник перенаправления');
+            }
+            return $path . '?' . $query;
+        }
+        return self::path($source);
+    }
+
+    public static function legacyRouteQuery(string $path, string $query): ?string
+    {
+        if ($path === '/' || in_array($path, self::LEGACY_CATALOG_PATHS, true)) {
+            if (!preg_match('/^&?page=([1-9][0-9]{0,2})$/D', $query, $match)) {
+                return null;
+            }
+            return 'page=' . (int) $match[1];
+        }
+        if ($path === '/news' && preg_match('/^sid=([1-3])$/D', $query, $match)) {
+            return 'sid=' . $match[1];
+        }
+        return null;
+    }
+
+    public static function isLegacyQueryScope(string $path): bool
+    {
+        return $path === '/' || $path === '/news' || in_array($path, self::LEGACY_CATALOG_PATHS, true);
     }
 
     public static function publicImagePath(mixed $value): ?string
