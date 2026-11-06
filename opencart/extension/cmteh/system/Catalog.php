@@ -61,7 +61,7 @@ final class Catalog
             'price_asc' => "x.price_status <> 'fixed', p.price ASC",
             'price_desc' => "x.price_status <> 'fixed', p.price DESC",
             'title' => 'd.name ASC',
-            default => 'public_image IS NULL, p.sort_order ASC',
+            default => "public_image IS NULL AND p.image = '', p.sort_order ASC",
         };
         if ($needle !== '' && empty($query['sort'])) {
             $order = 'CASE WHEN x.sku_norm = ? THEN 0 WHEN x.mpn_norm = ? THEN 1
@@ -105,9 +105,20 @@ final class Catalog
         $product['codes'] = $details['codes'] ?? [];
         $product['images'] = array_values(array_filter($details['images'] ?? [], static fn(array $item): bool =>
             isset($media[$item['image']]) && str_starts_with($media[$item['image']], 'image/')));
+        foreach ($details['native_gallery'] ?? [] as $image) {
+            $url = self::publicImageUrl($image);
+            if ($url !== null) {
+                $product['images'][] = ['image_url' => $url, 'alt_text' => ''];
+            }
+        }
         $product['documents'] = array_values(array_filter($details['documents'] ?? [], static fn(array $item): bool =>
             isset($media[$item['file']]) && $media[$item['file']] === 'application/pdf'));
         $product['specification_items'] = $this->specifications((int) $row['product_id'], $details['specification_items'] ?? []);
+        if (!empty($details['native_edited'])) {
+            $product['specification_items'] = $this->mergeNativeSpecifications(
+                (int) $row['product_id'], $product['specification_items'],
+            );
+        }
         $product['specifications'] = array_column($product['specification_items'], 'value', 'name');
         $product['relations'] = [];
         foreach ($details['relations'] ?? [] as $relation) {
@@ -119,36 +130,60 @@ final class Catalog
                 $product['relations'][] = ['relation_type' => $relation['relation_type'], 'product' => $this->productDto($related)];
             }
         }
-        $product['full_description'] = $this->visibleHtml(CatalogInput::html($row['description']), $media);
+        $existingRelations = array_column(array_column($product['relations'], 'product'), 'id');
+        foreach ($details['native_related'] ?? [] as $nativeId) {
+            $related = $this->run(
+                $this->productSelect() . $this->productFrom() . ' WHERE ' . $this->publicProduct() . ' AND x.product_id = ?',
+                [(int) $nativeId],
+            )->fetch(PDO::FETCH_ASSOC);
+            if ($related && !in_array($related['source_id'], $existingRelations, true)) {
+                $product['relations'][] = ['relation_type' => 'related', 'product' => $this->productDto($related)];
+                $existingRelations[] = $related['source_id'];
+            }
+        }
+        $description = self::nativeText($row['description'], $details);
+        $product['full_description'] = $this->visibleHtml(CatalogInput::html($description), $media);
         return $product;
     }
 
     public function brands(): array
     {
-        $sql = 'SELECT b.slug, b.data, m.name FROM ' . $this->table('cmteh_brand') . ' b
+        $sql = 'SELECT b.slug, b.data, m.name, m.image FROM ' . $this->table('cmteh_brand') . ' b
             JOIN ' . $this->table('manufacturer') . ' m USING (manufacturer_id)
             JOIN ' . $this->table('manufacturer_to_store') . ' s USING (manufacturer_id)
             WHERE b.status = 1 AND b.published_at <= UTC_TIMESTAMP() AND s.store_id = ? ORDER BY m.sort_order, m.manufacturer_id';
-        return array_map(static fn(array $row): array => array_replace(
-            self::decode($row['data']), ['slug' => $row['slug'], 'name' => $row['name']]
-        ), $this->run($sql, [$this->storeId])->fetchAll(PDO::FETCH_ASSOC));
+        return array_map(static function (array $row): array {
+            $data = self::decode($row['data']);
+            return array_replace($data, [
+                'slug' => $row['slug'],
+                'name' => self::nativeText($row['name'], $data),
+                'image_url' => self::publicImageUrl($row['image']),
+            ]);
+        }, $this->run($sql, [$this->storeId])->fetchAll(PDO::FETCH_ASSOC));
     }
 
     public function categories(): array
     {
-        $sql = 'SELECT c.category_id, x.source_id, x.slug, x.data, d.name, d.description, d.meta_title, d.meta_description
+        $sql = 'SELECT c.category_id, c.image, x.source_id, x.slug, x.data, d.name, d.description, d.meta_title, d.meta_description,
+                parent.slug AS parent_slug
             FROM ' . $this->table('cmteh_category') . ' x JOIN ' . $this->table('category') . ' c USING (category_id)
             JOIN ' . $this->table('category_description') . ' d USING (category_id)
             JOIN ' . $this->table('category_to_store') . ' s USING (category_id)
-            WHERE c.status = 1 AND x.published_at <= UTC_TIMESTAMP() AND d.language_id = ? AND s.store_id = ? ORDER BY c.sort_order, c.category_id';
+            LEFT JOIN ' . $this->table('cmteh_category') . ' parent ON parent.category_id = c.parent_id
+            WHERE c.status = 1 AND x.published_at <= UTC_TIMESTAMP() AND d.language_id = ? AND s.store_id = ?
+                AND ' . $this->publicCategoryAncestors('c') . '
+            ORDER BY c.sort_order, c.category_id';
         return array_map(function (array $row): array {
             $media = $this->approvedMedia('category', $row['source_id']);
             $data = self::decode($row['data']);
             return array_replace($data, [
-                'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => $row['name'],
-                'description' => $this->visibleHtml(CatalogInput::html($row['description']), $media),
-                'seo_title' => $row['meta_title'] ?: null, 'seo_description' => $row['meta_description'] ?: null,
+                'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => self::nativeText($row['name'], $data),
+                'parent_slug' => $row['parent_slug'],
+                'description' => $this->visibleHtml(CatalogInput::html(self::nativeText($row['description'], $data)), $media),
+                'seo_title' => self::nativeText($row['meta_title'], $data) ?: null,
+                'seo_description' => self::nativeText($row['meta_description'], $data) ?: null,
                 'image' => isset($media[$data['image'] ?? '']) ? $data['image'] : null,
+                'image_url' => self::publicImageUrl($row['image']),
             ]);
         }, $this->run($sql, [$this->languageId, $this->storeId])->fetchAll(PDO::FETCH_ASSOC));
     }
@@ -237,11 +272,26 @@ final class Catalog
     {
         $where = [$this->publicProduct()];
         $params = [];
-        foreach (['brand' => 'b.slug', 'category' => 'c.slug', 'availability' => 'x.availability', 'partType' => 'x.part_type'] as $key => $column) {
+        foreach (['brand' => 'b.slug', 'availability' => 'x.availability', 'partType' => 'x.part_type'] as $key => $column) {
             if (isset($query[$key]) && is_string($query[$key]) && $query[$key] !== '') {
                 $where[] = "$column = ?";
                 $params[] = $query[$key];
             }
+        }
+        if (is_string($query['category'] ?? null) && $query['category'] !== '') {
+            $store = $this->storeId;
+            $where[] = 'EXISTS (
+                SELECT 1 FROM ' . $this->table('product_to_category') . ' member
+                JOIN ' . $this->table('category') . ' assigned ON assigned.category_id = member.category_id AND assigned.status = 1
+                JOIN ' . $this->table('category_to_store') . " assigned_store ON assigned_store.category_id = assigned.category_id
+                    AND assigned_store.store_id = $store
+                JOIN " . $this->table('cmteh_category') . ' assigned_map ON assigned_map.category_id = assigned.category_id
+                    AND assigned_map.published_at <= UTC_TIMESTAMP()
+                JOIN ' . $this->table('category_path') . ' assigned_path ON assigned_path.category_id = assigned.category_id
+                JOIN ' . $this->table('cmteh_category') . ' selected ON selected.category_id = assigned_path.path_id
+                WHERE member.product_id = p.product_id AND selected.slug = ? AND ' . $this->publicCategoryAncestors('assigned') . '
+            )';
+            $params[] = $query['category'];
         }
         if ($needle !== '') {
             $where[] = '(x.product_id IN (
@@ -255,8 +305,8 @@ final class Catalog
 
     private function productSelect(): string
     {
-        return 'SELECT x.*, p.price AS native_price, p.date_modified, d.name, d.description,
-            d.meta_title, d.meta_description, m.name AS brand_name, b.slug AS brand_slug,
+        return 'SELECT x.*, p.price AS native_price, p.image AS native_image, p.date_modified, d.name, d.description,
+            d.meta_title, d.meta_description, m.name AS brand_name, b.slug AS brand_slug, b.data AS brand_data,
             c.source_id AS category_source_id, c.slug AS category_slug, cd.name AS category_title,
             image.uuid AS public_image ';
     }
@@ -269,13 +319,14 @@ final class Catalog
             JOIN ' . $this->table('product') . ' p ON p.product_id = x.product_id
             JOIN ' . $this->table('product_description') . " d ON d.product_id = p.product_id AND d.language_id = $language
             JOIN " . $this->table('product_to_store') . " s ON s.product_id = p.product_id AND s.store_id = $store
-            JOIN " . $this->table('manufacturer') . ' m ON m.manufacturer_id = p.manufacturer_id
-            JOIN ' . $this->table('cmteh_brand') . ' b ON b.manufacturer_id = m.manufacturer_id AND b.status = 1 AND b.published_at <= UTC_TIMESTAMP()
-            JOIN ' . $this->table('manufacturer_to_store') . " ms ON ms.manufacturer_id = m.manufacturer_id AND ms.store_id = $store
+            LEFT JOIN " . $this->table('manufacturer') . ' m ON m.manufacturer_id = p.manufacturer_id
+            LEFT JOIN ' . $this->table('cmteh_brand') . ' b ON b.manufacturer_id = m.manufacturer_id AND b.status = 1 AND b.published_at <= UTC_TIMESTAMP()
+            LEFT JOIN ' . $this->table('manufacturer_to_store') . " ms ON ms.manufacturer_id = m.manufacturer_id AND ms.store_id = $store
             LEFT JOIN " . $this->table('product_to_category') . ' pc ON pc.product_id = p.product_id AND pc.category_id = x.category_id
             LEFT JOIN ' . $this->table('category') . ' nc ON nc.category_id = pc.category_id AND nc.status = 1
             LEFT JOIN ' . $this->table('category_to_store') . " cs ON cs.category_id = nc.category_id AND cs.store_id = $store
             LEFT JOIN " . $this->table('cmteh_category') . ' c ON c.category_id = cs.category_id AND c.published_at <= UTC_TIMESTAMP()
+                AND ' . $this->publicCategoryAncestors('nc') . '
             LEFT JOIN ' . $this->table('category_description') . " cd ON cd.category_id = c.category_id AND cd.language_id = $language
             LEFT JOIN " . $this->table('cmteh_media_link') . " imlink
                 ON imlink.uuid = x.main_image AND imlink.owner_type = 'product' AND imlink.owner_id = x.source_id
@@ -285,7 +336,24 @@ final class Catalog
 
     private function publicProduct(): string
     {
-        return 'p.status = 1 AND p.date_available <= UTC_DATE() AND x.published_at <= UTC_TIMESTAMP()';
+        return 'p.status = 1 AND p.date_available <= UTC_DATE() AND x.published_at <= UTC_TIMESTAMP()
+            AND (p.manufacturer_id = 0 OR (b.manufacturer_id IS NOT NULL AND ms.manufacturer_id IS NOT NULL))';
+    }
+
+    private function publicCategoryAncestors(string $categoryAlias): string
+    {
+        $store = $this->storeId;
+        return 'NOT EXISTS (
+            SELECT 1 FROM ' . $this->table('category_path') . ' ancestors
+            LEFT JOIN ' . $this->table('category') . ' ancestor ON ancestor.category_id = ancestors.path_id
+            LEFT JOIN ' . $this->table('category_to_store') . " ancestor_store ON ancestor_store.category_id = ancestors.path_id
+                AND ancestor_store.store_id = $store
+            LEFT JOIN " . $this->table('cmteh_category') . ' ancestor_map ON ancestor_map.category_id = ancestors.path_id
+                AND ancestor_map.published_at <= UTC_TIMESTAMP()
+            WHERE ancestors.category_id = ' . $categoryAlias . '.category_id
+                AND (ancestor.status IS NULL OR ancestor.status <> 1 OR ancestor_store.category_id IS NULL
+                    OR ancestor_map.category_id IS NULL)
+        )';
     }
 
     private function productDto(array $row): array
@@ -299,21 +367,74 @@ final class Catalog
             $priceStatus = 'on_request';
         }
         return [
-            'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => $row['name'],
-            'sku' => $row['sku'], 'mpn' => $row['mpn'], 'brand' => $row['brand_name'], 'brand_slug' => $row['brand_slug'],
+            'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => self::nativeText($row['name'], $data),
+            'sku' => $row['sku'], 'mpn' => $row['mpn'],
+            'brand' => self::nativeText($row['brand_name'] ?? '', isset($row['brand_data']) ? self::decode($row['brand_data']) : []),
+            'brand_slug' => $row['brand_slug'] ?? '',
             'short_description' => $data['short_description'] ?? null, 'full_description' => null,
             'price' => $priceStatus === 'fixed' ? $price : null,
             'currency' => $row['currency'], 'price_status' => $priceStatus,
             'availability_status' => $row['availability'], 'part_type' => $row['part_type'],
             'main_image' => $row['public_image'],
+            'main_image_url' => self::publicImageUrl($row['native_image']),
             'category' => $row['category_slug'] !== null ? [
                 'id' => $row['category_source_id'], 'slug' => $row['category_slug'], 'title' => $row['category_title'],
             ] : null,
             'specifications' => $data['specifications'] ?? null, 'delivery_status' => $data['delivery_status'] ?? null,
-            'seo_title' => $row['meta_title'] ?: null, 'seo_description' => $row['meta_description'] ?: null,
+            'seo_title' => self::nativeText($row['meta_title'], $data) ?: null,
+            'seo_description' => self::nativeText($row['meta_description'], $data) ?: null,
             'canonical_url' => $data['canonical_url'] ?? null,
             'is_indexable' => (bool) $row['indexable'], 'date_updated' => str_replace(' ', 'T', $row['date_modified']) . 'Z',
         ];
+    }
+
+    private function mergeNativeSpecifications(int $productId, array $items): array
+    {
+        $known = [];
+        foreach ($items as $item) {
+            $known[$item['group_name'] . "\\0" . $item['name']] = true;
+        }
+        $query = 'SELECT ad.name, gd.name AS group_name, p.text AS value
+            FROM ' . $this->table('product_attribute') . ' p
+            JOIN ' . $this->table('attribute') . ' a USING (attribute_id)
+            JOIN ' . $this->table('attribute_description') . ' ad ON ad.attribute_id = a.attribute_id AND ad.language_id = p.language_id
+            LEFT JOIN ' . $this->table('attribute_group_description') . ' gd
+                ON gd.attribute_group_id = a.attribute_group_id AND gd.language_id = p.language_id
+            WHERE p.product_id = ? AND p.language_id = ? ORDER BY a.sort_order, a.attribute_id LIMIT 100';
+        foreach ($this->run($query, [$productId, $this->languageId])->fetchAll(PDO::FETCH_ASSOC) as $item) {
+            $name = html_entity_decode($item['name'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $group = html_entity_decode($item['group_name'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (!isset($known[$group . "\\0" . $name])) {
+                $items[] = [
+                    'name' => $name, 'group_name' => $group,
+                    'value' => html_entity_decode($item['value'], ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                ];
+            }
+        }
+        return $items;
+    }
+
+    private static function nativeText(string $value, array $data): string
+    {
+        return !empty($data['native_edited']) ? html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8') : $value;
+    }
+
+    private static function publicImageUrl(mixed $value): ?string
+    {
+        $relative = CatalogInput::publicImagePath($value);
+        if ($relative === null || !defined('DIR_IMAGE')) {
+            return null;
+        }
+        $imageRoot = realpath(DIR_IMAGE);
+        $catalog = realpath(DIR_IMAGE . 'catalog');
+        $file = realpath(DIR_IMAGE . $relative);
+        if ($imageRoot === false || $catalog === false || $file === false
+            || !str_starts_with($catalog, $imageRoot . DIRECTORY_SEPARATOR)
+            || !str_starts_with($file, $catalog . DIRECTORY_SEPARATOR) || !is_file($file)) {
+            return null;
+        }
+        $type = (new \finfo(FILEINFO_MIME_TYPE))->file($file);
+        return in_array($type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true) ? '/image/' . $relative : null;
     }
 
     private function contentDto(array $row): array
@@ -376,7 +497,8 @@ final class Catalog
             return (bool) $this->run('SELECT 1 FROM ' . $this->table('cmteh_category') . ' x
                 JOIN ' . $this->table('category') . ' c USING (category_id)
                 JOIN ' . $this->table('category_to_store') . ' s USING (category_id)
-                WHERE x.source_id = ? AND c.status = 1 AND x.published_at <= UTC_TIMESTAMP() AND s.store_id = ?', [$id, $this->storeId])->fetchColumn();
+                WHERE x.source_id = ? AND c.status = 1 AND x.published_at <= UTC_TIMESTAMP() AND s.store_id = ?
+                    AND ' . $this->publicCategoryAncestors('c'), [$id, $this->storeId])->fetchColumn();
         }
         return (bool) $this->run('SELECT 1 FROM ' . $this->table('cmteh_content') .
             ' WHERE type = ? AND source_id = ? AND status = 1 AND published_at <= UTC_TIMESTAMP()', [$type, $id])->fetchColumn();

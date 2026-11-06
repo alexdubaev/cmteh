@@ -1,11 +1,13 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
 {% set entries = model.entries|default([]) %}
+{% set landing = model.landing|default({}) %}
 {% set current = model.page|default(1) %}
 {% set pages = (model.total|default(entries|length) / model.limit|default(12))|round(0, 'ceil') %}
 <div class="shell page-shell articles-list-page">
-  <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="/">Главная</a><span aria-hidden="true">/</span><span aria-current="page">Статьи</span></nav>
-  <header class="articles-list-header"><h1>Статьи и рекомендации</h1><p>Материалы о поиске запчастей и подготовке заявки.</p></header>
+  <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="/">Главная</a><span aria-hidden="true">/</span><span aria-current="page">{{ landing.title|default('Статьи') }}</span></nav>
+  <header class="articles-list-header"><h1>{{ landing.h1|default(landing.title|default('Статьи')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</header>
+  {% include templates ~ 'editorial.twig' with {content: landing} %}
   {% if entries %}<div class="articles-grid">{% for article in entries %}{{ ui.articleCard(article, 2) }}{% endfor %}</div>
   {% else %}<div class="articles-empty"><h2>{{ current > 1 ? 'На этой странице нет материалов' : 'Опубликованных материалов пока нет' }}</h2><p>Вы можете перейти в каталог или вернуться к списку статей позже.</p><a href="{{ current > 1 ? '/articles' : '/catalog' }}" class="button button-secondary">{{ current > 1 ? 'К первой странице' : 'В каталог' }}</a></div>{% endif %}
   {% if current > 1 or pages > current %}<nav class="articles-pagination" aria-label="Страницы статей">

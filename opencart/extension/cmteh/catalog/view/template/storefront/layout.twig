@@ -8,8 +8,9 @@
 {% set footerNav = navigation.footer ?? navigation|default([])|filter(item => item.location|default('') == 'footer') %}
 {% set legalNav = navigation.legal ?? navigation|default([])|filter(item => item.location|default('') == 'legal') %}
 {% set home = model.home ?? (page == 'home' ? model.content|default({}) : {}) %}
-{% set company = site.company_name|default('СМ ТЕХНО') %}
-{% set tel = site.phone|default('')|replace({' ': '', '+': '', '(': '', ')': '', '-': '', '.': ''}) %}
+{% set company = site.company_name|default('') %}
+{% set digits = site.phone|default('')|replace({' ': '', '+': '', '(': '', ')': '', '-': '', '.': '', ' ': '', ' ': ''}) %}
+{% set tel = digits matches '/^[0-9]+$/' ? 'tel:' ~ (site.phone starts with '+' ? '+' : '') ~ digits : '' %}
 {% set title = meta.title|default(company) %}
 <!doctype html>
 <html lang="ru">

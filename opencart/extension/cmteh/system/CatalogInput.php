@@ -99,6 +99,22 @@ final class CatalogInput
         return $path;
     }
 
+    public static function publicImagePath(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        if (str_starts_with($value, '/image/')) {
+            $value = substr($value, strlen('/image/'));
+        } elseif (str_starts_with($value, 'image/')) {
+            $value = substr($value, strlen('image/'));
+        }
+        if (strlen($value) > 512 || !preg_match('~^catalog/(?:[a-zA-Z0-9_-][a-zA-Z0-9_.-]*/)*[a-zA-Z0-9_-][a-zA-Z0-9_.-]*[.](?:png|jpe?g|gif|webp|ico)$~iD', $value)) {
+            return null;
+        }
+        return $value;
+    }
+
     public static function url(mixed $value, bool $image = false): ?string
     {
         if (!is_string($value)) {
@@ -109,8 +125,11 @@ final class CatalogInput
             return null;
         }
         if ($image) {
-            return preg_match('~^/api/assets/([a-f0-9-]{36})$~iD', $value, $match) && self::uuid($match[1]) !== null
-                ? '/api/assets/' . strtolower($match[1]) : null;
+            if (preg_match('~^/api/assets/([a-f0-9-]{36})$~iD', $value, $match) && self::uuid($match[1]) !== null) {
+                return '/api/assets/' . strtolower($match[1]);
+            }
+            $path = self::publicImagePath($value);
+            return $path === null ? null : '/image/' . $path;
         }
         if (str_starts_with($value, '/') && !str_starts_with($value, '//')) {
             return $value;
@@ -180,6 +199,8 @@ final class CatalogInput
                         && preg_match('/^[1-9][0-9]?$/D', $attr->value));
                 if (!$keep) {
                     $child->removeAttributeNode($attr);
+                } elseif ($tag === 'img' && $name === 'src') {
+                    $child->setAttribute('src', self::url($attr->value, true));
                 }
             }
             if ($tag === 'img' && !$child->hasAttribute('src')) {

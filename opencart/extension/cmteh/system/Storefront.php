@@ -306,7 +306,7 @@ final class Storefront
                 'status' => $status,
                 'model' => [], 'params' => [], 'site' => [], 'navigation' => [],
                 'jsonLd' => [],
-                'meta' => ['title' => 'СМ ТЕХНО — запчасти для спецтехники', 'robots' => 'noindex,follow'],
+                'meta' => ['title' => $status >= 500 ? 'Витрина временно недоступна' : 'Страница не найдена', 'robots' => 'noindex,follow'],
             ]);
         } catch (Throwable) {
             $this->send($status, 'text/plain; charset=utf-8', $status >= 500 ? 'Витрина временно недоступна.' : 'Страница не найдена.');

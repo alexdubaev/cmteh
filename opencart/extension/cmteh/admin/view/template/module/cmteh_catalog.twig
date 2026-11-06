@@ -1,3 +1,74 @@
+{% import _self as editor %}
+{% macro image(name, id, value, preview, can_browse_images) %}
+  <div class="d-flex align-items-center gap-2">
+    <img src="{{ preview|escape }}" alt="" id="thumb-{{ id|escape }}" width="60" height="45" style="object-fit:contain" data-oc-placeholder="/image/no_image.png">
+    <input type="text" class="form-control" id="{{ id|escape }}" {% if name %}name="{{ name|escape }}"{% else %}data-section-field="image_path"{% endif %} value="{{ value|escape }}" placeholder="catalog/logo.webp">
+    {% if can_browse_images %}
+      <button class="btn btn-outline-primary" type="button" data-oc-toggle="image" data-oc-target="#{{ id|escape }}" data-oc-thumb="#thumb-{{ id|escape }}">Выбрать</button>
+    {% endif %}
+    <button class="btn btn-outline-secondary" type="button" data-oc-toggle="clear" data-editor-clear-image data-oc-target="#{{ id|escape }}" data-oc-thumb="#thumb-{{ id|escape }}">Очистить</button>
+  </div>
+{% endmacro %}
+{% macro move_buttons(label) %}
+  <div class="btn-group btn-group-sm" role="group" aria-label="{{ label|escape }}">
+    <button type="button" class="btn btn-outline-secondary" data-editor-move="-1">Выше</button>
+    <button type="button" class="btn btn-outline-secondary" data-editor-move="1">Ниже</button>
+    <button type="button" class="btn btn-outline-danger" data-editor-remove>Удалить</button>
+  </div>
+{% endmacro %}
+{% macro item(row, fields) %}
+  <div class="border rounded p-3 mb-2" data-editor-item data-key="{{ row.key|default('')|escape }}">
+    {% for field, label in fields %}
+      <label class="form-label d-block">{{ label|escape }}
+        {% if field == 'text' %}
+          <textarea class="form-control" data-item-field="{{ field|escape }}" rows="2">{{ row.values[field]|default('')|escape }}</textarea>
+        {% elseif field == 'text_from' or field == 'links_from' %}
+          {% set choice = field == 'text_from' ? 'vat_info' : 'categories' %}
+          {% set value = row.values[field]|default('') %}
+          <select class="form-select" data-item-field="{{ field|escape }}">
+            <option value="">Выключено</option>
+            <option value="{{ choice }}"{% if value == choice %} selected{% endif %}>{{ field == 'text_from' ? 'Информация о НДС' : 'Категории каталога' }}</option>
+            {% if value and value != choice %}<option value="{{ value|escape }}" selected>{{ value|escape }}</option>{% endif %}
+          </select>
+        {% else %}
+          <input class="form-control" type="text" data-item-field="{{ field|escape }}" value="{{ row.values[field]|default('')|escape }}">
+        {% endif %}
+      </label>
+    {% endfor %}
+    {{ _self.move_buttons('Порядок пункта') }}
+  </div>
+{% endmacro %}
+{% macro section(row, identifier, fields, types, item_fields, can_browse_images, language) %}
+  <fieldset class="border rounded p-3 mb-3" data-editor-section data-key="{{ row.key|default('')|escape }}">
+    <legend class="float-none w-auto fs-6 px-2">Раздел</legend>
+    {% for field, label in fields %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ identifier|escape }}-{{ field|escape }}">{{ label|escape }}</label>
+        {% set value = row.values[field]|default('') %}
+        {% if field == 'section_type' %}
+          <select id="{{ identifier|escape }}-{{ field|escape }}" class="form-select" data-section-field="{{ field|escape }}">
+            {% if value and types[value] is not defined %}<option value="{{ value|escape }}" selected>{{ value|escape }}</option>{% endif %}
+            {% for key, text in types %}<option value="{{ key|escape }}"{% if value == key %} selected{% endif %}>{{ text|escape }}</option>{% endfor %}
+          </select>
+        {% elseif field == 'text' %}
+          <textarea id="{{ identifier|escape }}-{{ field|escape }}" class="form-control" data-section-field="{{ field|escape }}" data-cmteh-rich data-lang="{{ language|escape }}" rows="4">{{ value|escape }}</textarea>
+        {% elseif field == 'image_path' %}
+          {{ _self.image('', identifier ~ '-' ~ field, value, row.preview|default('/image/no_image.png'), can_browse_images) }}
+        {% else %}
+          <input id="{{ identifier|escape }}-{{ field|escape }}" type="text" class="form-control" data-section-field="{{ field|escape }}" value="{{ value|escape }}">
+        {% endif %}
+      </div>
+    {% endfor %}
+    <details class="mb-3"{% if row.items|default([]) %} open{% endif %}>
+      <summary>Пункты, карточки или вопросы раздела</summary>
+      <div data-editor-items class="mt-2">
+        {% for item in row.items|default([]) %}{{ _self.item(item, item_fields) }}{% endfor %}
+      </div>
+      <button class="btn btn-outline-primary btn-sm" type="button" data-editor-add-item>Добавить пункт</button>
+    </details>
+    {{ _self.move_buttons('Порядок раздела') }}
+  </fieldset>
+{% endmacro %}
 {{ header }}{{ column_left }}
 <div id="content">
   <div class="page-header">
@@ -15,16 +86,16 @@
       <div class="card mb-3">
         <div class="card-header">{{ type_label|escape }}</div>
         <div class="card-body">
-          <form action="{{ action|escape }}" method="post">
+          <form id="cmteh-editor" action="{{ action|escape }}" method="post" data-store-origin="{{ store_origin|escape }}">
             <fieldset{% if not can_write %} disabled{% endif %}>
               <div class="mb-3">
                 <label class="form-label" for="record-id">ID источника</label>
-                <input class="form-control" id="record-id" name="id" maxlength="160" value="{{ record.id|escape }}" required{% if edit_id %} readonly{% endif %}>
+                <input class="form-control" id="record-id" name="id" maxlength="160" value="{{ record.id|escape }}"{% if edit_id %} readonly{% else %} placeholder="Будет создан автоматически"{% endif %}>
               </div>
               {% if type != 'site' and type != 'home' %}
                 <div class="mb-3">
                   <label class="form-label" for="record-slug">Адрес записи</label>
-                  <input class="form-control" id="record-slug" name="slug" maxlength="160" value="{{ record.slug|escape }}" required>
+                  <input class="form-control" id="record-slug" name="slug" maxlength="160" value="{{ record.slug|escape }}" placeholder="Будет взят из названия, если оставить пустым">
                 </div>
               {% endif %}
               {% for item in fields %}
@@ -36,8 +107,10 @@
                         <option value="{{ option|escape }}"{% if option is same as(item.value) or (item.field == 'is_indexable' and option ~ '' == item.value) %} selected{% endif %}>{{ label|escape }}</option>
                       {% endfor %}
                     </select>
-                  {% elseif item.control == 'textarea' %}
-                    <textarea class="form-control" rows="4" id="field-{{ item.field|escape }}" name="{{ item.field|escape }}">{{ item.value|escape }}</textarea>
+                  {% elseif item.control in ['textarea', 'rich'] %}
+                    <textarea class="form-control" rows="4" id="field-{{ item.field|escape }}" name="{{ item.field|escape }}"{% if item.control == 'rich' %} data-cmteh-rich data-lang="{{ ckeditor_lang|escape }}"{% endif %}>{{ item.value|escape }}</textarea>
+                  {% elseif item.control == 'image' %}
+                    {{ editor.image(item.field, 'field-' ~ item.field, item.value, item.preview, can_browse_images) }}
                   {% else %}
                     <input class="form-control" type="{% if item.control in ['number', 'integer'] %}number{% else %}text{% endif %}"{% if item.control == 'number' %} min="0" step="0.0001"{% endif %} id="field-{{ item.field|escape }}" name="{{ item.field|escape }}" value="{{ item.value|escape }}">
                   {% endif %}
@@ -45,6 +118,19 @@
               {% endfor %}
               {% if type == 'product' %}
                 <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="zero-price" name="confirm_zero_price" value="1"{% if record.confirm_zero_price %} checked{% endif %}><label class="form-check-label" for="zero-price">Нулевая цена подтверждена</label></div>
+              {% endif %}
+              {% if show_sections %}
+                <h2 class="h5 mt-4">Разделы</h2>
+                <input type="hidden" name="sections_json" id="editor-sections-json" value="">
+                <input type="hidden" name="sections_revision" value="{{ section_revision|escape }}">
+                <div id="editor-sections">
+                  {% for section in sections %}
+                    {{ editor.section(section, 'editor-section-' ~ loop.index0, section_fields, section_types, item_fields, can_browse_images, ckeditor_lang) }}
+                  {% endfor %}
+                </div>
+                <button type="button" class="btn btn-outline-primary mb-3" data-editor-add-section>Добавить раздел</button>
+                <template id="editor-section-template">{{ editor.section({}, 'editor-section-new', section_fields, section_types, item_fields, can_browse_images, ckeditor_lang) }}</template>
+                <template id="editor-item-template">{{ editor.item({}, item_fields) }}</template>
               {% endif %}
               <details class="mb-3">
                 <summary>Дополнительные поля и связи</summary>
@@ -83,4 +169,135 @@
     </div>
   </div>
 </div>
+{% if show_form and can_write %}
+  <script>
+  (() => {
+    const form = document.getElementById('cmteh-editor');
+    const sections = document.getElementById('editor-sections');
+    const editorOptions = {
+      language: '{{ ckeditor_lang|escape('js') }}',
+      removePlugins: 'iframe,youtube{% if not can_browse_images %},opencart{% endif %}',
+      toolbar_Custom: [
+        ['Source', 'Maximize'], ['Undo', 'Redo'],
+        ['Format', 'Bold', 'Italic', 'Underline', 'Strike'],
+        ['NumberedList', 'BulletedList', 'Blockquote'],
+        ['Link', 'Unlink', 'Image'{% if can_browse_images %}, 'OpenCart'{% endif %}, 'Table', 'HorizontalRule']
+      ]
+    };
+    let nextSection = {{ sections|length }};
+
+    function installEditors(container) {
+      if (window.CKEDITOR) {
+        $(container).find('[data-cmteh-rich]').ckeditor(editorOptions);
+      }
+    }
+
+    function flushEditors(container, destroy = false) {
+      if (!window.CKEDITOR) return;
+      for (const input of container.querySelectorAll('[data-cmteh-rich]')) {
+        const instance = CKEDITOR.instances[input.id];
+        if (!instance) continue;
+        instance.updateElement();
+        if (destroy) instance.destroy(true);
+      }
+    }
+
+    function normalizeImages(input) {
+      if (!input.value.includes('<img')) return;
+      const content = new DOMParser().parseFromString(input.value, 'text/html');
+      const store = new URL(form.dataset.storeOrigin, location.origin);
+      let changed = false;
+      for (const image of content.querySelectorAll('img[src]')) {
+        const raw = image.getAttribute('src');
+        let url;
+        try { url = new URL(raw, store); } catch { continue; }
+        const path = store.pathname.replace(/\/$/, '') + '/image/catalog/';
+        if (url.origin === store.origin && url.pathname.startsWith(path) && !url.search && !url.hash) {
+          const relative = '/image/catalog/' + url.pathname.slice(path.length);
+          if (relative !== raw) {
+            image.setAttribute('src', relative);
+            changed = true;
+          }
+        }
+      }
+      if (changed) input.value = content.body.innerHTML;
+    }
+
+    function values(element, attribute) {
+      const data = {key: element.dataset.key};
+      for (const field of element.querySelectorAll('[' + attribute + ']')) {
+        data[field.getAttribute(attribute)] = field.value;
+      }
+      return data;
+    }
+
+    function addSection() {
+      const fragment = document.getElementById('editor-section-template').content.cloneNode(true);
+      for (const element of fragment.querySelectorAll('[id], [for], [data-oc-target], [data-oc-thumb]')) {
+        for (const attribute of ['id', 'for', 'data-oc-target', 'data-oc-thumb']) {
+          if (element.hasAttribute(attribute)) {
+            element.setAttribute(attribute, element.getAttribute(attribute).replace('editor-section-new', 'editor-section-' + nextSection));
+          }
+        }
+      }
+      nextSection++;
+      const section = fragment.firstElementChild;
+      sections.append(fragment);
+      installEditors(section);
+      section.querySelector('select').focus();
+    }
+
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.hasAttribute('data-editor-clear-image')) {
+        const field = document.querySelector(button.dataset.ocTarget);
+        if (field) field.dataset.clearLegacy = '1';
+      } else if (button.hasAttribute('data-editor-add-section')) {
+        addSection();
+      } else if (button.hasAttribute('data-editor-add-item')) {
+        const fragment = document.getElementById('editor-item-template').content.cloneNode(true);
+        const item = fragment.firstElementChild;
+        button.closest('[data-editor-section]').querySelector('[data-editor-items]').append(fragment);
+        item.querySelector('input').focus();
+      } else if (button.hasAttribute('data-editor-remove')) {
+        const row = button.closest('[data-editor-item], [data-editor-section]');
+        const focus = row.nextElementSibling || row.previousElementSibling;
+        flushEditors(row, true);
+        row.remove();
+        (focus?.querySelector('input, select, button') || form.querySelector('[data-editor-add-section]'))?.focus();
+      } else if (button.hasAttribute('data-editor-move')) {
+        const row = button.closest('[data-editor-item], [data-editor-section]');
+        const up = button.dataset.editorMove === '-1';
+        const sibling = up ? row.previousElementSibling : row.nextElementSibling;
+        if (!sibling) return;
+        flushEditors(row, true);
+        if (up) sibling.before(row);
+        else sibling.after(row);
+        installEditors(row);
+        button.focus();
+      }
+    });
+    form.addEventListener('formdata', event => {
+      flushEditors(form);
+      for (const input of form.querySelectorAll('[data-cmteh-rich]')) {
+        normalizeImages(input);
+        if (input.name) event.formData.set(input.name, input.value);
+      }
+      for (const field of form.querySelectorAll('[name][data-clear-legacy]')) {
+        if (field.value === '') event.formData.set('clear_legacy[' + field.name + ']', '1');
+      }
+      if (sections) {
+        const rows = Array.from(sections.children, section => ({
+          ...values(section, 'data-section-field'),
+          clear_legacy_image: section.querySelector('[data-section-field="image_path"]').dataset.clearLegacy === '1',
+          items: Array.from(section.querySelector('[data-editor-items]').children, item => values(item, 'data-item-field'))
+        }));
+        event.formData.set('sections_json', JSON.stringify(rows));
+      }
+    });
+    installEditors(form);
+  })();
+  </script>
+{% endif %}
 {{ footer }}

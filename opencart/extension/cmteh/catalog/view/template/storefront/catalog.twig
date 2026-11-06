@@ -1,6 +1,7 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
 {% set products = model.products|default([]) %}
+{% set landing = model.landing|default({}) %}
 {% set currentPage = model.page|default(1) %}
 {% set maxPage = max(1, (model.total|default(0) / model.limit|default(12))|round(0, 'ceil')) %}
 {% set availability = {'in_stock': 'В наличии', 'on_request': 'Под заказ', 'out_of_stock': 'Нет в наличии'} %}
@@ -16,10 +17,11 @@
   partType: params.partType|default('') ? 'Тип: ' ~ types[params.partType]|default(params.partType) : ''
 }|filter(label => label is not empty) %}
 <div class="shell page-shell">
-  <div class="breadcrumbs catalog-breadcrumbs"><a href="/">Главная</a><span>/</span><span>Каталог</span></div>
+  <div class="breadcrumbs catalog-breadcrumbs"><a href="/">Главная</a><span>/</span><span>{{ landing.title|default('Каталог') }}</span></div>
+  {% include templates ~ 'editorial.twig' with {content: landing} %}
   <div class="catalog-layout">
     <div class="catalog-heading-row">
-      <div class="catalog-head"><h1>Каталог запчастей</h1><p>Артикулы, OEM-коды, бренды, категории, наличие и тип запчасти.</p></div>
+      <div class="catalog-head"><h1>{{ landing.h1|default(landing.title|default('Каталог')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
       <div class="catalog-controls">
         {% if filters %}
         <div class="active-filters" aria-label="Активные фильтры">
@@ -56,7 +58,7 @@
         </form>
         <details open><summary>Категории</summary><div class="filter-links">
           <a class="{{ not params.category|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {category: ''}) }}">Все категории</a>
-          {% for category in categories %}<a class="{{ category.slug == params.category|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {category: category.slug}) }}">{{ category.title }}</a>{% endfor %}
+          {% for category in categories %}<a class="{{ category.slug == params.category|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {category: category.slug}) }}">{% if category.parent_slug|default('') %}<span aria-hidden="true">↳ </span>{% endif %}{{ category.title }}</a>{% endfor %}
         </div></details>
         <details open><summary>Бренд</summary><div class="filter-links">
           <a class="{{ not params.brand|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {brand: ''}) }}">Все бренды</a>

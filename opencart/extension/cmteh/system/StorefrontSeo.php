@@ -93,6 +93,7 @@ final class StorefrontSeo
         return $this->entity('Organization', [
             '@id' => $url . '#organization', 'url' => $url,
             'name' => ($site['legal_name'] ?? '') ?: $site['company_name'],
+            'logo' => !empty($site['logo_url']) ? $this->url($site['logo_url']) : null,
             'email' => $site['email'] ?? null, 'telephone' => $site['phone'] ?? null,
             'address' => ($site['legal_address'] ?? '') ?: ($site['address'] ?? null),
             'taxID' => $site['inn'] ?? null,
@@ -127,7 +128,8 @@ final class StorefrontSeo
         $entity = $this->entity('Product', [
             '@id' => $url . '#product', 'url' => $url, 'name' => $heading, 'sku' => $product['sku'],
             'mpn' => $product['mpn'] ?? null,
-            'brand' => ['@type' => 'Brand', '@id' => $this->url('/brand/' . $product['brand_slug']) . '#brand', 'name' => $product['brand']],
+            'brand' => empty($product['brand_slug']) || empty($product['brand']) ? null
+                : ['@type' => 'Brand', '@id' => $this->url('/brand/' . $product['brand_slug']) . '#brand', 'name' => $product['brand']],
             'description' => self::text(($product['short_description'] ?? '') ?: ($product['full_description'] ?? '')),
             'image' => $image === null ? null : [$image],
             'additionalProperty' => $specifications,
@@ -190,7 +192,8 @@ final class StorefrontSeo
             'datePublished' => $article['published_at'] ?? null,
             'author' => empty($article['author']) ? null : ['@type' => 'Person', 'name' => $article['author']],
             'publisher' => $this->organization($site) === [] ? null : ['@id' => $this->url('/') . '#organization'],
-            'image' => $this->assetUrl($article['cover_image'] ?? null),
+            'image' => !empty($article['cover_url'])
+                ? $this->url($article['cover_url']) : $this->assetUrl($article['cover_image'] ?? null),
         ]);
     }
 
@@ -245,12 +248,10 @@ final class StorefrontSeo
         if ($this->indexable('/', $home)) {
             $nodes[] = ['/', null];
         }
-        foreach (['/catalog', '/brands', '/articles'] as $path) {
-            $nodes[] = [$path, null];
-        }
-        foreach (array_keys(StorefrontPages::INFO) as $slug) {
+        foreach (['catalog', 'brands', 'articles', ...StorefrontPages::INFO] as $slug) {
             $path = '/' . $slug;
-            if ($this->indexable($path, $this->catalog->content('page', $slug) ?? [])) {
+            $record = $this->catalog->content('page', $slug);
+            if ($record !== null && $this->indexable($path, $record)) {
                 $nodes[] = [$path, null];
             }
         }

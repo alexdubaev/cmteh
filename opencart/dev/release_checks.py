@@ -44,11 +44,12 @@ def lint(runtime):
     )
 
 
-def import_fixture(runtime, source, expected_added, key):
+def import_fixture(runtime, source, expected_added, key, expected_updated=0):
     command = ["exec", "-T", "web", "php", "/workspace/bin/import-catalog.php",
                "--config=" + CONFIG, "--input=" + source]
     preview = json.loads(runtime.docker(*command, "--preview", capture=True).stdout)
-    require(preview.get("errors") == 0 and preview.get("added") == expected_added,
+    require(preview.get("errors") == 0 and preview.get("added") == expected_added
+            and preview.get("updated") == expected_updated,
             "The clean-catalog import preview did not match the expected input.")
     checksum = preview.get("sha256", "")
     require(isinstance(checksum, str) and re.fullmatch(r"[0-9a-f]{64}", checksum),
@@ -56,9 +57,10 @@ def import_fixture(runtime, source, expected_added, key):
     applied = json.loads(runtime.docker(
         *command, "--apply", "--confirm=" + checksum, "--run-key=" + key, capture=True,
     ).stdout)
-    require(applied.get("errors") == 0 and applied.get("added") == expected_added,
+    require(applied.get("errors") == 0 and applied.get("added") == expected_added
+            and applied.get("updated") == expected_updated,
             "The catalog import did not apply the entire confirmed fixture.")
-    print(f"PASS: catalog preview and confirmed import ({expected_added} rows)", flush=True)
+    print(f"PASS: catalog preview and confirmed import ({expected_added} added, {expected_updated} updated)", flush=True)
     return {"preview": preview, "applied": applied}
 
 
@@ -174,6 +176,132 @@ def admin_roles(runtime, lead_id):
     finally:
         for session in sessions:
             session.logout()
+        runtime.logout()
+
+
+def editorial_content(runtime):
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+
+    editor = None
+
+    def save(kind, record_id, **fields):
+        fields |= {"id": record_id, "status": fields.get("status", "published"), "is_indexable": "1"}
+        code, body = editor.request(
+            editor.action(CATALOG, type=kind, id=record_id),
+            urlencode(fields, doseq=True).encode("ascii"), FORM,
+        )
+        require(code == 200 and "Запись сохранена" in body, f"Admin could not save {kind} {record_id} (HTTP {code}).")
+
+    def page(path, expected):
+        status, body = runtime.request(path)
+        require(status == 200 and all(value in body for value in expected),
+                f"Public {path} did not reflect the editor's saved values.")
+        return body
+
+    try:
+        editor = create_role(runtime, "Content editor", [MODULE, CATALOG], [CATALOG])
+        page("/delivery", ["Что указать для расчёта доставки"])
+        save("page", "storefront-delivery", slug="delivery", title="Доставка для проверки",
+             h1="Новые условия доставки", intro="Вступление редактора",
+             content="<p><strong>Публикуемый текст доставки</strong></p><script>unsafe-marker</script>",
+             details="{}", sections_json=json.dumps([{"key": "", "section_type": "custom",
+                 "title": "Добавленный раздел", "text": "<p>Текст нового раздела</p>", "items": []}]))
+        delivery = page("/delivery", ["Новые условия доставки", "Вступление редактора",
+                                      "<strong>Публикуемый текст доставки</strong>", "Добавленный раздел",
+                                      "Текст нового раздела"])
+        require("unsafe-marker" not in delivery, "The public page retained unsafe editor markup.")
+
+        save("site", "mock-site", company_name="Компания для проверки", phone="+7 (900) 000-00-15",
+             email="editor@example.test", logo="catalog/opencart-logo.png",
+             footer_text="Изменённое описание в подвале",
+             footer_sections_title="Проверка редактора подвала", details="{}")
+        page("/contacts", ['href="tel:+79000000015"', 'mailto:editor@example.test',
+                          'src="/image/catalog/opencart-logo.png"', "Изменённое описание в подвале",
+                          "Проверка редактора подвала"])
+
+        menu = {"slug": "header-articles", "label": "Публикации из редактора", "url": "/articles",
+                "location": "header", "sort_order": "99", "details": "{}"}
+        save("navigation", "header-articles", **menu)
+        page("/", ["Публикации из редактора"])
+        save("navigation", "header-articles", status="archived", **menu)
+        body = page("/", ["Компания для проверки"])
+        require("Публикации из редактора" not in body, "Archived navigation still appeared.")
+
+        result = admin_post(runtime, MODULE + ".upgrade", {})
+        require(result.get("success"), "The repeat editorial migration failed.")
+        page("/delivery", ["Новые условия доставки", "Добавленный раздел"])
+        body = page("/", ["Компания для проверки", "Проверка редактора подвала"])
+        require("Публикации из редактора" not in body, "The migration republished archived navigation.")
+        print("PASS: editing delivery, sections, contacts, logo and footer reaches the storefront; migration preserves edits", flush=True)
+    finally:
+        if editor:
+            editor.logout()
+        runtime.logout()
+
+
+def native_catalog_editor(runtime):
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+
+    def save_category(slug, label, *, category_id=0, parent_id=0, status=1):
+        fields = {
+            "category_id": category_id, "parent_id": parent_id, "status": status,
+            "category_store[]": [0], "category_seo_url[0][1]": slug,
+            "category_description[1][name]": label, "category_description[1][meta_title]": label,
+            "category_description[1][description]": "<p>Текст штатного редактора</p>",
+            "category_description[1][meta_description]": "",
+            "category_description[1][meta_keyword]": "",
+        }
+        result = admin_post(runtime, "catalog/category.save", fields)
+        require(result.get("success"), "Native OpenCart category editor rejected a valid record.")
+        return category_id or int(result["category_id"])
+
+    def save_product(slug, title, article, category_id, *, product_id=0, manufacturer_id=0, price=123.45):
+        fields = {
+            "product_id": product_id, "model": article, "status": "1", "price": price,
+            "manufacturer_id": manufacturer_id,
+            "date_available": "2020-01-01", "product_store[]": [0], "product_category[]": [category_id],
+            "product_seo_url[0][1]": slug, "product_description[1][name]": title,
+            "product_description[1][description]": "<p>Описание штатного товара</p>",
+            "product_description[1][meta_title]": title, "product_description[1][tag]": "",
+            "product_description[1][meta_description]": "", "product_description[1][meta_keyword]": "",
+        }
+        result = admin_post(runtime, "catalog/product.save", fields)
+        require(result.get("success"), "Native OpenCart product editor rejected a valid record.")
+        return product_id or int(result["product_id"])
+
+    try:
+        nonce = uuid4().hex[:8]
+        parent_slug, child_slug, product_slug = ("test-" + prefix + "-" + nonce for prefix in ("parent", "child", "product"))
+        parent = save_category(parent_slug, "Штатный каталог " + nonce)
+        child = save_category(child_slug, "Штатный подраздел " + nonce, parent_id=parent)
+        product = save_product(product_slug, "Штатный товар " + nonce, "OLD-" + nonce, child)
+        code, body = runtime.request("/category/" + parent_slug)
+        require(code == 200 and "Штатный подраздел " + nonce in body and "Штатный товар " + nonce in body,
+                "Native category tree did not appear or roll up its descendant's product.")
+        brand_slug = "test-brand-" + nonce
+        brand_label = "Штатный бренд " + nonce
+        created = admin_post(runtime, "catalog/manufacturer.save", {
+            "name": brand_label, "manufacturer_store[]": [0], "manufacturer_seo_url[0][1]": brand_slug,
+        })
+        require(created.get("success"), "Native OpenCart manufacturer editor rejected a valid record.")
+        save_product(product_slug, "Обновлённый товар " + nonce, "NEW-" + nonce, child, product_id=product,
+                     manufacturer_id=int(created["manufacturer_id"]), price=234.56)
+        code, body = runtime.request("/brand/" + brand_slug)
+        require(code == 200 and brand_label in body and "Обновлённый товар " + nonce in body,
+                "The native brand did not appear with its product.")
+        found = runtime.request_json("/api/search?q=" + "NEW-" + nonce)
+        require(any(row["slug"] == product_slug and row["sku"] == "NEW-" + nonce
+                    and float(row["price"]) == 234.56 for row in found["data"]),
+                "Native product changes did not update the existing search projection.")
+        code, body = runtime.request("/product/" + product_slug)
+        require(code == 200 and "Обновлённый товар " + nonce in body, "The edited product lost its public URL.")
+        save_category(child_slug, "Скрытый штатный подраздел", category_id=child, parent_id=parent, status=0)
+        require(runtime.request("/category/" + child_slug)[0] == 404, "A disabled native category stayed visible.")
+        require(admin_post(runtime, "catalog/product.delete", {"selected[]": [product]}).get("success"),
+                "Native OpenCart did not delete the test product.")
+        require(runtime.request("/product/" + product_slug)[0] == 404, "A deleted native product stayed visible.")
+        print("PASS: native OpenCart creates categories, subcategories and products and updates the storefront/search", flush=True)
+    finally:
         runtime.logout()
 
 

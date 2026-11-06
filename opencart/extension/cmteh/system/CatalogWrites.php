@@ -81,7 +81,7 @@ trait CatalogWrites
                 throw new InvalidArgumentException('url: небезопасный адрес');
             }
         }
-        if ($type === 'page' && in_array($slug, ['catalog', 'brands', 'articles', 'request', 'admin', 'api', 'sitemaps'], true)) {
+        if ($type === 'page' && in_array($slug, ['admin', 'api', 'account', 'brand', 'cart', 'category', 'checkout', 'extension', 'image', 'information', 'install', 'product', 'sitemaps', 'system', '_cmteh_platform'], true)) {
             throw new InvalidArgumentException('slug занят системным маршрутом');
         }
         if ($type === 'category') {
@@ -104,6 +104,73 @@ trait CatalogWrites
             return (bool) $this->run('SELECT 1 FROM ' . $this->table($table) . ' WHERE type = ? AND source_id = ?', [$type, $value])->fetchColumn();
         }
         return (bool) $this->run('SELECT 1 FROM ' . $this->table($table) . " WHERE `$key` = ?", [$value])->fetchColumn();
+    }
+
+    public function migrateEditorialContent(): void
+    {
+        $this->atomic(function (): void {
+            $schema = $this->table('cmteh_schema');
+            $migration = $this->run("INSERT IGNORE INTO $schema (version, applied_at) VALUES (3, UTC_TIMESTAMP())");
+            if ($migration->rowCount() === 1) {
+                require_once __DIR__ . '/EditorialDefaults.php';
+                EditorialDefaults::install($this);
+            }
+        });
+    }
+
+    public function editorialBySlug(string $type, string $slug): ?array
+    {
+        $table = $this->table('cmteh_content');
+        $data = $this->run("SELECT data FROM $table WHERE type = ? AND slug = ?", [$type, $slug])->fetchColumn();
+        return $data === false ? null : self::decode($data);
+    }
+
+    public function hasEditorialNavigation(string $location): bool
+    {
+        $table = $this->table('cmteh_content');
+        return (bool) $this->run("SELECT 1 FROM $table WHERE type = 'navigation'
+            AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.location')) = ? LIMIT 1", [$location])->fetchColumn();
+    }
+
+    public function hasNavigationTarget(string $location, string $url): bool
+    {
+        $table = $this->table('cmteh_content');
+        return (bool) $this->run("SELECT 1 FROM $table WHERE type = 'navigation'
+            AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.location')) = ?
+            AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.url')) = ? LIMIT 1", [$location, $url])->fetchColumn();
+    }
+
+    public function insertEditorialDefault(string $type, array $input): void
+    {
+        if (!in_array($type, self::CONTENT_TYPES, true)) {
+            throw new InvalidArgumentException('Неизвестный тип редакционного содержимого');
+        }
+        $row = $this->validate($type, $input);
+        $table = $this->table('cmteh_content');
+        $this->run("INSERT INTO $table (type, source_id, slug, status, published_at, indexable, sort_order, data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE source_id = source_id", [
+                $type, $row['id'], $row['slug'], (int) CatalogInput::published($row), CatalogInput::date($row['published_at']),
+                (int) $row['is_indexable'], $row['sort_order'], self::encode($row),
+            ]);
+    }
+
+    public function backfillEditorialFields(string $type, string $slug, array $fields): void
+    {
+        $this->atomic(function () use ($type, $slug, $fields): void {
+            $table = $this->table('cmteh_content');
+            $data = $this->run("SELECT data FROM $table WHERE type = ? AND slug = ? FOR UPDATE", [$type, $slug])->fetchColumn();
+            if ($data === false) {
+                return;
+            }
+            $existing = self::decode($data);
+            $missing = array_diff_key($fields, $existing);
+            if ($missing !== []) {
+                $this->run("UPDATE $table SET data = ? WHERE type = ? AND slug = ?", [
+                    self::encode($existing + $this->sanitizeContent($missing)), $type, $slug,
+                ]);
+            }
+        });
     }
 
     public function taxonomyExists(string $type, string $slug): bool
@@ -161,8 +228,8 @@ trait CatalogWrites
                 FROM ' . $this->table('cmteh_product') . ' x
                 JOIN ' . $this->table('product') . ' p USING (product_id)
                 JOIN ' . $this->table('product_description') . ' d ON d.product_id = p.product_id AND d.language_id = ?
-                JOIN ' . $this->table('manufacturer') . ' m ON p.manufacturer_id = m.manufacturer_id
-                JOIN ' . $this->table('cmteh_brand') . ' b ON m.manufacturer_id = b.manufacturer_id
+                LEFT JOIN ' . $this->table('manufacturer') . ' m ON p.manufacturer_id = m.manufacturer_id
+                LEFT JOIN ' . $this->table('cmteh_brand') . ' b ON m.manufacturer_id = b.manufacturer_id
                 LEFT JOIN ' . $this->table('cmteh_category') . ' c ON c.category_id = x.category_id
                 WHERE x.source_id = ?', [$this->languageId, $id])->fetch(PDO::FETCH_ASSOC);
             return $row ? array_replace(self::decode($row['data']), [
@@ -193,8 +260,13 @@ trait CatalogWrites
         $row['title'] = CatalogInput::text($row['title'] ?? null, 255, 'title', true);
         $row['sku'] = CatalogInput::text($row['sku'] ?? null, 128, 'sku', true);
         $row['mpn'] = CatalogInput::text($row['mpn'] ?? null, 128, 'mpn') ?: null;
-        $row['brand'] = CatalogInput::text($row['brand'] ?? null, 64, 'brand', true);
-        $row['brand_slug'] = CatalogInput::slug(($row['brand_slug'] ?? '') !== '' ? $row['brand_slug'] : CatalogInput::slugify($row['brand']));
+        $row['brand'] = CatalogInput::text($row['brand'] ?? null, 64, 'brand');
+        $brandSlug = ($row['brand_slug'] ?? '') !== '' ? $row['brand_slug'] : CatalogInput::slugify($row['brand']);
+        if ($brandSlug === '' && $row['brand'] === '' && $this->productMayHaveNoManufacturer($row['id'])) {
+            $row['brand_slug'] = null;
+        } else {
+            $row['brand_slug'] = CatalogInput::slug($brandSlug);
+        }
         $category = is_array($row['category'] ?? null) ? $row['category'] : [];
         $categorySlug = $row['category_slug'] ?? $category['slug'] ?? '';
         $row['category_slug'] = $categorySlug !== '' ? CatalogInput::slug($categorySlug) : null;
@@ -245,6 +317,13 @@ trait CatalogWrites
                 ?? throw new InvalidArgumentException('relation_type: обязательное поле'),
         ], $this->objectList($row['relations'] ?? [], 50, 'relations'));
         return $row;
+    }
+
+    private function productMayHaveNoManufacturer(string $id): bool
+    {
+        return (bool) $this->run('SELECT 1 FROM ' . $this->table('cmteh_product') . ' x
+            JOIN ' . $this->table('product') . ' p USING (product_id)
+            WHERE x.source_id = ? AND p.manufacturer_id = 0', [$id])->fetchColumn();
     }
 
     private function currency(mixed $value): ?string
@@ -319,10 +398,13 @@ trait CatalogWrites
     {
         $this->assertSlugAvailable('product', $row);
         $previous = $this->run('SELECT product_id FROM ' . $this->table('cmteh_product') . ' WHERE source_id = ? FOR UPDATE', [$row['id']])->fetchColumn();
-        $manufacturer = $this->run('SELECT m.manufacturer_id, m.name FROM ' . $this->table('cmteh_brand') . ' b JOIN ' .
-            $this->table('manufacturer') . ' m USING (manufacturer_id) WHERE b.slug = ?', [$row['brand_slug']])->fetch(PDO::FETCH_ASSOC);
-        if (!$manufacturer) {
-            throw new InvalidArgumentException('Не найден бренд ' . $row['brand_slug']);
+        $manufacturer = ['manufacturer_id' => 0, 'name' => ''];
+        if ($row['brand_slug'] !== null) {
+            $manufacturer = $this->run('SELECT m.manufacturer_id, m.name FROM ' . $this->table('cmteh_brand') . ' b JOIN ' .
+                $this->table('manufacturer') . ' m USING (manufacturer_id) WHERE b.slug = ?', [$row['brand_slug']])->fetch(PDO::FETCH_ASSOC);
+            if (!$manufacturer) {
+                throw new InvalidArgumentException('Не найден бренд ' . $row['brand_slug']);
+            }
         }
         $brand = $manufacturer['manufacturer_id'];
         $category = 0;

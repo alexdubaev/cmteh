@@ -1,7 +1,9 @@
 {% autoescape 'html' %}
+{% set landing = model.landing|default({}) %}
 <div class="shell page-shell request-page">
-  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>Корзина</span></div>
-  <div class="page-title request-title"><h1>Корзина</h1><p>Проверьте артикулы и количество. Отправьте список для уточнения наличия и стоимости.</p></div>
+  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>{{ landing.title|default('Корзина') }}</span></div>
+  <div class="page-title request-title"><h1>{{ landing.h1|default(landing.title|default('Корзина')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
+  {% include templates ~ 'editorial.twig' with {content: landing} %}
   <details class="bulk-request-details" id="request-import"{% if params.import|default('') == '1' %} open{% endif %}>
     <summary>Добавить позиции списком или из файла</summary>
     <section class="bulk-import panel">
@@ -9,8 +11,8 @@
       <div class="bulk-grid">
         <div class="bulk-paste">
           <label for="bulk-parts">Артикул и количество, по одной позиции в строке</label>
-          <textarea id="bulk-parts" aria-describedby="bulk-example" rows="7" placeholder="RE568158 2&#10;1R-1808 4&#10;320/04542 1">{{ params.article|default('')|slice(0, 128) }}</textarea>
-          <p class="bulk-example" id="bulk-example">Например: <code>RE568158 2</code> — артикул и 2 шт.</p>
+          <textarea id="bulk-parts" aria-describedby="bulk-example" rows="7" placeholder="АРТИКУЛ 2">{{ params.article|default('')|slice(0, 128) }}</textarea>
+          <p class="bulk-example" id="bulk-example">Например: <code>АРТИКУЛ 2</code> — артикул и 2 шт.</p>
           <button class="button secondary" type="button" data-import-text>Добавить список</button>
         </div>
         <div class="bulk-file">
