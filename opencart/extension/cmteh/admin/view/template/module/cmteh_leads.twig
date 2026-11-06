@@ -1,0 +1,90 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <h1>Заявки СМ ТЕХНО</h1>
+    </div>
+  </div>
+  <div class="container-fluid">
+    {% if lead %}
+      <p><a href="{{ back }}">Все заявки</a></p>
+      <section class="card mb-3" aria-labelledby="lead-title">
+        <div class="card-header" id="lead-title">Заявка {{ lead.public_id|e }}</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-3">Получена, UTC</dt><dd class="col-sm-9">{{ lead.created_at|e }}</dd>
+            <dt class="col-sm-3">Имя</dt><dd class="col-sm-9">{{ lead.name|e }}</dd>
+            <dt class="col-sm-3">Телефон</dt><dd class="col-sm-9">{{ lead.phone|default('—')|e }}</dd>
+            <dt class="col-sm-3">Email</dt><dd class="col-sm-9">{{ lead.email|default('—')|e }}</dd>
+            <dt class="col-sm-3">Компания</dt><dd class="col-sm-9">{{ lead.company|default('—')|e }}</dd>
+            <dt class="col-sm-3">Комментарий</dt><dd class="col-sm-9 text-break">{{ lead.message|default('—')|e|nl2br }}</dd>
+            <dt class="col-sm-3">Страница</dt><dd class="col-sm-9 text-break">{{ lead.page_url|default('—')|e }}</dd>
+            <dt class="col-sm-3">Уведомление</dt>
+            <dd class="col-sm-9">{{ status_labels[lead.status]|default('Неизвестно')|e }}, попыток: {{ lead.attempts|e }}</dd>
+            {% if lead.sent_at %}
+              <dt class="col-sm-3">Доставлено SMTP, UTC</dt><dd class="col-sm-9">{{ lead.sent_at|e }}</dd>
+            {% elseif lead.status == 'retry' %}
+              <dt class="col-sm-3">Следующая попытка, UTC</dt><dd class="col-sm-9">{{ lead.available_at|e }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="lead-items-title">
+        <div class="card-header" id="lead-items-title">Позиции</div>
+        <div class="card-body">
+          {% if lead.items %}
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead><tr><th scope="col">Артикул</th><th scope="col">Количество</th></tr></thead>
+                <tbody>
+                  {% for item in lead.items %}
+                    <tr><td class="text-break">{{ item.article|e }}</td><td>{{ item.quantity|e }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p>Заявка без списка позиций.</p>
+          {% endif %}
+        </div>
+      </section>
+    {% else %}
+      <section class="card" aria-labelledby="lead-list-title">
+        <div class="card-header" id="lead-list-title">Заявки</div>
+        <div class="card-body">
+          {% if rows %}
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th scope="col">Номер</th><th scope="col">Получена, UTC</th><th scope="col">Имя</th>
+                    <th scope="col">Компания</th><th scope="col">Уведомление</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in rows %}
+                    <tr>
+                      <td><a href="{{ row.href }}">{{ row.public_id|e }}</a></td><td>{{ row.created_at|e }}</td>
+                      <td>{{ row.name|e }}</td><td>{{ row.company|default('—')|e }}</td>
+                      <td>{{ status_labels[row.status]|default('Неизвестно')|e }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <p>Страница {{ page|e }} из {{ pages|e }}. Заявок всего: {{ total|e }}.</p>
+            {% if previous or next %}
+              <nav aria-label="Страницы заявок">
+                {% if previous %}<a class="btn btn-outline-secondary" href="{{ previous }}">Назад</a>{% endif %}
+                {% if next %}<a class="btn btn-outline-secondary" href="{{ next }}">Далее</a>{% endif %}
+              </nav>
+            {% endif %}
+          {% else %}
+            <p>Заявок пока нет.</p>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{{ footer }}

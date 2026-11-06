@@ -1,0 +1,23 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+DirectorySlash Off
+RewriteEngine On
+RewriteOptions AllowNoSlash
+
+RewriteRule (?:^|/)(?:\.|config(?:-dist)?\.php$) - [R=404,END,NC]
+RewriteRule ^admin/?$ admin/index.php [END]
+RewriteRule ^admin/index\.php$ - [END]
+
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^extension/cmteh/catalog/view/assets/[a-z0-9_./-]+\.txt$ - [END,NC]
+
+# Files outside these paths always go through the application or return 404.
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^image/[a-z0-9_./-]+\.(?:png|jpe?g|gif|webp|ico)$ - [END,NC]
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(?:admin/view|extension/opencart/admin/view|extension/cmteh/catalog/view/assets)/[a-z0-9_./-]+\.(?:css|js|mjs|png|jpe?g|gif|webp|ico|woff2?|ttf|eot|svg)$ - [END,NC]
+RewriteRule ^(?:admin|extension|image|install|system)(?:/|$) - [R=404,END,NC]
+RewriteRule ^catalog/.+ - [R=404,END,NC]
+RewriteRule ^index\.php$ - [END]
+RewriteRule \.(?:php[0-9]*|phtml|phar|sql|zip|ini|log|bak|env)$ - [R=404,END,NC]
+RewriteRule ^ index.php [END]

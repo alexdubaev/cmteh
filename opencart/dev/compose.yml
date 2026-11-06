@@ -1,0 +1,46 @@
+name: cmteh-opencart
+services:
+  db:
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment:
+      MYSQL_DATABASE: cmteh_dev
+      MYSQL_USER: cmteh_dev
+      MYSQL_PASSWORD_FILE: /runtime/db-password
+      MYSQL_ROOT_PASSWORD_FILE: /runtime/db-root-password
+    volumes:
+      - database:/var/lib/mysql
+      - type: bind
+        source: ${CMTEH_DEV_DIR:?Use start-local.py}
+        target: /runtime
+        read_only: true
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping --host 127.0.0.1 --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+  web:
+    image: cmteh-opencart-web:local
+    build:
+      context: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      CMTEH_LOCAL_SMOKE: "1"
+      CMTEH_LOCAL_ORIGIN: http://127.0.0.1:${CMTEH_HTTP_PORT:-3154}
+    ports:
+      - "127.0.0.1:${CMTEH_HTTP_PORT:-3154}:80"
+    volumes:
+      - website:/var/www
+      - type: bind
+        source: ${CMTEH_DEV_DIR:?Use start-local.py}
+        target: /runtime
+        read_only: true
+      - type: bind
+        source: ..
+        target: /workspace
+        read_only: true
+    entrypoint: ["sh", "/workspace/dev/bootstrap.sh"]
+volumes:
+  database:
+  website:

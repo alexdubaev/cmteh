@@ -1,0 +1,10 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header"><div class="container-fluid"><h1>СМ ТЕХНО</h1></div></div>
+  <div class="container-fluid">
+    {% if catalog %}<p><a href="{{ catalog|escape }}">Каталог и публикации</a></p>{% endif %}
+    {% if leads %}<p><a href="{{ leads|escape }}">Заявки</a></p>{% endif %}
+    {% if upgrade %}<form action="{{ upgrade|escape }}" method="post"><button class="btn btn-primary" type="submit">Применить миграции</button></form>{% endif %}
+  </div>
+</div>
+{{ footer }}

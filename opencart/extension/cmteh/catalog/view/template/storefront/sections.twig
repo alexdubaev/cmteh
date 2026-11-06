@@ -1,0 +1,36 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+<div class="cms-sections">
+  {% for section in sections %}
+    {% set type = section.section_type|default('custom') %}
+    {% set cta = type in ['cta', 'parts_request', 'lead_form'] %}
+    {% set href = ui.href(section.button_url|default('')) %}
+    {% set photo = ui.asset(section.image|default('')) %}
+    <section class="panel cms-section {{ cta ? 'callout cms-cta' : 'cms-section-' ~ type }}">
+      <div class="{{ cta ? '' : 'cms-section-copy' }}">
+        {% if section.title|default('') %}<h2>{{ section.title }}</h2>{% endif %}
+        {% if section.subtitle|default('') %}<p>{{ section.subtitle }}</p>{% endif %}
+        {% if section.text_html|default('') %}<div class="prose">{{ section.text_html|raw }}</div>
+        {% elseif section.text|default('') %}<p>{{ section.text }}</p>{% endif %}
+        {% if href and section.button_text|default('') and not cta %}<a class="button primary" href="{{ href }}">{{ section.button_text }}</a>{% endif %}
+      </div>
+      {% if href and section.button_text|default('') and cta %}<a class="button primary" href="{{ href }}">{{ section.button_text }}</a>{% endif %}
+      {% if photo and not cta %}<div class="cms-section-media"><img src="{{ photo }}" alt="{{ section.image_alt|default(section.title|default('')) }}" loading="lazy"></div>{% endif %}
+      {% if section.items|default([]) is iterable and section.items is not empty and not cta %}
+        <div class="{{ type == 'faq' ? 'cms-faq' : 'cms-item-grid' }}">
+        {% for item in section.items %}
+          {% set label = item is iterable ? item.title|default(item.name|default(item.label|default(item.question|default('')))) : item %}
+          {% set description = item is iterable ? item.text|default(item.description|default(item.answer|default(item.value|default('')))) : '' %}
+          {% set itemHref = ui.href(item.url|default(item.href|default(item.link|default('')))) %}
+          {% if type == 'faq' and label %}<details><summary>{{ label }}</summary>{% if description %}<p>{{ description }}</p>{% endif %}</details>
+          {% elseif label or description %}
+            {% set tag = itemHref ? 'a' : 'div' %}
+            <{{ tag }} class="cms-item"{% if itemHref %} href="{{ itemHref }}"{% endif %}><span>{{ '%02d'|format(loop.index) }}</span><strong>{{ label }}</strong>{% if description %}<p>{{ description }}</p>{% endif %}</{{ tag }}>
+          {% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+</div>
+{% endautoescape %}

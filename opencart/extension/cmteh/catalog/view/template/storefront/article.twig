@@ -1,0 +1,27 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set article = model.content|default(model.article|default({})) %}
+{% set photo = ui.asset(article.cover_image|default('')) %}
+<div class="shell page-shell article-detail-page">
+  <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="/">Главная</a><span aria-hidden="true">/</span><a href="/articles">Статьи</a><span aria-hidden="true">/</span><span aria-current="page">{{ article.title }}</span></nav>
+  <article class="article-reading-column">
+    <header class="article-header">
+      <div class="article-meta">
+        {% if article.published_at|default('') %}<time datetime="{{ article.published_at }}">{{ ui.articleDate(article.published_at) }}</time>{% endif %}
+        {% if article.author|default('') %}<span>Автор: {{ article.author }}</span>{% endif %}
+      </div>
+      <h1>{{ article.title }}</h1>
+      {% if article.excerpt|default('') %}<p class="article-intro">{{ article.excerpt }}</p>{% endif %}
+    </header>
+    {% if photo %}<figure class="article-cover"><img src="{{ photo }}" alt="{{ article.image_alt|default('') }}"></figure>{% endif %}
+    {% if model.headings|default([])|length > 1 %}<nav class="article-toc" aria-label="Оглавление статьи"><h2>В этой статье</h2><ol>{% for heading in model.headings %}<li class="{{ heading.level > 2 ? 'article-toc-subheading' : '' }}"><a href="#{{ heading.id|url_encode }}">{{ heading.title }}</a></li>{% endfor %}</ol></nav>{% endif %}
+    {# Article HTML is cleaned at the catalog boundary before rendering. #}
+    <div class="article-prose">{{ article.body_html|default(article.content|default(''))|raw }}</div>
+    {% if model.relatedLinks|default([]) %}<section class="article-related-links" aria-labelledby="article-catalog-links"><h2 id="article-catalog-links">В каталоге</h2><ul>
+      {% for link in model.relatedLinks %}{% set href = ui.href(link.href|default('')) %}{% if href %}<li><a href="{{ href }}">{{ link.title }}</a></li>{% endif %}{% endfor %}
+    </ul></section>{% endif %}
+    <aside class="article-next-step"><p>Готовы передать артикулы для расчёта?</p><a href="/request?import=1">Добавить список в заявку <span aria-hidden="true">→</span></a></aside>
+  </article>
+  {% if model.related|default(null) %}<section class="article-related-section" aria-labelledby="related-article-heading"><h2 id="related-article-heading">Читайте также</h2><div class="articles-grid">{{ ui.articleCard(model.related) }}</div></section>{% endif %}
+</div>
+{% endautoescape %}

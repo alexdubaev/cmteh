@@ -1,0 +1,86 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid"><h1>Каталог и публикации СМ ТЕХНО</h1></div>
+  </div>
+  <div class="container-fluid">
+    {% if error %}<div class="alert alert-danger" role="alert">{{ error|escape }}</div>{% endif %}
+    {% if saved %}<div class="alert alert-success" role="status">Запись сохранена</div>{% endif %}
+    <ul class="nav nav-tabs mb-3">
+      {% for tab in tabs %}
+        <li class="nav-item"><a class="nav-link{% if tab.active %} active{% endif %}" href="{{ tab.href|escape }}">{{ tab.title|escape }}</a></li>
+      {% endfor %}
+    </ul>
+    {% if show_form %}
+      <div class="card mb-3">
+        <div class="card-header">{{ type_label|escape }}</div>
+        <div class="card-body">
+          <form action="{{ action|escape }}" method="post">
+            <fieldset{% if not can_write %} disabled{% endif %}>
+              <div class="mb-3">
+                <label class="form-label" for="record-id">ID источника</label>
+                <input class="form-control" id="record-id" name="id" maxlength="160" value="{{ record.id|escape }}" required{% if edit_id %} readonly{% endif %}>
+              </div>
+              {% if type != 'site' and type != 'home' %}
+                <div class="mb-3">
+                  <label class="form-label" for="record-slug">Адрес записи</label>
+                  <input class="form-control" id="record-slug" name="slug" maxlength="160" value="{{ record.slug|escape }}" required>
+                </div>
+              {% endif %}
+              {% for item in fields %}
+                <div class="mb-3">
+                  <label class="form-label" for="field-{{ item.field|escape }}">{{ item.label|escape }}</label>
+                  {% if item.select %}
+                    <select class="form-select" id="field-{{ item.field|escape }}" name="{{ item.field|escape }}">
+                      {% for option, label in item.control %}
+                        <option value="{{ option|escape }}"{% if option is same as(item.value) or (item.field == 'is_indexable' and option ~ '' == item.value) %} selected{% endif %}>{{ label|escape }}</option>
+                      {% endfor %}
+                    </select>
+                  {% elseif item.control == 'textarea' %}
+                    <textarea class="form-control" rows="4" id="field-{{ item.field|escape }}" name="{{ item.field|escape }}">{{ item.value|escape }}</textarea>
+                  {% else %}
+                    <input class="form-control" type="{% if item.control in ['number', 'integer'] %}number{% else %}text{% endif %}"{% if item.control == 'number' %} min="0" step="0.0001"{% endif %} id="field-{{ item.field|escape }}" name="{{ item.field|escape }}" value="{{ item.value|escape }}">
+                  {% endif %}
+                </div>
+              {% endfor %}
+              {% if type == 'product' %}
+                <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="zero-price" name="confirm_zero_price" value="1"{% if record.confirm_zero_price %} checked{% endif %}><label class="form-check-label" for="zero-price">Нулевая цена подтверждена</label></div>
+              {% endif %}
+              <details class="mb-3">
+                <summary>Дополнительные поля и связи</summary>
+                <label class="form-label" for="record-details">Данные JSON</label>
+                <textarea class="form-control font-monospace" rows="8" id="record-details" name="details">{{ details|escape }}</textarea>
+              </details>
+            </fieldset>
+            {% if can_write %}<button class="btn btn-primary" type="submit">Сохранить</button>{% endif %}
+          </form>
+        </div>
+      </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>{{ type_label|escape }}</span>
+        {% if can_write %}<a class="btn btn-primary" href="{{ new_record|escape }}">Новая запись</a>{% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead><tr><th scope="col">Запись</th><th scope="col">Адрес</th></tr></thead>
+          <tbody>
+          {% for row in rows %}
+            <tr><td><a href="{{ row.href|escape }}">{{ (row.title ?: row.id)|escape }}</a></td><td>{{ row.slug|escape }}</td></tr>
+          {% else %}
+            <tr><td colspan="2">Записей пока нет.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if previous or next %}
+        <div class="card-footer">
+          {% if previous %}<a class="btn btn-outline-secondary" href="{{ previous|escape }}">Назад</a>{% endif %}
+          {% if next %}<a class="btn btn-outline-secondary" href="{{ next|escape }}">Далее</a>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{{ footer }}
