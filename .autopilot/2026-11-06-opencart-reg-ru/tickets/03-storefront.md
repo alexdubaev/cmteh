@@ -1,9 +1,9 @@
 # 03 — Витрина и клиентская корзина
 
 **Требования:** R01, R73, R74, R75, R76, R77, R78, R79, R80, R81, R82, R83, R84, R85, R86, R87, R88, R89, R90, R91, R92, R93, R94, R95, R96, R97, R98, R99, R100, R101, R102, R103, R104, R105, R106, R107, R108, R109, R110, R111, R112, R113, R114, R128, R141
-**Зависит от:** 01
+**Зависит от:** —
 **Зона:** `opencart/extension/cmteh/catalog/view` · `opencart/tests/browser`
-**Волна:** 2
+**Волна:** 1
 **Ревью:** нет
 **Модель:** сильная
 
@@ -98,6 +98,8 @@
 > При неопределённом наличии не подставлять `InStock` или `PreOrder`.
 
 > Автоматически сверить полный набор канонических URL и XML с картой переноса. До запуска проверить HTTP-ответы и метаданные по приоритетным URL и выборке каждого типа, отдельно покрыть редирект, `404`, `noindex` и обе ветви цены. Избегать агрессивного обхода на общем хостинге. Эталон: `app/product/[slug]/page.tsx`, `app/catalog/page.tsx`, `app/sitemap.xml/route.ts`, `app/sitemaps/[name]/route.ts` и `tests/seo.test.ts`. [Google о миграции](https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes) · [Яндекс о смене структуры](https://yandex.ru/support/webmaster/ru/recommendations/changing-site-structure)
+
+Файлы независимы от сборки фундамента; интеграционные проверки требуют поднятого стенда 01.
 
 ## Критерии приёмки
 

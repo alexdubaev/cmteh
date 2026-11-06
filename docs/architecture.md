@@ -1,0 +1,22 @@
+# Архитектура витрины СМ ТЕХНО
+
+Витрина OpenCart находится в [`opencart/`](../opencart/README.md). Корневое приложение Next.js служит эталоном URL, поведения и внешнего вида. OpenCart использует собственную БД и не обращается к Directus.
+
+## Запросы и представление
+
+- [Сборщик](../opencart/packaging/build.py) упаковывает расширение с неизменённым OpenCart 4.1.0.4 из ZIP, проверенного по SHA-256. [Настройка установки](../opencart/packaging/seal.php) переносит конфигурацию и storage за пределы document root. [Установка модуля](../opencart/extension/cmteh/admin/controller/module/cmteh.php) применяет миграции и регистрирует событие перед `common/home`. До создания `storefront.ready` публичная точка входа возвращает 503.
+- [Правила Apache](../opencart/packaging/htaccess) пропускают штатную админку и разрешённые статические файлы, остальные публичные маршруты идут через `index.php`. Событие передаёт запрос из [контроллера OpenCart](../opencart/extension/cmteh/catalog/controller/storefront/router.php) в [`Storefront`](../opencart/extension/cmteh/system/Storefront.php). Путь и параметры берутся из исходного `REQUEST_URI`. Прямой выбор контроллера через `route` и `_route_` закрыт на публичном входе.
+- [`StorefrontPages`](../opencart/extension/cmteh/system/StorefrontPages.php) собирает модель из `Catalog` для общего [шаблона Twig](../opencart/extension/cmteh/catalog/view/template/storefront/layout.twig). [`StorefrontSeo`](../opencart/extension/cmteh/system/StorefrontSeo.php) формирует canonical, sitemap и JSON-LD. Поиск `/api/search` и выдача страниц читают тот же каталог. Записи перенаправлений дают 301 только на существующий внутренний путь, запись удаления даёт 410.
+
+## Каталог и публикация
+
+- [Импорт NDJSON](../opencart/fixtures/README.md) идёт через предпросмотр с SHA-256 и применение с подтверждённым хешем. Идентификаторы источника сопоставляются со штатными таблицами товаров, производителей, категорий и характеристик. Таблицы `cmteh_*` содержат метаданные, поисковые поля, контент и связи медиа. Ключ прогона и контрольная точка позволяют продолжить импорт после последнего зафиксированного пакета. Снятие с публикации передаётся явно.
+- [`Catalog`](../opencart/extension/cmteh/system/Catalog.php) применяет условия публикации и привязки к магазину и языку для соответствующих сущностей. Оператор правит товары и контент через [редактор модуля](../opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php), который обновляет поисковые поля вместе с данными.
+- Оригиналы и миниатюры лежат в `CMTEH_PRIVATE_DIR/media`. `/api/assets/<uuid>` проверяет разрешённый файл, границы каталога и связь с опубликованной записью. Canonical и проверка origin заявки используют `CMTEH_SITE_URL`, который требует HTTPS вне loopback.
+
+## Корзина и заявки
+
+- [Корзина](../opencart/extension/cmteh/catalog/view/assets/cart.mjs) сохраняет позиции под `smtechno-request` и отправляет их через [клиент заявки](../opencart/extension/cmteh/catalog/view/assets/request.mjs) на `POST /api/lead`. [`Lead`](../opencart/extension/cmteh/system/Lead.php) фиксирует заявку, позиции и запись очереди одной транзакцией. Повтор с тем же ключом и нормализованными данными возвращает прежний публичный ID. Тот же ключ с другими данными даёт 409.
+- [Экран менеджера](../opencart/extension/cmteh/admin/controller/module/cmteh_leads.php) читает заявки и состояние очереди через штатную сессию и ACL OpenCart. Доступ менеджера и права записи оператора настраиваются отдельно. [CLI обработки очереди](../opencart/bin/send-leads.php) использует приватную конфигурацию транспорта и отправляет уведомление по публичному ID.
+
+Локальный проверяющий набор, сборка архива, установка и восстановление описаны в [руководстве OpenCart](../opencart/README.md).
