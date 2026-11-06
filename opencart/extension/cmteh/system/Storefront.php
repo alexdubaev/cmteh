@@ -69,6 +69,21 @@ final class Storefront
                 $this->renderError(404);
                 return;
             }
+            if ($query !== '' && CatalogInput::isLegacyQueryScope($path)
+                && ($path !== '/' || array_key_exists('page', $params))) {
+                $sourceQuery = CatalogInput::legacyRouteQuery($path, $query);
+                if ($sourceQuery === null) {
+                    $this->renderError(404);
+                    return;
+                }
+                $route = $this->catalog()->routes($path . '?' . $sourceQuery);
+                if (($route['status'] ?? null) === 301 && $route['target'] !== $path && $this->exists($route['target'])) {
+                    $this->redirect(StorefrontSeo::encodePath($route['target']));
+                    return;
+                }
+                $this->renderError(($route['status'] ?? null) === 410 ? 410 : 404);
+                return;
+            }
             $encoded = StorefrontSeo::encodePath($path);
             if ($raw !== $encoded) {
                 $target = $this->target($path);

@@ -32,6 +32,10 @@ $routes = [
     '/http-test-old' => '/product/jd-re568158', '/http-test-gone' => null,
     '/http-test-chain' => '/http-test-old', '/http-test-loop' => '/http-test-loop-2',
     '/http-test-loop-2' => '/http-test-loop', "/api/assets/$old" => "/api/assets/$public",
+    '/catalog/CATERPILLAR' => '/brand/caterpillar',
+    '/catalog/CATERPILLAR?page=2' => '/category/filters',
+    '/catalog/Новинки' => '/articles',
+    '/?page=3' => '/catalog', '/news?sid=2' => '/articles',
 ];
 if ($argv[1] === 'clean') {
     $pdo->beginTransaction();

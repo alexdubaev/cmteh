@@ -26,7 +26,7 @@ trait CatalogWrites
     public function validate(string $type, array $row): array
     {
         if ($type === 'route') {
-            $path = CatalogInput::path($row['path'] ?? null);
+            $path = CatalogInput::routeSource($row['path'] ?? null);
             $status = $row['status'] ?? null;
             if (!in_array($status, [301, 410], true)) {
                 throw new InvalidArgumentException('status: требуется 301 или 410');

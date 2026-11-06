@@ -17,6 +17,7 @@ RewriteRule ^image/[a-z0-9_./-]+\.(?:png|jpe?g|gif|webp|ico)$ - [END,NC]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(?:admin/view|extension/opencart/admin/view|extension/cmteh/catalog/view/assets)/[a-z0-9_./-]+\.(?:css|js|mjs|png|jpe?g|gif|webp|ico|woff2?|ttf|eot|svg)$ - [END,NC]
 RewriteRule ^(?:admin|extension|image|install|system)(?:/|$) - [R=404,END,NC]
+RewriteRule ^catalog/(?:JOHN-DEERE|CATERPILLAR|MILEQUIP|Analogi|Новинки|Хиты-продаж|Товары-на-главной)/?$ index.php [END]
 RewriteRule ^catalog/.+ - [R=404,END,NC]
 RewriteRule ^index\.php$ - [END]
 RewriteRule \.(?:php[0-9]*|phtml|phar|sql|zip|ini|log|bak|env)$ - [R=404,END,NC]
