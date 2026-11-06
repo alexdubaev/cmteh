@@ -40,3 +40,4 @@ app/plugins/impeccable-live.client.ts
 src/plugins/impeccable-live.client.ts
 # impeccable-live-ignore-end
 .autopilot/serve.*
+opencart/**/__pycache__/

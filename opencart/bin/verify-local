@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Verify the OpenCart package on the isolated local PHP/MySQL stack."""
+
+import argparse
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "dev"))
+from runtime import LocalOpenCart
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--upstream", type=Path, required=True)
+    parser.add_argument("--runtime-dir", type=Path, required=True)
+    parser.add_argument("--port", type=int, default=3154)
+    args = parser.parse_args()
+
+    runtime = LocalOpenCart(args.runtime_dir, args.port)
+    runtime.start(args.upstream, refresh=True)
+    runtime.smoke()
+    runtime.docker("exec", "-T", "web", "sh", "-c",
+                   "find /workspace -name '*.php' -type f -exec php -l '{}' ';' | "
+                   "awk '/^No syntax errors detected/ { good++; next } { print; bad++ } "
+                   "END { print good+0, \"PHP files linted\"; exit (bad > 0 || good == 0) }'")
+    runtime.docker("exec", "-T", "web", "php", "--version")
+    runtime.docker("exec", "-T", "db", "mysqld", "--version")
+
+
+if __name__ == "__main__":
+    main()
