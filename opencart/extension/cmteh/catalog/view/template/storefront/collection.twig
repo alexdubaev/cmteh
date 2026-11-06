@@ -19,6 +19,7 @@
     {% if model.products|default([]) %}
       <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
     {% else %}<div class="panel empty-state"><p>В опубликованном каталоге пока нет товаров этого бренда.</p><a class="button primary" href="/request">Запросить запчасть</a></div>{% endif %}
+    {{ ui.collectionPagination(model.collection_path, model.page, model.total, model.limit) }}
   </section>
 {% else %}
   {% set category = model.category|default({}) %}
@@ -31,6 +32,7 @@
     {% if model.products|default([]) %}
       <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
     {% else %}<div class="panel empty-state"><h2>Пока нет опубликованных товаров</h2><a class="button primary" href="/request">Отправить запрос</a></div>{% endif %}
+    {{ ui.collectionPagination(model.collection_path, model.page, model.total, model.limit) }}
   </div>
 {% endif %}
 {% endautoescape %}

@@ -14,7 +14,7 @@ final class StorefrontPages
     public const SYSTEM = ['catalog', 'brands', 'articles', 'request'];
 
     private const RESERVED = ['admin', 'api', 'account', 'brand', 'cart', 'category', 'checkout', 'extension', 'image',
-        'information', 'install', 'product', 'sitemaps', 'system', '_cmteh_platform'];
+        'information', 'install', 'product', 'sitemap', 'sitemaps', 'system', '_cmteh_platform'];
 
     private readonly StorefrontSeo $seo;
     private ?array $brands = null;
@@ -106,16 +106,19 @@ final class StorefrontPages
                 $model += $this->catalog->products($params + ['limit' => 12]);
                 if ($this->filtered($rawParams)) {
                     $meta['robots'] = 'noindex,follow';
-                } elseif ($params['page'] > 1) {
-                    $meta['canonical'] .= '?page=' . $params['page'];
+                } elseif (!$this->paginate($path, $params['page'], $model, $meta)) {
+                    return null;
                 }
                 break;
             case 'brands':
                 break;
             case 'brand':
             case 'category':
-                $model += $this->catalog->products([$page => $record['slug'], 'limit' => $page === 'brand' ? 12 : 24]);
+                $model += $this->catalog->products([
+                    $page => $record['slug'], 'page' => $params['page'], 'limit' => $page === 'brand' ? 12 : 24,
+                ]);
                 $model[$page] = $record;
+                $model['collection_path'] = StorefrontSeo::encodePath($path);
                 $name = $record['name'] ?? $record['title'];
                 if ($page === 'brand') {
                     $meta['title'] = $meta['title'] ?: 'Запчасти ' . $name;
@@ -126,6 +129,9 @@ final class StorefrontPages
                     $meta['image'] ??= !empty($record['image_url'])
                         ? $this->seo->url($record['image_url']) : $this->seo->assetUrl($record['image'] ?? null);
                 }
+                if (!$this->paginate($path, $params['page'], $model, $meta)) {
+                    return null;
+                }
                 $graphs[] = $this->seo->collection($record, $model['products'], $page, $meta['canonical']);
                 $graphs[] = $this->seo->breadcrumbs([$homeCrumb, $catalogCrumb, [$name, $meta['canonical']]]);
                 break;
@@ -135,7 +141,8 @@ final class StorefrontPages
                 $model['heading'] = self::heading($record);
                 $model['related'] = $this->relatedProducts($record);
                 $meta['title'] = ($record['seo_title'] ?? '') ?: $model['heading'];
-                $meta['description'] = ($record['seo_description'] ?? '') ?: ($record['short_description'] ?? '');
+                $meta['description'] = ($record['seo_description'] ?? '') ?: (($record['short_description'] ?? '') ?:
+                    mb_strimwidth(StorefrontSeo::text($record['full_description']), 0, 170, '…'));
                 $meta['image'] = !empty($record['main_image_url'])
                     ? $this->seo->url($record['main_image_url']) : $this->seo->assetUrl($record['main_image'] ?? null);
                 if ($meta['image'] === null) {
@@ -158,10 +165,8 @@ final class StorefrontPages
             case 'articles':
                 $articlePage = $this->catalog->content('articles', null, $params['page']);
                 $model += ['entries' => array_map(self::htmlFields(...), $articlePage['items'])] + $articlePage;
-                if ($params['page'] > 1) {
-                    $suffix = 'Страница ' . $params['page'];
-                    $meta['title'] = $meta['title'] === '' ? $suffix : $meta['title'] . ' — ' . mb_strtolower($suffix);
-                    $meta['canonical'] .= '?page=' . $params['page'];
+                if (!$this->paginate($path, $params['page'], $model, $meta)) {
+                    return null;
                 }
                 break;
             case 'article':
@@ -202,6 +207,22 @@ final class StorefrontPages
         }
 
         return compact('page', 'params', 'model', 'site', 'navigation', 'meta', 'jsonLd') + ['status' => 200];
+    }
+
+    private function paginate(string $path, int $requested, array $listing, array &$meta): bool
+    {
+        if ($requested === 1) {
+            return true;
+        }
+        if ($listing['page'] !== $requested || ($requested - 1) * $listing['limit'] >= $listing['total']) {
+            return false;
+        }
+        if ($meta['canonical'] === $this->seo->url($path)) {
+            $meta['canonical'] .= '?page=' . $requested;
+        }
+        $meta['title'] = ($meta['title'] === '' ? '' : $meta['title'] . ' · ') . 'Страница ' . $requested;
+
+        return true;
     }
 
     private function brands(): array

@@ -92,12 +92,12 @@ final class Storefront
                 return;
             }
             if ($path === '/robots.txt') {
-                $this->send(200, 'text/plain; charset=utf-8', "User-agent: *\nAllow: /\nAllow: /api/assets/\nDisallow: /api/\nSitemap: "
+                $this->send(200, 'text/plain; charset=utf-8', "User-agent: *\nAllow: /\nAllow: /api/assets/\nDisallow: /api/\nDisallow: /admin/\nSitemap: "
                     . Database::siteUrl() . "/sitemap.xml\n");
                 return;
             }
-            if ($path === '/sitemap.xml' || str_starts_with($path, '/sitemaps/')) {
-                $document = (new StorefrontSeo(Database::siteUrl(), $this->catalog()))->sitemap($path);
+            if ($path === '/sitemap' || $path === '/sitemap.xml' || str_starts_with($path, '/sitemaps/')) {
+                $document = (new StorefrontSeo(Database::siteUrl(), $this->catalog()))->sitemap($path === '/sitemap' ? '/sitemap.xml' : $path);
                 if ($document === null) {
                     $this->renderError(404);
                 } else {
@@ -225,7 +225,7 @@ final class Storefront
 
     private function missing(string $path): void
     {
-        $route = $this->catalog()->routes($path);
+        $route = $this->legacyRoute($path);
         if (($route['status'] ?? null) === 301 && $route['target'] !== $path && $this->exists($route['target'])) {
             $this->redirect(StorefrontSeo::encodePath($route['target']));
             return;
@@ -238,10 +238,18 @@ final class Storefront
         if ($this->exists($path)) {
             return StorefrontSeo::encodePath($path);
         }
-        $route = $this->catalog()->routes($path);
+        $route = $this->legacyRoute($path);
 
         return ($route['status'] ?? null) === 301 && $route['target'] !== $path && $this->exists($route['target'])
             ? StorefrontSeo::encodePath($route['target']) : null;
+    }
+
+    private function legacyRoute(string $path): ?array
+    {
+        return $this->catalog()->routes($path) ?? match ($path) {
+            '/page/Доставка' => ['status' => 301, 'target' => '/delivery'],
+            default => null,
+        };
     }
 
     private function exists(?string $path): bool
@@ -252,7 +260,7 @@ final class Storefront
         if (str_starts_with($path, '/api/assets/')) {
             return $this->catalog()->asset(substr($path, strlen('/api/assets/'))) !== null;
         }
-        if (in_array($path, ['/robots.txt', '/sitemap.xml', '/sitemaps/static.xml', '/api/search', '/api/health'], true)) {
+        if (in_array($path, ['/robots.txt', '/sitemap', '/sitemap.xml', '/sitemaps/static.xml', '/api/search', '/api/health'], true)) {
             return true;
         }
         if (preg_match('~^/sitemaps/products-(0|[1-9][0-9]{0,8})\.xml$~D', $path, $matches)) {
