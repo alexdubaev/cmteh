@@ -1,0 +1,4 @@
+/* Interactive regions retain the browser's hidden semantics when grids and flex are applied. */
+[hidden] { display: none !important; }
+.request-line > div:first-child, .product-info, .article-big > span, .sku > span { min-width: 0; overflow-wrap: anywhere; }
+.breadcrumbs > * { min-width: 0; overflow-wrap: anywhere; }

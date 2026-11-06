@@ -1,0 +1,93 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set products = model.products|default([]) %}
+{% set currentPage = model.page|default(1) %}
+{% set maxPage = max(1, (model.total|default(0) / model.limit|default(12))|round(0, 'ceil')) %}
+{% set availability = {'in_stock': 'В наличии', 'on_request': 'Под заказ', 'out_of_stock': 'Нет в наличии'} %}
+{% set types = {'original': 'Оригинал', 'oem': 'OEM', 'analog': 'Аналог'} %}
+{% set sorts = {'popular': 'По умолчанию', 'price_asc': 'Сначала дешевле', 'price_desc': 'Сначала дороже', 'title': 'По названию'} %}
+{% set filterBrand = brands|filter(item => item.slug == params.brand|default(''))|first %}
+{% set filterCategory = categories|filter(item => item.slug == params.category|default(''))|first %}
+{% set filters = {
+  q: params.q|default('') ? 'Поиск: ' ~ params.q : '',
+  brand: params.brand|default('') ? 'Бренд: ' ~ filterBrand.name|default(params.brand) : '',
+  category: params.category|default('') ? 'Категория: ' ~ filterCategory.title|default(params.category) : '',
+  availability: params.availability|default('') ? 'Наличие: ' ~ availability[params.availability]|default(params.availability) : '',
+  partType: params.partType|default('') ? 'Тип: ' ~ types[params.partType]|default(params.partType) : ''
+}|filter(label => label is not empty) %}
+<div class="shell page-shell">
+  <div class="breadcrumbs catalog-breadcrumbs"><a href="/">Главная</a><span>/</span><span>Каталог</span></div>
+  <div class="catalog-layout">
+    <div class="catalog-heading-row">
+      <div class="catalog-head"><h1>Каталог запчастей</h1><p>Артикулы, OEM-коды, бренды, категории, наличие и тип запчасти.</p></div>
+      <div class="catalog-controls">
+        {% if filters %}
+        <div class="active-filters" aria-label="Активные фильтры">
+          {% for key, label in filters %}<a href="{{ ui.catalogHref(params, {(key): ''}) }}">{{ label }} <b aria-hidden="true">×</b></a>{% endfor %}
+          <a class="active-filters-reset" href="/catalog">Сбросить все</a>
+        </div>{% endif %}
+        <div class="catalog-toolbar">
+          <span>Найдено: <strong>{{ model.total|default(products|length) }}</strong></span>
+          {% if model.partial|default(false) %}<span class="catalog-partial" role="status">Часть совпадений не проверена.</span>{% endif %}
+          <div class="catalog-toolbar-right">
+            <form action="/catalog" method="get">
+              {% for key in ['q', 'brand', 'category', 'availability', 'partType'] %}{% if params[key]|default('') %}<input type="hidden" name="{{ key }}" value="{{ params[key] }}">{% endif %}{% endfor %}
+              <select name="sort" aria-label="Сортировка">
+                {% for key, label in sorts %}<option value="{{ key }}"{% if key == params.sort|default('popular') %} selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <button class="sort-apply" type="submit">Применить</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <details class="filter-disclosure" open><summary>Фильтры и подбор</summary>
+      <aside class="filters panel">
+        <form class="facet-form" action="/catalog" method="get">
+          {% for key in ['q', 'brand', 'category', 'sort'] %}{% if params[key]|default('') %}<input type="hidden" name="{{ key }}" value="{{ params[key] }}">{% endif %}{% endfor %}
+          <label>Наличие<select name="availability"><option value="">Любое</option>
+            {% for key, label in availability %}<option value="{{ key }}"{% if key == params.availability|default('') %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></label>
+          <label>Тип запчасти<select name="partType"><option value="">Любой</option>
+            {% for key, label in types %}<option value="{{ key }}"{% if key == params.partType|default('') %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></label>
+          <button class="button secondary wide" type="submit">Применить фильтры</button>
+          {% if filters or params.sort|default('') %}<a class="reset-filters" href="/catalog">Сбросить все фильтры</a>{% endif %}
+        </form>
+        <details open><summary>Категории</summary><div class="filter-links">
+          <a class="{{ not params.category|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {category: ''}) }}">Все категории</a>
+          {% for category in categories %}<a class="{{ category.slug == params.category|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {category: category.slug}) }}">{{ category.title }}</a>{% endfor %}
+        </div></details>
+        <details open><summary>Бренд</summary><div class="filter-links">
+          <a class="{{ not params.brand|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {brand: ''}) }}">Все бренды</a>
+          {% for brand in brands %}<a class="{{ brand.slug == params.brand|default('') ? 'active' : '' }}" href="{{ ui.catalogHref(params, {brand: brand.slug}) }}">{{ brand.name }}</a>{% endfor %}
+        </div></details>
+      </aside>
+    </details>
+    <section class="catalog-content">
+      {% set query = params.q|default('')|trim %}
+      {% if query and (query|length < 2 or query|length > 64) %}
+        <div class="panel empty-state"><h2>Проверьте поисковый запрос</h2><p role="status">{{ query|length < 2 ? 'Поисковый запрос должен содержать не менее 2 символов.' : 'Сократите поисковый запрос до 64 символов.' }}</p></div>
+      {% elseif products %}
+        <div class="product-grid catalog-grid">{% for product in products %}{{ ui.card(product) }}{% endfor %}</div>
+      {% else %}
+        <div class="panel empty-state"><h2>Ничего не найдено</h2><p>Проверьте артикул или измените фильтры. Вы также можете передать артикул для подбора в заявке.</p>
+          <a class="button primary" href="/request?import=1{% if query %}&amp;article={{ query|url_encode }}{% endif %}">{{ query ? 'Передать артикул для подбора' : 'Передать список для подбора' }}</a>
+        </div>
+      {% endif %}
+      {% if maxPage > 1 %}
+      {% set pageNumbers = maxPage <= 7 ? range(1, maxPage) : [1, currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2, maxPage]|filter(number => number >= 1 and number <= maxPage)|reduce((all, number) => number in all ? all : all|merge([number]), [])|sort %}
+      <nav class="pagination" aria-label="Пагинация">
+        {% if currentPage > 1 %}<a aria-label="Предыдущая страница" href="{{ ui.catalogHref(params, {page: currentPage - 1}) }}">←</a>{% endif %}
+        {% for number in pageNumbers %}
+          <span class="pagination-slot">
+            {% if not loop.first and pageNumbers[loop.index0 - 1] < number - 1 %}<span class="ellipsis">…</span>{% endif %}
+            <a class="{{ number == currentPage ? 'active' : '' }}"{% if number == currentPage %} aria-current="page"{% endif %} href="{{ ui.catalogHref(params, {page: number}) }}">{{ number }}</a>
+          </span>
+        {% endfor %}
+        {% if currentPage < maxPage %}<a aria-label="Следующая страница" href="{{ ui.catalogHref(params, {page: currentPage + 1}) }}">→</a>{% endif %}
+      </nav>{% endif %}
+    </section>
+  </div>
+</div>
+{% endautoescape %}

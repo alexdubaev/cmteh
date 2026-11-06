@@ -1,0 +1,60 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set heroPhoto = ui.asset(home.hero_image|default('')) %}
+{% set primary = ui.href(home.hero_primary_button_url|default('')) %}
+{% set secondary = ui.href(home.hero_secondary_button_url|default('')) %}
+<section class="hero{{ heroPhoto ? ' hero-cms-image' : '' }}">
+  <picture class="hero-background"{% if not heroPhoto %} aria-hidden="true"{% endif %}>
+    <source media="(max-width: 820px)" srcset="{{ heroPhoto ?: assets ~ 'images/hero-industrial-v3-mobile.webp' }}">
+    <img src="{{ heroPhoto ?: assets ~ 'images/hero-industrial-v3.webp' }}" alt="{{ heroPhoto ? home.hero_image_alt|default('') : '' }}" width="2172" height="724" fetchpriority="high">
+  </picture>
+  <div class="shell hero-grid"><div class="hero-copy">
+    <h1>{% if home.hero_title|default('Запчасти для спецтехники') == 'Запчасти для спецтехники' %}<span>Запчасти</span> <span>для</span> <span>спецтехники</span>{% else %}{{ home.hero_title }}{% endif %}</h1>
+    <p>{{ home.hero_text|default('Найдите деталь по артикулу или отправьте список позиций для расчёта') }}</p>
+    <div class="hero-cms-actions">
+      <a class="button primary" href="{{ primary and home.hero_primary_button_text|default('') ? primary : '/catalog' }}">{{ primary ? home.hero_primary_button_text|default('Открыть каталог') : 'Открыть каталог' }}</a>
+      <a class="button secondary" href="{{ secondary and secondary != '/request' and home.hero_secondary_button_text|default('') ? secondary : '/request?import=1' }}">{{ secondary ? home.hero_secondary_button_text|default('Отправить список') : 'Отправить список' }}</a>
+    </div>
+  </div></div>
+  <div class="shell hero-quicklinks" aria-label="Быстрый поиск"><strong>Что ищете?</strong>
+    <a href="#article-search" data-focus-search><span aria-hidden="true">⌕</span>По артикулу <b aria-hidden="true">→</b></a>
+    <a href="#brands"><span aria-hidden="true">⚙</span>По бренду <b>→</b></a>
+  </div>
+</section>
+<section class="brand-strip" id="brands"><div class="shell">
+  <div class="brand-strip-heading"><strong>По производителю</strong><a class="all-brands" href="/brands">Все бренды →</a></div>
+  <div class="brand-list" tabindex="0" role="region" aria-label="Бренды — прокрутите список">
+    {% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}
+  </div>
+  <p class="brand-scroll-hint">Листайте список брендов →</p>
+</div></section>
+{% if categories %}
+<section class="section shell home-categories" aria-labelledby="home-categories-title">
+  <div class="section-heading"><h2 id="home-categories-title">Категории запчастей</h2><a href="/catalog">Весь каталог →</a></div>
+  <div class="home-category-grid">{% for category in categories|slice(0, 8) %}<a class="home-category-link" href="/category/{{ category.slug|url_encode }}"><span>{{ category.title }}</span></a>{% endfor %}</div>
+</section>
+{% endif %}
+<section class="section shell home-products">
+  <div class="section-heading"><div><h2>Запчасти из каталога</h2></div><a href="/catalog">Открыть весь каталог →</a></div>
+  {% if model.products|default([]) %}
+    <div class="product-grid home-product-grid">{% for product in model.products|slice(0, 6) %}{{ ui.card(product) }}{% endfor %}</div>
+  {% else %}
+    <div class="panel empty-state"><p>Каталог временно недоступен или пока не содержит опубликованных товаров.</p><a class="button primary" href="/request?import=1">Отправить список</a></div>
+  {% endif %}
+</section>
+<section class="section shell home-order" aria-labelledby="home-order-title">
+  <div class="section-heading"><h2 id="home-order-title">Как заказать</h2></div>
+  <ol class="home-order-steps">
+    <li><span class="home-step-number" aria-hidden="true">01</span><h3>Найдите товар или передайте список</h3><p>Используйте артикул, OEM-номер или список позиций.</p></li>
+    <li><span class="home-step-number" aria-hidden="true">02</span><h3>Получите подтверждение условий</h3><p>Уточните наличие, цену и условия поставки.</p></li>
+    <li><span class="home-step-number" aria-hidden="true">03</span><h3>Согласуйте заказ и поставку</h3><p>Подтвердите состав заказа и согласованные условия.</p></li>
+  </ol>
+  <div class="home-order-next"><p><strong>Не знаете артикул?</strong> Укажите название детали, марку и модель техники и известные обозначения в заявке.</p><a class="button primary" href="/request?import=1">Отправить список</a></div>
+</section>
+{% set entries = model.entries|default([]) %}
+{% if entries %}<section class="section shell articles-home-section" aria-labelledby="home-articles-title">
+  <div class="section-heading"><h2 id="home-articles-title">Статьи и рекомендации</h2><a href="/articles" class="article-all-link">Все статьи <span aria-hidden="true">→</span></a></div>
+  <div class="articles-grid">{% for entry in entries|slice(0, 3) %}{{ ui.articleCard(entry) }}{% endfor %}</div>
+</section>{% endif %}
+{% if home.sections|default([]) %}<section class="shell home-cms-sections">{% include templates ~ 'sections.twig' with {sections: home.sections} %}</section>{% endif %}
+{% endautoescape %}

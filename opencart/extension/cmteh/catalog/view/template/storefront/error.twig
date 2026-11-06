@@ -1,0 +1,11 @@
+{% autoescape 'html' %}
+<div class="shell page-shell">
+  <div class="panel empty-state not-found">
+    {% if page == 'not_found' %}
+      <h1>Страница не найдена</h1><p>Возможно, адрес изменился. Найдите нужную запчасть в каталоге.</p><a class="button primary" href="/catalog">Открыть каталог</a>
+    {% else %}
+      <h1>Не удалось загрузить страницу</h1><p>Обновите страницу или попробуйте ещё раз позже.</p><button class="button primary" type="button" data-reload>Повторить</button>
+    {% endif %}
+  </div>
+</div>
+{% endautoescape %}

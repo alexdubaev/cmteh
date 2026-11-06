@@ -1,0 +1,33 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% if page == 'brand' %}
+  {% set brand = model.brand|default({}) %}
+  <section class="brand-hero"><div class="shell brand-hero-grid">
+    <div><div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span><span>{{ brand.name }}</span></div>
+      <h1>{{ brand.name }}</h1><p>{{ brand.description }}</p><a class="button primary" href="/catalog?brand={{ brand.slug|url_encode }}">Все товары {{ brand.name }}</a>
+    </div>
+    <div class="brand-monogram" aria-hidden="true"><span>{{ brand.name }}</span></div>
+  </div></section>
+  <section class="section shell">
+    <div class="brand-stats">
+      <div><strong>{{ model.total|default(0) }}</strong><span>товаров в каталоге бренда</span></div>
+      <div><strong>Поиск</strong><span>по артикулу и названию</span></div>
+      <div><strong>Заявка</strong><span>запрос по выбранным позициям</span></div>
+      <div><strong>B2B</strong><span>работа с юрлицами</span></div>
+    </div>
+    <div class="section-heading"><div><h2>Товары</h2></div></div>
+    {% if model.products|default([]) %}
+      <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
+    {% else %}<div class="panel empty-state"><p>В опубликованном каталоге пока нет товаров этого бренда.</p><a class="button primary" href="/request">Запросить запчасть</a></div>{% endif %}
+  </section>
+{% else %}
+  {% set category = model.category|default({}) %}
+  <div class="shell page-shell">
+    <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span><span>{{ category.title }}</span></div>
+    <div class="page-title category-title"><h1>{{ category.h1|default(category.title) }}</h1><p>{{ category.intro|default(category.description|default('Товары выбранной категории.')) }}</p><a class="button secondary" href="/catalog?category={{ category.slug|url_encode }}">Открыть с фильтрами</a></div>
+    {% if model.products|default([]) %}
+      <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
+    {% else %}<div class="panel empty-state"><h2>Пока нет опубликованных товаров</h2><a class="button primary" href="/request">Отправить запрос</a></div>{% endif %}
+  </div>
+{% endif %}
+{% endautoescape %}

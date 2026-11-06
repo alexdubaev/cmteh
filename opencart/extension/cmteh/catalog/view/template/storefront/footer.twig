@@ -1,0 +1,30 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set articles = footerNav|filter(item => item.url|default('')|split('?')|first|trim('/') == 'articles') %}
+{% set contactLabel = site.inn|default('') or site.kpp|default('') or site.ogrn|default('') ? 'Контакты и реквизиты' : 'Контакты' %}
+<footer class="site-footer">
+  <div class="shell footer-grid">
+    <div><div class="brand footer-brand"><img class="brand-logo" src="{{ assets }}images/sm-techno-logo-transparent.webp" alt="{{ company }}" width="240" height="93"></div>
+      <p>{{ site.footer_text|default('B2B-каталог и поставка запчастей для спецтехники.') }}</p>
+    </div>
+    <div><strong>Разделы</strong>
+      {% for item in footerNav|filter(item => item not in articles) %}{{ ui.nav(item) }}{% endfor %}
+      {% if footerNav is empty %}<a href="/catalog">Каталог</a><a href="/delivery">Доставка</a><a href="/payment">Оплата</a><a href="/request">Корзина</a><a href="/about">О компании</a><a href="/contacts">Контакты</a>{% endif %}
+      {{ ui.nav(articles|first|default({url: '/articles'}), 'Статьи') }}
+    </div>
+    <div><strong>Контакты</strong>
+      {% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+      {% if tel matches '/^\d+$/' %}<a href="tel:{{ site.phone starts with '+' ? '+' : '' }}{{ tel }}">{{ site.phone }}</a>{% endif %}
+      {% if site.address|default('') %}<span>{{ [site.city|default(''), site.address]|filter(value => value)|join(', ') }}</span>{% endif %}
+      {% if site.working_hours|default('') %}<span>{{ site.working_hours }}</span>{% endif %}
+    </div>
+    <div class="footer-note"><span>B2B</span><p>{{ site.footer_disclaimer|default('Условия поставки, оплаты и документы подтверждаются менеджером при оформлении заявки.') }}</p></div>
+  </div>
+  <div class="shell footer-bottom">
+    <span>© {{ 'now'|date('Y') }} {{ company }}</span>
+    <div class="footer-legal">
+      {% for item in legalNav %}{{ ui.nav(item, item.url == '/contacts' ? contactLabel : '') }}{% else %}<a href="/contacts">{{ contactLabel }}</a>{% endfor %}
+    </div>
+  </div>
+</footer>
+{% endautoescape %}

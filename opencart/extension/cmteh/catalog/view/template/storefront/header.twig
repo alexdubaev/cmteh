@@ -1,0 +1,51 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="/" aria-label="{{ company }} — главная"><img class="brand-logo" src="{{ assets }}images/sm-techno-logo-transparent.webp" alt="" width="220" height="86"></a>
+    <details class="catalog-menu">
+      <summary>Каталог <span aria-hidden="true">⌄</span></summary>
+      <div class="catalog-menu-panel">
+        <section><strong>Категории</strong><a href="/catalog">Все товары</a>
+          {% for category in categories %}<a href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a>{% endfor %}
+        </section>
+        <section><strong>Бренды</strong><a href="/brands">Все бренды</a>
+          {% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}
+        </section>
+      </div>
+    </details>
+    <div id="article-search" class="header-search">
+      <div class="search-wrap compact">
+        <form class="search-box compact" action="/catalog" method="get" role="search">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="header-article-search" name="q" value="{{ page == 'catalog' ? params.q|default('') : '' }}" placeholder="{{ home.hero_search_placeholder|default('Введите артикул или OEM-номер') }}" aria-label="Поиск запчастей" minlength="2" maxlength="64" aria-expanded="false" aria-autocomplete="list" aria-controls="search-options" role="combobox" autocomplete="off">
+          <button type="submit">{{ home.hero_search_button_text|default('Найти') }}</button>
+        </form>
+        <div class="search-popover" hidden>
+          <div class="search-popover-title"></div>
+          <div id="search-options" role="listbox" aria-label="Поисковые подсказки"></div>
+          <button class="search-all" type="button" hidden>Показать все результаты →</button>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="header-contacts">
+        {% if tel matches '/^\d+$/' %}<a class="header-phone" href="tel:{{ site.phone starts with '+' ? '+' : '' }}{{ tel }}"><strong>{{ site.phone }}</strong></a>{% endif %}
+        {% if site.email|default('') %}<a class="header-email" href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+      </div>
+      <a class="request-link" href="/request" aria-label="Корзина" data-cart-link="Корзина">
+        <img class="request-icon" src="{{ assets }}images/cart-icon-black.webp" alt="" width="20" height="20" aria-hidden="true"><span class="request-label">Корзина</span><b data-cart-count hidden></b>
+      </a>
+    </div>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-navigation" aria-label="Открыть меню"><span></span><span></span><span></span></button>
+  </div>
+  <nav id="main-navigation" class="main-nav" aria-label="Основная навигация">
+    <div class="shell main-nav-inner">
+      {% set articles = headerNav|filter(item => item.url|default('')|split('?')|first|trim('/') == 'articles') %}
+      {% for item in headerNav|filter(item => item not in articles) %}{{ ui.nav(item) }}{% endfor %}
+      {% if headerNav is empty %}<a href="/catalog">Каталог</a><a href="/brands">Бренды</a><a href="/delivery">Доставка</a><a href="/payment">Оплата</a><a href="/about">О компании</a><a href="/contacts">Контакты</a>{% endif %}
+      {{ ui.nav(articles|first|default({url: '/articles'}), 'Статьи') }}
+    </div>
+  </nav>
+</header>
+{% endautoescape %}
