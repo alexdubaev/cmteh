@@ -1,6 +1,8 @@
 Options -Indexes -MultiViews
 DirectoryIndex index.php
+DirectorySlash Off
 RewriteEngine On
+RewriteOptions AllowNoSlash
 
 RewriteRule (?:^|/)(?:\.|config(?:-dist)?\.php$) - [R=404,END,NC]
 RewriteRule ^admin/?$ admin/index.php [END]

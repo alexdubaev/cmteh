@@ -291,12 +291,19 @@ final class Catalog
     private function productDto(array $row): array
     {
         $data = self::decode($row['data']);
+        $price = (float) $row['native_price'];
+        $priceStatus = $row['price_status'];
+        if ($priceStatus === 'fixed' && (!is_finite($price) || $price < 0
+            || ($price == 0 && ($data['confirm_zero_price'] ?? false) !== true)
+            || !preg_match('/^[A-Z]{3}$/D', $row['currency'] ?? ''))) {
+            $priceStatus = 'on_request';
+        }
         return [
             'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => $row['name'],
             'sku' => $row['sku'], 'mpn' => $row['mpn'], 'brand' => $row['brand_name'], 'brand_slug' => $row['brand_slug'],
             'short_description' => $data['short_description'] ?? null, 'full_description' => null,
-            'price' => $row['price_status'] === 'fixed' ? (float) $row['native_price'] : null,
-            'currency' => $row['currency'], 'price_status' => $row['price_status'],
+            'price' => $priceStatus === 'fixed' ? $price : null,
+            'currency' => $row['currency'], 'price_status' => $priceStatus,
             'availability_status' => $row['availability'], 'part_type' => $row['part_type'],
             'main_image' => $row['public_image'],
             'category' => $row['category_slug'] !== null ? [
