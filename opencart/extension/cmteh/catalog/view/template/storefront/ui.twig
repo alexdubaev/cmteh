@@ -41,7 +41,7 @@
 {% endautoescape %}{% endmacro %}
 {% macro articleDate(value) %}{% autoescape 'html' %}
 {%- set months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'] -%}
-{%- if value matches '/^\d{4}-\d{2}-\d{2}/' -%}
+{%- if value matches '/^[0-9]{4}-[0-9]{2}-[0-9]{2}/' -%}
   {{- value|date('j', 'UTC') }} {{ months[value|date('n', 'UTC') - 1] }} {{ value|date('Y', 'UTC') }} г.
 {%- endif -%}
 {% endautoescape %}{% endmacro %}
