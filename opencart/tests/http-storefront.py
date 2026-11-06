@@ -77,10 +77,10 @@ def main():
 
     static_paths = (
         SYSTEM | {f"/brand/{slug}" for slug in BRANDS.split()}
-        | {f"/category/{slug}" for slug in CATEGORIES.split()} | {"/articles/demonstration"}
+        | {f"/category/{slug}" for slug in CATEGORIES.split()} | {"/articles/zayavka-po-spisku-artikulov"}
     )
     product_paths = {f"/product/{slug}" for slug in PRODUCTS.split()}
-    assert locs("/sitemap.xml") == [base + "/sitemaps/static.xml", base + "/sitemaps/products-0.xml"]
+    assert locs("/sitemap") == locs("/sitemap.xml") == [base + "/sitemaps/static.xml", base + "/sitemaps/products-0.xml"]
     for path, expected in [("/sitemaps/static.xml", static_paths), ("/sitemaps/products-0.xml", product_paths)]:
         values = locs(path)
         assert set(values) == {base + item for item in expected} and len(values) == len(expected), path
@@ -97,14 +97,18 @@ def main():
         ("/catalog?q=RE-568158", "/catalog", "noindex,follow"),
         ("/catalog?brand=jcb&partType=original&page=2", "/catalog", "noindex,follow"),
         ("/catalog?sort=price_desc", "/catalog", "noindex,follow"),
-        ("/articles?page=2", "/articles?page=2", None),
         ("/request?import=1&article=0000550380", "/request", "noindex,nofollow"),
     ]:
         body, _ = request(path, headers={"Host": "injected.invalid"})
         assert metadata(body, "canonical") == base + canonical, path
         assert (metadata(body, "robots") or "").replace(" ", "") == (robots or ""), path
     robots, _ = request("/robots.txt")
-    for expected in ("Allow: /api/assets/", "Disallow: /api/", f"Sitemap: {base}/sitemap.xml"):
+    for path in ("/catalog?page=1000", "/articles?page=1000", "/category/filters?page=1000", "/brand/john-deere?page=1000"):
+        body, _ = request(path, 404)
+        assert metadata(body, "canonical") is None, path
+    _, headers = request("/page/%D0%94%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BA%D0%B0", 301)
+    assert headers["Location"] == base + "/delivery"
+    for expected in ("Allow: /api/assets/", "Disallow: /api/", "Disallow: /admin/", f"Sitemap: {base}/sitemap.xml"):
         assert expected in robots.decode(), expected
     print("PASS canonical origin, pagination, filters, robots and request")
 
@@ -124,12 +128,16 @@ def main():
             assert product["offers"]["price"] == price and product["offers"]["priceCurrency"] == "RUB"
             assert re.search(r"3\s+200", unescape(body.decode())), "the fixed price should be visible"
     for path, kind in [("/brand/john-deere", "CollectionPage"), ("/category/filters", "CollectionPage"),
-                       ("/articles/demonstration", "Article")]:
+                       ("/articles/zayavka-po-spisku-artikulov", "Article")]:
         body, _ = request(path)
         entities = schemas(body, kind)
         assert entities and schemas(body, "BreadcrumbList"), path
         if kind == "CollectionPage":
             assert entities[0]["mainEntity"]["@type"] == "ItemList", path
+        else:
+            assert b'href="/request?import=1"' in body and b"000123" in body, path
+    demo, _ = request("/articles/demonstration")
+    assert metadata(demo, "robots") == "noindex,follow"
     print("PASS Product, Offer, leading-zero SKU, collections, breadcrumbs and Article JSON-LD")
 
     for path in ("/not-published", "/product/unknown", "/product/JD-RE568158", "/product/%2f",

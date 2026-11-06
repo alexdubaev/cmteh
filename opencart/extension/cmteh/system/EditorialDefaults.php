@@ -62,6 +62,25 @@ final class EditorialDefaults
         }
     }
 
+    public static function installSearchContent(Catalog $catalog): void
+    {
+        $json = file_get_contents(__DIR__ . '/search-editorial.json');
+        if ($json === false) {
+            throw new \RuntimeException('Missing search editorial defaults.');
+        }
+        $defaults = json_decode($json, true, 16, JSON_THROW_ON_ERROR);
+        $catalog->reviseEditorialDefaults('home', 'home', $defaults['home']);
+        foreach ($defaults['pages'] as $slug => $changes) {
+            $catalog->reviseEditorialDefaults('page', $slug, $changes);
+        }
+        $catalog->reviseEditorialDefaults('article', 'demonstration', ['is_indexable' => [true, false]], 'demonstration');
+
+        $article = $defaults['article'];
+        $catalog->insertEditorialDefault('article', self::record($article['slug'], $article + [
+            'published_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ]));
+    }
+
     public static function imageUrl(mixed $value): ?string
     {
         if (in_array($value, self::BUNDLED_IMAGES, true)) {

@@ -110,10 +110,14 @@ trait CatalogWrites
     {
         $this->atomic(function (): void {
             $schema = $this->table('cmteh_schema');
+            require_once __DIR__ . '/EditorialDefaults.php';
             $migration = $this->run("INSERT IGNORE INTO $schema (version, applied_at) VALUES (3, UTC_TIMESTAMP())");
             if ($migration->rowCount() === 1) {
-                require_once __DIR__ . '/EditorialDefaults.php';
                 EditorialDefaults::install($this);
+            }
+            $migration = $this->run("INSERT IGNORE INTO $schema (version, applied_at) VALUES (4, UTC_TIMESTAMP())");
+            if ($migration->rowCount() === 1) {
+                EditorialDefaults::installSearchContent($this);
             }
         });
     }
@@ -171,6 +175,29 @@ trait CatalogWrites
                 ]);
             }
         });
+    }
+
+    public function reviseEditorialDefaults(string $type, string $slug, array $changes, ?string $sourceId = null): void
+    {
+        $table = $this->table('cmteh_content');
+        $row = $this->run("SELECT source_id, data, indexable FROM $table WHERE type = ? AND slug = ? FOR UPDATE", [$type, $slug])
+            ->fetch(PDO::FETCH_ASSOC);
+        if (!$row || ($sourceId !== null && $row['source_id'] !== $sourceId)) {
+            return;
+        }
+        $data = self::decode($row['data']);
+        $updated = [];
+        foreach ($changes as $field => [$previous, $next]) {
+            if (($data[$field] ?? null) === $previous) {
+                $updated[$field] = $next;
+            }
+        }
+        if ($updated !== []) {
+            $this->run("UPDATE $table SET data = ?, indexable = ? WHERE type = ? AND slug = ?", [
+                self::encode(array_replace($data, $this->sanitizeContent($updated))),
+                (int) ($updated['is_indexable'] ?? $row['indexable']), $type, $slug,
+            ]);
+        }
     }
 
     public function taxonomyExists(string $type, string $slug): bool

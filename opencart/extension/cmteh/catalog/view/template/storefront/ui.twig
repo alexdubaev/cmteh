@@ -69,3 +69,11 @@
 {%- if patch.page|default(0) > 1 -%}{%- set query = query|merge({page: patch.page}) -%}{%- endif -%}
 {{- '/catalog' ~ (query ? '?' ~ query|url_encode : '') -}}
 {% endautoescape %}{% endmacro %}
+{% macro collectionPagination(path, current, total, limit) %}{% autoescape 'html' %}
+{% set pages = (total / limit)|round(0, 'ceil') %}
+{% if pages > 1 %}<nav class="articles-pagination" aria-label="Страницы товаров">
+  {% if current > 1 %}<a href="{{ current == 2 ? path : path ~ '?page=' ~ (current - 1) }}" rel="prev">← Предыдущая</a>{% endif %}
+  <span>Страница {{ current }} из {{ pages }}</span>
+  {% if current < pages %}<a href="{{ path }}?page={{ current + 1 }}" rel="next">Следующая →</a>{% endif %}
+</nav>{% endif %}
+{% endautoescape %}{% endmacro %}
