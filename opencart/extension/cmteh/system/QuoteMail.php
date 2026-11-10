@@ -6,14 +6,18 @@ use RuntimeException;
 
 final class QuoteMail
 {
-    private const SETTINGS = ['from' => 'info@cmteh.ru', 'to' => 'info@cmteh.ru', 'from_name' => 'СМТЕХНО'];
+    private const SETTINGS = ['from' => 'info@cmteh.ru', 'to' => 'info@cmteh.ru', 'from_name' => 'СМ ТЕХНО'];
 
     private static function settings(array $settings): array
     {
-        foreach (self::SETTINGS as $key => $value) {
-            if (($settings[$key] ?? null) !== $value) { throw new InvalidArgumentException('Invalid quote mail settings.'); }
+        foreach (['from', 'to'] as $key) {
+            if (($settings[$key] ?? null) !== self::SETTINGS[$key]) { throw new InvalidArgumentException('Invalid quote mail settings.'); }
         }
-        return self::SETTINGS;
+        $name = $settings['from_name'] ?? null;
+        if (!in_array($name, ['СМ ТЕХНО', 'СМТЕХНО'], true)) { throw new InvalidArgumentException('Invalid quote mail settings.'); }
+        $validated = self::SETTINGS;
+        $validated['from_name'] = $name;
+        return $validated;
     }
 
     public static function message(array $quote, array $settings): string

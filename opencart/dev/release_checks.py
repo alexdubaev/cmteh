@@ -224,6 +224,13 @@ def _quote_acceptance(runtime, package):
         counts = json.loads(runtime.docker("exec", "-T", "web", "php", "/runtime/verified-send-quotes.php",
                                           "--config=" + CONFIG, "--capture=" + captured, "--limit=10", capture=True).stdout)
         require(counts.get("sent", 0) >= 2, "Packaged CLI did not process the saved text and file quote.")
+        capture_script = ("require '/var/www/html/config.php';require DIR_EXTENSION.'cmteh/system/Database.php';"
+                          "echo file_get_contents(\\Cmteh\\Database::privateDir().'/quote-test-capture/" + captured + "');")
+        captured_raw = runtime.docker("exec", "-T", "web", "php", "-r", capture_script, capture=True).stdout.encode()
+        captured_message = BytesParser(policy=policy.default).parsebytes(captured_raw)
+        require([(address.display_name, address.addr_spec) for address in captured_message["From"].addresses]
+                == [("СМ ТЕХНО", "info@cmteh.ru")],
+                "Packaged CLI capture did not use the approved decoded sender name and address.")
         # Capture each saved quote independently through its immutable service DTO, no external transport.
         script = ("require '/var/www/html/config.php';require DIR_EXTENSION.'cmteh/system/Quote.php';"
                   "require DIR_EXTENSION.'cmteh/system/QuoteMail.php';"

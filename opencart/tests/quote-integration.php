@@ -168,8 +168,8 @@ try {
     $terminal=$worker->run(static function(): void { throw new RuntimeException('synthetic MTA rejection'); },1);
     check($terminal['failed']===1 && (int)$q->find($id)['attempts']===3 && $q->retry($id),'Three failed transport attempts stop and allow explicit native retry');
     $original=$q->find($fileId); $original['attachment']=$q->attachment($fileId);
-    $mime=QuoteMail::message($original,['from'=>'info@cmteh.ru','to'=>'info@cmteh.ru','from_name'=>'СМТЕХНО']);
-    $second=QuoteMail::message($original,['from'=>'info@cmteh.ru','to'=>'info@cmteh.ru','from_name'=>'СМТЕХНО']);
+    $mime=QuoteMail::message($original,['from'=>'info@cmteh.ru','to'=>'info@cmteh.ru','from_name'=>'СМ ТЕХНО']);
+    $second=QuoteMail::message($original,['from'=>'info@cmteh.ru','to'=>'info@cmteh.ru','from_name'=>'СМ ТЕХНО']);
     check($mime===$second && str_contains($mime,"Reply-To: <quote@example.test>\r\n"),'Retries build stable MIME, Message-ID and validated Reply-To');
     $rejectedSettings=false;
     try { QuoteMail::hosting(['from'=>'info@cmteh.ru','to'=>'other@example.test','from_name'=>'СМТЕХНО']); }

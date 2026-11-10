@@ -114,7 +114,7 @@ SHA-256 и оригинальные bytes сохраняются отдельн�
 `CMTEH_PRIVATE_DIR` (либо `DIR_STORAGE`), файл `quote-mail.json` с правами 0600:
 
 ```json
-{"from":"info@cmteh.ru","to":"info@cmteh.ru","from_name":"СМТЕХНО"}
+{"from":"info@cmteh.ru","to":"info@cmteh.ru","from_name":"СМ ТЕХНО"}
 ```
 
 ```sh
