@@ -22,9 +22,10 @@
     border-top: 1px solid var(--line-strong);
     background: var(--surface-light);
     box-shadow: 0 -4px 16px var(--shadow-card-hover-color);
-    transition: transform .16s ease, visibility .16s ease;
+    /* Restore visibility immediately so the dialog opener can receive focus. */
+    transition: transform .16s ease;
   }
-  .mobile-actions.is-field-focused { transform: translateY(110%); visibility: hidden; pointer-events: none; }
+  .mobile-actions.is-field-focused { transform: translateY(110%); visibility: hidden; pointer-events: none; transition: transform .16s ease, visibility .16s ease; }
   .mobile-action {
     display: flex;
     min-width: 0;
@@ -64,7 +65,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobile-actions { transition: none; }
+  /* The global duration override must not animate inherited link visibility. */
+  .mobile-actions, .mobile-actions.is-field-focused, .mobile-action { transition: none; }
 }
 
 @media (max-width: 820px) {
