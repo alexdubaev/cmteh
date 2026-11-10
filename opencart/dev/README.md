@@ -29,3 +29,15 @@ python opencart/dev/runtime.py --runtime-dir PRIVATE_RUNTIME_DIR --port 3154 com
 web root /var/www/html, private root /var/www/cmteh-private. Штатный
 /var/www/html/config.php подключает приватную конфигурацию.
 Тестовая MySQL использует DB_PREFIX oc_ и синтетические данные.
+
+Для дополнительных HTTP-проверок legacy URL и публичных/приватных файлов
+создавайте и очищайте фикстуру от веб-пользователя `www-data`: каталог
+private media с правами `0750` должен принадлежать ему. Создание от root
+может дать HTTP 404 из-за недоступности файла; не открывайте каталог всем
+пользователям и не меняйте проверку приватного доступа.
+
+```text
+python opencart/dev/runtime.py --runtime-dir PRIVATE_RUNTIME_DIR --port 3154 compose exec -T --user www-data -e CMTEH_LOCAL_SMOKE=1 web php /workspace/tests/http-fixture.php seed
+python opencart/tests/http-storefront.py --base http://127.0.0.1:3154 --fixture
+python opencart/dev/runtime.py --runtime-dir PRIVATE_RUNTIME_DIR --port 3154 compose exec -T --user www-data -e CMTEH_LOCAL_SMOKE=1 web php /workspace/tests/http-fixture.php clean
+```

@@ -8,6 +8,8 @@ const require = createRequire(resolve(process.env.CMTEH_BROWSER_TOOLING || 'D:/c
 const { chromium } = require('playwright');
 const browser = await chromium.launch();
 const context = await browser.newContext({ baseURL: base.href });
+// Isolate decorative third-party fonts so functional admin tests stay local.
+await context.route(url => ['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname), route => route.abort());
 const publicContext = await browser.newContext({ baseURL: base.href });
 const page = await context.newPage();
 const shop = await publicContext.newPage();
@@ -19,6 +21,7 @@ const own = [];
 let token;
 let homeRestore;
 let siteRestore;
+let creation = 0;
 const editor = (type, extra='') => `/admin/index.php?route=extension/cmteh/module/cmteh_catalog&user_token=${token}&type=${type}${extra}`;
 const edit = async (type,id) => page.goto(editor(type, '&id='+encodeURIComponent(id)));
 const field = name => page.locator(`#cmteh-editor [name="${name}"]`);
@@ -34,8 +37,9 @@ const rich = async (name,text) => {
   await body.fill(text);
 };
 const create = async (type, values) => {
-  const id = `browser-${type}-${suffix}`;
-  const slug = `browser-${type}-${suffix}`;
+  const identity = `${suffix}-${++creation}`;
+  const id = `browser-${type}-${identity}`;
+  const slug = `browser-${type}-${identity}`;
   await page.goto(editor(type,'&new=1'));
   await field('id').evaluate((node,value)=>node.value=value,id);
   if (await field('slug').count()) await field('slug').fill(slug);
@@ -194,6 +198,8 @@ try {
   assert.ok(productText.toLowerCase().includes('по запросу'));
   assert.ok(await shop.locator(`main img[src$="${image}"]`).count());
   await page.goto(editor('product')); await page.getByLabel('Поиск по названию, артикулу или адресу').fill('0000123456'); await page.getByRole('button',{name:'Найти',exact:true}).click();
+  await page.waitForURL(url=>url.searchParams.get('search')==='0000123456');
+  await page.locator(`tbody a[href*="id=${product.id}"]`).waitFor({state:'visible'});
   assert.ok(await page.locator(`tbody a[href*="id=${product.id}"]`).count());
   console.log('PASS new brand, root/nested category and product with leading zeros, photo, categories, specs, native editing and search');
   await edit('product',product.id); await field('status').selectOption('draft'); await save();
