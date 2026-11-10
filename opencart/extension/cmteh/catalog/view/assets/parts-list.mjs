@@ -1,5 +1,5 @@
-import { mergeCart } from "./cart.mjs?v=20261110-7";
-import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261110-7";
+import { mergeCart } from "./cart.mjs?v=20261110-8";
+import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261110-8";
 
 const root = document.querySelector('[data-parts-list]');
 if (root) setup(root);
@@ -59,7 +59,10 @@ function setup(root) {
   });
   root.querySelector('[data-edit-list]').addEventListener('click', (event) => {
     event.preventDefault();
-    (mode() === 'file' ? upload : text).focus();
+    const input = mode() === 'file' ? upload : text;
+    input.focus({ preventScroll: true });
+    // Center the whole control, rather than WebKit's last-line caret scroll.
+    input.scrollIntoView({ block: 'center', behavior: 'instant' });
   });
   function revealResults() {
     root.querySelector('#list-results-title').focus({ preventScroll: true });

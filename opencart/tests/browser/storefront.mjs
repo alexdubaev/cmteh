@@ -39,13 +39,21 @@ try {
     await page.locator('[data-check-list]:enabled').waitFor();
     await fullyInView(page, input, 'List input');
     await fullyInView(page, page.locator('[data-check-list]'), 'Check action');
-    await input.fill(sku + ';2');
+    const list = sku + ';2\n0000550380;3\nUNKNOWN-EDIT-TEST;4';
+    await input.fill(list);
     await page.locator('[data-check-list]').click();
     await page.locator('[data-result-row]').first().waitFor();
     await fullyInView(page, page.locator('#list-results-title'), 'Result heading');
     await fullyInView(page, page.locator('[data-result-row]').first().getByRole('button', { name: 'В корзину' }), 'First offer action');
     assert.deepEqual(await storage(page), []);
-    assert.equal(await input.inputValue(), sku + ';2');
+    assert.equal(await input.inputValue(), list);
+    const draft = await page.evaluate(() => sessionStorage.getItem('smtechno-quote-draft'));
+    await page.locator('[data-edit-list]').click();
+    assert.equal(await input.evaluate((node) => document.activeElement === node), true);
+    await fullyInView(page, input, 'Returned list input');
+    assert.equal(await input.inputValue(), list);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('smtechno-quote-draft')), draft);
+    assert.deepEqual(await storage(page), []);
   });
   await scenario("Список 1000 строк → одна пакетная проверка → явный выбор товара", async (page) => {
     const calls = [];
@@ -155,7 +163,7 @@ try {
   await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
     let first = true;
     await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
-      assert.equal(new URL(route.request().url()).search, '?v=20261110-7');
+      assert.equal(new URL(route.request().url()).search, '?v=20261110-8');
       if (first) { first = false; await route.abort(); } else await route.continue();
     });
     await page.goto('/parts-list');
@@ -186,7 +194,7 @@ try {
   await scenario("Canonical identity separates offers and preserves fresh additions during acknowledgement", async (page) => {
     await page.goto('/request');
     const result = await page.evaluate(async () => {
-      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-7');
+      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-8');
       const legacy = { article: 'SAME', brand: 'Brand', title: 'Legacy', quantity: 2 };
       writeCart([legacy]);
       mergeCart([{ ...legacy, productId: 'offer-a', quantity: 3 }, { ...legacy, productId: 'offer-b', quantity: 4 }]);

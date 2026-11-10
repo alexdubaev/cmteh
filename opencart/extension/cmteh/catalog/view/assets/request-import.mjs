@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey } from "./cart.mjs?v=20261110-7";
+import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey } from "./cart.mjs?v=20261110-8";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 32 * 1024 * 1024;
