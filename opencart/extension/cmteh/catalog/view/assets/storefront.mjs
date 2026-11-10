@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-2";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-3";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
