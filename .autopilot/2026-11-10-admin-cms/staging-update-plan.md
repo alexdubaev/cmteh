@@ -25,3 +25,6 @@ SMTP, фактическая доставка, нагрузка, реальны�
 
 ## Предыдущий пакет
 Приватный серверный release/cmteh-install.zip и локальный D:/codex/temp/cmteh-storeland-final-runtime/artifacts/cmteh-install.zip повторно совпали: SHA25632d32d64f41227e9e9063c89db4f075c9f42cbff1af3df66d5dc1f5ddd8d9f69. Это проверенный исходный пакет; не заменяет свежий backup актуальных данных перед обновлением. Размер текущего extension/cmteh около1204KiB; sealed около7372KiB. Значения конфигов не выводились.
+
+## Окончательный локальный кандидат
+PR6; продуктcb93cc8. Доставлять только D:/codex/temp/cmteh-admin-final-runtime-20261110-r4/artifacts/cmteh-install.zip SHA256d1cbb19df2e1946462fa57d1369d558b7799641682ee58f45feaff8341ba58c5. Genericgate freshPHP8.3.36/MySQL8.4.13 и blindMySQL5.7.44 приняты послеF2. Backupактуальногостенда передобновлением ещё не создан; его создавать и проверить после точного разрешения, сохраняя свежиеданные.

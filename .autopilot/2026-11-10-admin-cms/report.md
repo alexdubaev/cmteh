@@ -24,3 +24,6 @@ Production/DNS/StoreLand/engine.cmteh.ru не менялись. Реальная
 
 ## Где работать
 Маршрут владельца и карта данных — opencart/admin-guide.md; установка/проверка/восстановление — opencart/README.md. Память владельца AGENTS.md не менялась; предложенные дополнения — memory-proposal.md.
+
+## Публикация
+PR: https://github.com/alexdubaev/cmteh/pull/6 . Продуктовый исходник cb93cc8, дальнейшие commit содержат только запись приёмки/памяти. Текущий mergeSHA и статус смотреть вPR; новые проверки приложения при неизменённых productbytes не требуются.

@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "admin-cms",
-  "dir": "2026-11-10-admin-cms--wip",
+  "dir": "2026-11-10-admin-cms",
   "title": "Русская админка СМ ТЕХНО",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "9cf360f",
   "startedAt": "2026-11-10T16:04:55+03:00",
-  "updatedAt": "2026-11-10T17:28:17+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-10T17:30:05+03:00",
+  "finishedAt": "2026-11-10T17:30:05+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -60,8 +60,9 @@ window.STATE =
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-11-10T16:56:55+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T16:56:55+03:00",
+      "finishedAt": "2026-11-10T17:30:05+03:00"
     }
   ],
   "requirements": {
@@ -435,9 +436,10 @@ window.STATE =
     "2026-11-10T17:19:12+03:00",
     "2026-11-10T17:23:54+03:00",
     "2026-11-10T17:28:16+03:00",
-    "2026-11-10T17:28:17+03:00"
+    "2026-11-10T17:28:17+03:00",
+    "2026-11-10T17:30:05+03:00"
   ],
-  "rev": 43,
+  "rev": 44,
   "waiting": null,
   "waits": [
     {
@@ -765,6 +767,11 @@ window.STATE =
       "k": "tests",
       "passed": 94,
       "failed": 0
+    },
+    {
+      "t": "2026-11-10T17:30:05+03:00",
+      "k": "finish",
+      "result": "Русская админка реализована и принята локально; test.cmteh.ru и его ACL пока без изменений"
     }
   ],
   "reqList": [
@@ -1175,7 +1182,7 @@ window.STATE =
       "matched": 41
     }
   },
-  "result": null,
+  "result": "Русская админка реализована и принята локально; test.cmteh.ru и его ACL пока без изменений",
   "report": [
     "Одноразовый токен локальной диагностической сессии попал в вывод; сессия закрыта, проверено 0 активных совпадений. Пароли и REG.RU не затронуты.",
     "Независимая матрица44:41локальный пунктпринят;3операционныхпункта(REG.RU,Gitpublication,финальныйhandoff) отмеченыpartial в отчёте, выполняются/обсуждаются lead отдельно."
