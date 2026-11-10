@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey, mergeCart } from "./cart.mjs?v=20261110-2";
+import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey, mergeCart } from "./cart.mjs?v=20261110-3";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 32 * 1024 * 1024;
@@ -140,7 +140,7 @@ function loadExcelReader() {
     library = new Promise((resolve, reject) => {
       const script = document.createElement("script");
       const source = new URL("./vendor/read-excel-file.min.js", import.meta.url);
-      source.search = import.meta.url.search;
+      source.search = new URL(import.meta.url).search;
       script.src = source.href;
       script.onload = () => {
         if (typeof window.readXlsxFile === "function") resolve(window.readXlsxFile);
