@@ -1,0 +1,11 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set entries = model.entries|default([]) %}
+{% if entries %}<section class="section shell articles-home-section"{% if home.articles_title|default('') %} aria-labelledby="home-articles-title"{% endif %}>
+  <div class="section-heading">
+    {% if home.articles_title|default('') %}<h2 id="home-articles-title">{{ home.articles_title }}</h2>{% endif %}
+    {% if home.articles_link_text|default('') %}<a href="/articles" class="article-all-link">{{ home.articles_link_text }} <span aria-hidden="true">→</span></a>{% endif %}
+  </div>
+  <div class="articles-grid">{% for entry in entries|slice(0, 3) %}{{ ui.articleCard(entry) }}{% endfor %}</div>
+</section>{% endif %}
+{% endautoescape %}

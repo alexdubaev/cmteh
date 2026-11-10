@@ -1,0 +1,12 @@
+{% autoescape 'html' %}
+{% set rootCategories = model.home_categories|default([]) %}
+{% if rootCategories %}
+<section class="section shell home-categories"{% if home.categories_title|default('') %} aria-labelledby="home-categories-title"{% endif %}>
+  <div class="section-heading">
+    {% if home.categories_title|default('') %}<h2 id="home-categories-title">{{ home.categories_title }}</h2>{% endif %}
+    {% if home.categories_link_text|default('') %}<a href="/catalog">{{ home.categories_link_text }} →</a>{% endif %}
+  </div>
+  <div class="home-category-grid">{% for category in rootCategories %}<a class="home-category-link" href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a>{% endfor %}</div>
+</section>
+{% endif %}
+{% endautoescape %}

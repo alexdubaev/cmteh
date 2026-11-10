@@ -12,10 +12,12 @@ use Throwable;
 require_once __DIR__ . '/CatalogSchema.php';
 require_once __DIR__ . '/CatalogInput.php';
 require_once __DIR__ . '/CatalogWrites.php';
+require_once __DIR__ . '/CatalogAdmin.php';
 
 final class Catalog
 {
     use CatalogWrites;
+    use CatalogAdmin;
 
     public const AVAILABILITY = ['in_stock', 'on_request', 'out_of_stock'];
     public const PART_TYPES = ['original', 'oem', 'analog'];

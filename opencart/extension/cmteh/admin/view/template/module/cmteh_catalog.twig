@@ -69,6 +69,59 @@
     {{ _self.move_buttons('Порядок раздела') }}
   </fieldset>
 {% endmacro %}
+{% macro collection(name, title, rows, columns, options) %}
+  <fieldset class="border rounded p-3 my-3" data-collection="{{ name|escape }}">
+    <legend class="float-none w-auto fs-6 px-2">{{ title|escape }}</legend>
+    <input type="hidden" name="{{ name }}_present" value="1">
+    <div data-collection-rows>
+      {% for row in rows %}{{ _self.collection_row(name, row, columns, options, loop.index0) }}{% endfor %}
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm" data-collection-add>Добавить строку</button>
+    <template>{{ _self.collection_row(name, {}, columns, options, 0) }}</template>
+  </fieldset>
+{% endmacro %}
+{% macro collection_row(name, row, columns, options, index) %}
+  <div class="border rounded p-2 mb-2" data-collection-row>
+    <div class="row">
+    {% for key, label in columns %}
+      <div class="col-md mb-2"><label class="form-label d-block">{{ label|escape }}
+        {% if options[key] is defined %}
+          <select class="form-select" name="{{ name }}[{{ index }}][{{ key }}]" data-column="{{ key }}">
+            {% for value, text in options[key] %}<option value="{{ value|escape }}"{% if value ~ '' == row[key]|default('') ~ '' %} selected{% endif %}>{{ text|escape }}</option>{% endfor %}
+          </select>
+        {% else %}
+          <input type="text" class="form-control" name="{{ name }}[{{ index }}][{{ key }}]" data-column="{{ key }}" value="{{ row[key]|default('')|escape }}">
+        {% endif %}
+      </label></div>
+    {% endfor %}
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-collection-move="-1">Выше</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-collection-move="1">Ниже</button>
+    <button type="button" class="btn btn-outline-danger btn-sm" data-collection-remove>Убрать строку</button>
+  </div>
+{% endmacro %}
+{% macro selected(name, title, selected, choices) %}
+  <fieldset class="border rounded p-3 my-3" data-selection="{{ name }}">
+    <legend class="float-none w-auto fs-6 px-2">{{ title|escape }}</legend>
+    <p class="form-text">Порядок строк задаёт порядок на главной. На витрине показываются только опубликованные записи.</p>
+    <input type="hidden" name="{{ name }}_present" value="1">
+    <div data-selection-rows>
+      {% for slug in selected %}{{ _self.selected_row(name, slug, choices) }}{% endfor %}
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm" data-selection-add>Добавить запись</button>
+    <template>{{ _self.selected_row(name, '', choices) }}</template>
+  </fieldset>
+{% endmacro %}
+{% macro selected_row(name, slug, choices) %}
+  <div class="d-flex gap-2 mb-2" data-selection-row>
+    <select class="form-select" name="{{ name }}[]">
+      {% for choice in choices %}<option value="{{ choice.slug|escape }}"{% if choice.slug == slug %} selected{% endif %}>{{ choice.title|escape }}{% if choice.status != 'published' %} (скрыто){% endif %}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-outline-secondary" data-selection-move="-1">Выше</button>
+    <button type="button" class="btn btn-outline-secondary" data-selection-move="1">Ниже</button>
+    <button type="button" class="btn btn-outline-danger" data-selection-remove>Убрать</button>
+  </div>
+{% endmacro %}
 {{ header }}{{ column_left }}
 <div id="content">
   <div class="page-header">
@@ -76,6 +129,7 @@
   </div>
   <div class="container-fluid">
     {% if error %}<div class="alert alert-danger" role="alert">{{ error|escape }}</div>{% endif %}
+    {% if deleted %}<div class="alert alert-success" role="status">Запись удалена. Её старый адрес возвращает 410.</div>{% endif %}
     {% if saved %}<div class="alert alert-success" role="status">Запись сохранена</div>{% endif %}
     <ul class="nav nav-tabs mb-3">
       {% for tab in tabs %}
@@ -88,14 +142,18 @@
         <div class="card-body">
           <form id="cmteh-editor" action="{{ action|escape }}" method="post" data-store-origin="{{ store_origin|escape }}">
             <fieldset{% if not can_write %} disabled{% endif %}>
-              <div class="mb-3">
-                <label class="form-label" for="record-id">ID источника</label>
-                <input class="form-control" id="record-id" name="id" maxlength="160" value="{{ record.id|escape }}"{% if edit_id %} readonly{% else %} placeholder="Будет создан автоматически"{% endif %}>
-              </div>
+              <input type="hidden" name="id" value="{{ record.id|escape }}">
+              {% if native_href %}<p><a href="{{ native_href|escape }}">Открыть штатную форму OpenCart</a></p>{% endif %}
+              {% if public_href %}<p><a href="{{ public_href|escape }}" target="_blank" rel="noopener">Открыть на сайте</a></p>{% endif %}
+              {% if edit_id %}<details class="mb-3"><summary>Предпросмотр сохранённого материала в админке</summary>
+                <p class="form-text">Этот просмотр доступен только в авторизованной админке. Изменения видны после сохранения.</p>
+                <iframe title="Предпросмотр материала" sandbox="" referrerpolicy="no-referrer" srcdoc="{{ preview_html|escape }}" style="width:100%;min-height:280px;border:1px solid #ddd"></iframe>
+              </details>{% endif %}
               {% if type != 'site' and type != 'home' %}
                 <div class="mb-3">
                   <label class="form-label" for="record-slug">Адрес записи</label>
                   <input class="form-control" id="record-slug" name="slug" maxlength="160" value="{{ record.slug|escape }}" placeholder="Будет взят из названия, если оставить пустым">
+                  {% if edit_id %}<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="confirm-slug" name="confirm_slug_change" value="1"><label class="form-check-label" for="confirm-slug">Подтверждаю изменение адреса и прямое перенаправление 301 со старого URL</label></div>{% endif %}
                 </div>
               {% endif %}
               {% for item in fields %}
@@ -104,7 +162,7 @@
                   {% if item.select %}
                     <select class="form-select" id="field-{{ item.field|escape }}" name="{{ item.field|escape }}">
                       {% for option, label in item.control %}
-                        <option value="{{ option|escape }}"{% if option is same as(item.value) or (item.field == 'is_indexable' and option ~ '' == item.value) %} selected{% endif %}>{{ label|escape }}</option>
+                        <option value="{{ option|escape }}"{% if option ~ '' == item.value ~ '' %} selected{% endif %}>{{ label|escape }}</option>
                       {% endfor %}
                     </select>
                   {% elseif item.control in ['textarea', 'rich'] %}
@@ -116,6 +174,52 @@
                   {% endif %}
                 </div>
               {% endfor %}
+              {% if type == 'navigation' %}
+                <label class="form-label d-block">Внутренняя страница, категория или бренд
+                  <select class="form-select" name="internal_target"><option value="">Внешняя ссылка — укажите адрес ниже</option>
+                    {% for path, title in targets %}<option value="{{ path|escape }}"{% if path == record.url %} selected{% endif %}>{{ title|escape }}</option>{% endfor %}
+                  </select>
+                </label>
+                <label class="form-label d-block">Внешний URL (https://…)
+                  <input type="url" class="form-control" name="external_url" value="{% if targets[record.url] is not defined %}{{ record.url|escape }}{% endif %}" placeholder="https://example.org/">
+                </label>
+              {% endif %}
+              {% if type == 'product' %}
+                <label class="form-label d-block" for="product-categories">Дополнительные категории</label>
+                <input type="hidden" name="category_slugs_present" value="1">
+                <select multiple class="form-select mb-3" id="product-categories" name="category_slugs[]" size="6">
+                  {% for choice in choices.category %}<option value="{{ choice.slug|escape }}"{% if choice.slug in record.category_slugs|default([]) %} selected{% endif %}>{{ choice.title|escape }}{% if choice.status != 'published' %} (скрыто){% endif %}</option>{% endfor %}
+                </select>
+                {{ editor.collection('specification_items', 'Характеристики', record.specification_items|default([]), {'group_name':'Группа', 'name':'Характеристика', 'value':'Значение', 'unit':'Единица'}, {}) }}
+                {{ editor.collection('codes', 'Дополнительные коды', record.codes|default([]), {'code':'Код', 'code_type':'Вид кода', 'source_name':'Источник'}, {'code_type':{'oem':'OEM','mpn':'MPN','supplier':'Поставщик','previous':'Предыдущий','superseded':'Заменённый','external':'Внешний','barcode':'Штрихкод'}}) }}
+                {{ editor.collection('relations', 'Связанные товары', record.relations|default([]), {'source_id':'Товар','relation_type':'Вид связи'}, relation_options) }}
+                {% for media, caption in {'images':'Подпись изображения', 'documents':'Название документа'} %}
+                  <fieldset class="border rounded p-3 my-3" data-stored-media><legend class="float-none w-auto fs-6 px-2">{{ media == 'images' ? 'Дополнительные изображения' : 'Документы' }}</legend>
+                  <p class="form-text">Управляйте подписями и убирайте существующие вложения. Новые публичные фото добавляются в штатной форме OpenCart.</p>
+                  <input type="hidden" name="{{ media }}_present" value="1">
+                  {% for item in record[media]|default([]) %}<div class="d-flex gap-2 mb-2" data-media-row>
+                    <label class="form-label flex-fill">{{ caption }} <input class="form-control" name="{{ media }}[{{ loop.index0 }}][{{ media == 'images' ? 'alt_text' : 'title' }}]" value="{{ (media == 'images' ? item.alt_text : item.title)|default('')|escape }}"></label>
+                    <button type="button" class="btn btn-outline-danger" data-media-remove>Убрать</button>
+                  </div>{% else %}<p>Вложений нет.</p>{% endfor %}
+                  </fieldset>
+                {% endfor %}
+              {% endif %}
+              {% if type == 'home' %}
+                <h2 class="h5">Порядок и видимость блоков</h2>
+                <input type="hidden" name="home_blocks_present" value="1">
+                {% for block in home_blocks %}<div class="row align-items-center mb-2">
+                  <div class="col-md-6 form-check"><input class="form-check-input" type="checkbox" name="home_blocks[{{ block.key }}][enabled]" id="block-{{ block.key }}" value="1"{% if block.enabled %} checked{% endif %}><label class="form-check-label" for="block-{{ block.key }}">{{ block.label|escape }}</label></div>
+                  <div class="col-md-3"><label class="form-label">Порядок: {{ block.label|escape }}<input class="form-control" type="number" min="-10000" max="10000" name="home_blocks[{{ block.key }}][sort_order]" value="{{ block.sort_order|escape }}"></label></div>
+                </div>{% endfor %}
+                <label class="form-label d-block">Бренды на главной<select class="form-select" name="brands_mode">
+                  <option value="auto"{% if record.brands_mode|default('auto') == 'auto' %} selected{% endif %}>Все опубликованные автоматически</option><option value="selected"{% if record.brands_mode == 'selected' %} selected{% endif %}>Выбранные ниже</option></select></label>
+                {{ editor.selected('brand_slugs','Выбранные бренды',record.brand_slugs|default([]),choices.brand) }}
+                <label class="form-label d-block">Категории на главной<select class="form-select" name="categories_mode">
+                  <option value="auto_roots"{% if record.categories_mode|default('auto_roots') == 'auto_roots' %} selected{% endif %}>Корневые автоматически</option><option value="auto_all"{% if record.categories_mode == 'auto_all' %} selected{% endif %}>Все, включая вложенные</option><option value="selected"{% if record.categories_mode == 'selected' %} selected{% endif %}>Выбранные ниже</option></select></label>
+                <label class="form-label d-block">Лимит категорий (0 — все)<input class="form-control" name="categories_limit" type="number" min="0" max="300" value="{{ record.categories_limit|default(8)|escape }}"></label>
+                {{ editor.selected('category_slugs','Выбранные категории',record.category_slugs|default([]),choices.category) }}
+              {% endif %}
+              {% if type == 'site' %}{{ editor.collection('social_links', 'Социальные сети и мессенджеры', record.social_links|default([]), {'label':'Название','url':'Ссылка'}, {}) }}{% endif %}
               {% if type == 'product' %}
                 <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="zero-price" name="confirm_zero_price" value="1"{% if record.confirm_zero_price %} checked{% endif %}><label class="form-check-label" for="zero-price">Нулевая цена подтверждена</label></div>
               {% endif %}
@@ -132,14 +236,19 @@
                 <template id="editor-section-template">{{ editor.section({}, 'editor-section-new', section_fields, section_types, item_fields, can_browse_images, ckeditor_lang) }}</template>
                 <template id="editor-item-template">{{ editor.item({}, item_fields) }}</template>
               {% endif %}
-              <details class="mb-3">
-                <summary>Дополнительные поля и связи</summary>
-                <label class="form-label" for="record-details">Данные JSON</label>
-                <textarea class="form-control font-monospace" rows="8" id="record-details" name="details">{{ details|escape }}</textarea>
-              </details>
             </fieldset>
             {% if can_write %}<button class="btn btn-primary" type="submit">Сохранить</button>{% endif %}
           </form>
+          {% if can_write and edit_id and type not in ['home','site'] %}
+            <details class="mt-4"><summary>Удаление записи</summary>
+              <p>Рекомендуется выбрать статус «Черновик» или «В архиве», чтобы сохранить историю. Удаление необратимо, старый адрес вернёт 410. Связанные категории и бренды нельзя удалить до снятия связей.</p>
+              <form action="{{ action|escape }}" method="post" data-delete-form>
+                <input type="hidden" name="action" value="delete">
+                <label class="form-check-label"><input type="checkbox" name="confirm_delete" value="1" required> Подтверждаю удаление этой записи</label>
+                <button type="submit" class="btn btn-outline-danger ms-2">Удалить запись</button>
+              </form>
+            </details>
+          {% endif %}
         </div>
       </div>
     {% endif %}
@@ -148,14 +257,20 @@
         <span>{{ type_label|escape }}</span>
         {% if can_write %}<a class="btn btn-primary" href="{{ new_record|escape }}">Новая запись</a>{% endif %}
       </div>
+      <form class="card-body row g-2" action="{{ filter_action|escape }}" method="get">
+        <input type="hidden" name="route" value="extension/cmteh/module/cmteh_catalog"><input type="hidden" name="user_token" value="{{ user_token|escape }}"><input type="hidden" name="type" value="{{ type|escape }}">
+        <div class="col-md-6"><label class="form-label" for="catalog-search">Поиск по названию, артикулу или адресу</label><input class="form-control" type="search" name="search" id="catalog-search" value="{{ search|escape }}"></div>
+        <div class="col-md-4"><label class="form-label" for="catalog-status">Статус публикации</label><select class="form-select" name="status" id="catalog-status">{% for value,label in {'':'Все','published':'Опубликовано','draft':'Черновик','archived':'В архиве'} %}<option value="{{ value }}"{% if filter_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-md-2 align-self-end"><button class="btn btn-outline-primary" type="submit">Найти</button></div>
+      </form>
       <div class="table-responsive">
         <table class="table">
-          <thead><tr><th scope="col">Запись</th><th scope="col">Адрес</th></tr></thead>
+          <thead><tr><th scope="col">Запись</th><th scope="col">Адрес</th><th scope="col">Статус</th><th scope="col">OpenCart</th></tr></thead>
           <tbody>
           {% for row in rows %}
-            <tr><td><a href="{{ row.href|escape }}">{{ (row.title ?: row.id)|escape }}</a></td><td>{{ row.slug|escape }}</td></tr>
+            <tr><td><a href="{{ row.href|escape }}">{{ (row.title ?: row.id)|escape }}</a></td><td>{{ row.slug|escape }}</td><td>{{ row.status == 'published' ? 'Опубликовано' : (row.status == 'archived' ? 'В архиве' : 'Черновик') }}</td><td>{% if row.native_href %}<a href="{{ row.native_href|escape }}">Штатная форма</a>{% endif %}</td></tr>
           {% else %}
-            <tr><td colspan="2">Записей пока нет.</td></tr>
+            <tr><td colspan="4">Записи не найдены. Измените поиск или создайте новую запись.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -178,7 +293,7 @@
       language: '{{ ckeditor_lang|escape('js') }}',
       removePlugins: 'iframe,youtube{% if not can_browse_images %},opencart{% endif %}',
       toolbar_Custom: [
-        ['Source', 'Maximize'], ['Undo', 'Redo'],
+        ['Maximize'], ['Undo', 'Redo'],
         ['Format', 'Bold', 'Italic', 'Underline', 'Strike'],
         ['NumberedList', 'BulletedList', 'Blockquote'],
         ['Link', 'Unlink', 'Image'{% if can_browse_images %}, 'OpenCart'{% endif %}, 'Table', 'HorizontalRule']
@@ -296,6 +411,36 @@
         event.formData.set('sections_json', JSON.stringify(rows));
       }
     });
+    function reindexCollections() {
+      for (const collection of form.querySelectorAll('[data-collection]')) {
+        [...collection.querySelector('[data-collection-rows]').children].forEach((row,index) => {
+          for (const input of row.querySelectorAll('[data-column]')) input.name = `${collection.dataset.collection}[${index}][${input.dataset.column}]`;
+        });
+      }
+    }
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.hasAttribute('data-media-remove')) { button.closest('[data-media-row]').remove(); return; }
+      for (const kind of ['collection','selection']) {
+        const container = button.closest(`[data-${kind}]`);
+        if (!container) continue;
+        if (button.hasAttribute(`data-${kind}-add`)) {
+          const fragment = container.querySelector('template').content.cloneNode(true);
+          container.querySelector(`[data-${kind}-rows]`).append(fragment);
+          reindexCollections();
+        } else if (button.hasAttribute(`data-${kind}-remove`)) {
+          button.closest(`[data-${kind}-row]`).remove(); reindexCollections();
+        } else if (button.hasAttribute(`data-${kind}-move`)) {
+          const row = button.closest(`[data-${kind}-row]`);
+          const up = button.getAttribute(`data-${kind}-move`) === '-1';
+          const sibling = up ? row.previousElementSibling : row.nextElementSibling;
+          if (sibling) { if (up) sibling.before(row); else sibling.after(row); reindexCollections(); }
+        }
+      }
+    });
+    form.addEventListener('submit', reindexCollections);
+    reindexCollections();
     installEditors(form);
   })();
   </script>

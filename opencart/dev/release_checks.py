@@ -68,7 +68,7 @@ def admin_post(session, route, fields):
     return session.request_json(session.action(route), urlencode(fields, doseq=True).encode("ascii"), FORM)
 
 
-def create_role(admin, label, access, modify):
+def create_role(admin, label, access, modify, *, password_file=None):
     group = admin_post(admin, "user/user_permission.save", {
         "name": label + " gate " + uuid4().hex[:6],
         "permission[access][]": access,
@@ -84,6 +84,9 @@ def create_role(admin, label, access, modify):
         "user_group_id": group["user_group_id"], "status": "1",
     })
     require(created.get("success"), "OpenCart did not create the test user.")
+    if password_file is not None:
+        password_file.write_text(password + "\n", encoding="ascii")
+        password_file.chmod(0o600)
 
     session = LocalOpenCart(admin.directory, admin.port)
     code, page = session.request(session.action("common/login"))
@@ -95,6 +98,7 @@ def create_role(admin, label, access, modify):
     require(len(tokens) == 1 and re.fullmatch(r"[A-Za-z0-9]+", tokens[0]),
             "OpenCart did not establish an authenticated test-role session.")
     session.token = tokens[0]
+    session.username = username
     return session
 
 
@@ -124,6 +128,7 @@ def lead_visible(manager, lead_id):
 
 
 def admin_roles(runtime, lead_id):
+    admin_navigation(runtime)
     runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
     sessions = []
     try:
@@ -156,14 +161,14 @@ def admin_roles(runtime, lead_id):
         slug = "release-check-" + uuid4().hex[:8]
         title = "Проверочная публикация " + slug
         fields = {"id": slug, "slug": slug, "title": title, "h1": title, "content": "<p>Синтетика</p>",
-                  "status": "draft", "is_indexable": "0", "details": "{}"}
+                  "status": "draft", "is_indexable": "0"}
 
         def save(session, status, **query):
             payload = urlencode(fields | {"status": status}).encode("ascii")
             return session.request(session.action(CATALOG, type="page", **query), payload, FORM)
 
         code, body = operator.request(operator.action(CATALOG, type="page", new="1"))
-        require(code == 200 and 'name="details"' in body, "The operator could not open the catalog editor.")
+        require(code == 200 and 'name="title"' in body, "The operator could not open the catalog editor.")
         require(save(readonly, "published")[0] == 403 and runtime.request("/" + slug)[0] == 404,
                 "Access without modify permission allowed a catalog mutation.")
         for state, expected in (("draft", 404), ("published", 200), ("archived", 404)):
@@ -173,6 +178,72 @@ def admin_roles(runtime, lead_id):
             require(code == expected and (expected != 200 or title in body),
                     f"The public page does not reflect the {state} admin action.")
         print("PASS: native editor creates draft, publishes and archives; access alone cannot save", flush=True)
+    finally:
+        for session in sessions:
+            session.logout()
+        runtime.logout()
+
+
+def admin_navigation(runtime):
+    """Exercise installed event hooks, real native screens and role-specific links."""
+    anonymous = LocalOpenCart(runtime.directory, runtime.port)
+    code, login = anonymous.request(anonymous.action("common/login"))
+    require(code == 200 and "Вход в панель управления" in login and "Имя пользователя" in login,
+            "Native login is not translated by the installed extension.")
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+    sessions = []
+    try:
+        def snapshot():
+            query = ("SELECT `key`, value FROM oc_setting WHERE `key` IN "
+                     "('config_language','config_language_id','config_language_admin') ORDER BY `key`; "
+                     "SELECT user_group_id, permission FROM oc_user_group ORDER BY user_group_id;")
+            return runtime.docker("exec", "-T", "db", "sh", "-ec",
+                                  'export MYSQL_PWD="$(cat /runtime/db-root-password)"; '
+                                  'mysql -uroot -NB cmteh_dev -e "$1"', "language-snapshot", query,
+                                  capture=True).stdout
+
+        before = snapshot()
+        for _ in range(2):
+            require(admin_post(runtime, MODULE + ".upgrade", {}).get("success"), "Admin upgrade failed.")
+        require(snapshot() == before, "Admin translation changed the existing data/store language.")
+        event_count = runtime.docker("exec", "-T", "db", "sh", "-ec",
+                                    'export MYSQL_PWD="$(cat /runtime/db-root-password)"; '
+                                    'mysql -uroot -NB cmteh_dev -e "SELECT COUNT(*) FROM oc_event '
+                                    "WHERE code IN ('cmteh_admin_menu','cmteh_admin_language') AND status=1\"",
+                                    capture=True).stdout.strip()
+        require(event_count == "2", "Repeat upgrade duplicated or failed to activate admin events.")
+        for route, words in (
+            ("catalog/product", ["Товары", "Название товара", "Фильтр"]),
+            ("catalog/product.form", ["Добавить товар", "Описание", "Мета-заголовок"]),
+            ("catalog/category.form", ["Добавить категорию", "Родительская категория"]),
+            ("catalog/manufacturer.form", ["Добавить бренд", "Название бренда"]),
+            ("common/filemanager", ["Изображения"]),
+            ("common/filemanager.list", ["Название папки", "Загрузить"]),
+        ):
+            code, page = runtime.request(runtime.action(route))
+            require(code == 200 and all(word in page for word in words), f"Native {route} screen is not Russian.")
+        code, rejected = runtime.request(runtime.action("catalog/manufacturer.save"), b"name=", FORM)
+        require(code == 200 and "Название бренда" in str(json.loads(rejected).get("error", {})),
+                "Native form validation did not return its Russian field error.")
+        editor = create_role(runtime, "Navigation editor", [MODULE, CATALOG, LEADS], [CATALOG])
+        sessions.append(editor)
+        code, page = editor.request(editor.action(MODULE))
+        for label in ("Товары", "Категории", "Бренды", "Страницы", "Главная страница", "Статьи",
+                      "Меню и подвал", "Заявки", "Настройки сайта"):
+            require(label in page, f"Direct admin navigation misses {label}.")
+        manager = create_role(runtime, "Navigation lead manager", [LEADS], [])
+        operator = create_role(runtime, "Navigation catalog operator", [CATALOG, "catalog/category"], [CATALOG])
+        sessions += [manager, operator]
+        for session, route, expected, forbidden in (
+            (manager, LEADS, LEADS, CATALOG), (operator, CATALOG, CATALOG, LEADS),
+        ):
+            code, page = session.request(session.action(route))
+            menu = re.search(r'<li id="menu-cmteh".*?</li>\s*</ul>', page, re.S)
+            require(code == 200 and menu and expected in menu[0] and forbidden not in menu[0],
+                    "Direct menu does not follow the role's existing access permissions.")
+        require(operator.request(operator.action(LEADS))[0] in (401, 403), "Catalog role can access leads.")
+        require(manager.request(manager.action(CATALOG))[0] in (401, 403), "Lead role can access catalog.")
+        print("PASS: Russian native screens, direct ACL menu and repeat upgrade preserve the data language", flush=True)
     finally:
         for session in sessions:
             session.logout()
@@ -204,7 +275,7 @@ def editorial_content(runtime):
         save("page", "storefront-delivery", slug="delivery", title="Доставка для проверки",
              h1="Новые условия доставки", intro="Вступление редактора",
              content="<p><strong>Публикуемый текст доставки</strong></p><script>unsafe-marker</script>",
-             details="{}", sections_json=json.dumps([{"key": "", "section_type": "custom",
+             sections_json=json.dumps([{"key": "", "section_type": "custom",
                  "title": "Добавленный раздел", "text": "<p>Текст нового раздела</p>", "items": []}]))
         delivery = page("/delivery", ["Новые условия доставки", "Вступление редактора",
                                       "<strong>Публикуемый текст доставки</strong>", "Добавленный раздел",
@@ -214,13 +285,13 @@ def editorial_content(runtime):
         save("site", "mock-site", company_name="Компания для проверки", phone="+7 (900) 000-00-15",
              email="editor@example.test", logo="catalog/opencart-logo.png",
              footer_text="Изменённое описание в подвале",
-             footer_sections_title="Проверка редактора подвала", details="{}")
+             footer_sections_title="Проверка редактора подвала")
         page("/contacts", ['href="tel:+79000000015"', 'mailto:editor@example.test',
                           'src="/image/catalog/opencart-logo.png"', "Изменённое описание в подвале",
                           "Проверка редактора подвала"])
 
-        menu = {"slug": "header-articles", "label": "Публикации из редактора", "url": "/articles",
-                "location": "header", "sort_order": "99", "details": "{}"}
+        menu = {"slug": "header-articles", "label": "Публикации из редактора", "internal_target": "/articles",
+                "location": "header", "sort_order": "99"}
         save("navigation", "header-articles", **menu)
         page("/", ["Публикации из редактора"])
         save("navigation", "header-articles", status="archived", **menu)
@@ -240,6 +311,7 @@ def editorial_content(runtime):
 
 
 def native_catalog_editor(runtime):
+    run_php_suite(runtime, "admin-catalog-integration.php")
     runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
 
     def save_category(slug, label, *, category_id=0, parent_id=0, status=1):
@@ -269,12 +341,45 @@ def native_catalog_editor(runtime):
         require(result.get("success"), "Native OpenCart product editor rejected a valid record.")
         return product_id or int(result["product_id"])
 
+    def catalog_snapshot():
+        # Compare real native IDs, hierarchy, products, links and public projections without logging data.
+        script = r'''require '/var/www/html/config.php';
+require '/workspace/extension/cmteh/system/Database.php';
+$pdo=\Cmteh\Database::connectFromOpenCart(); $state=[];
+foreach (['category','category_description','category_path','category_to_store','product',
+          'product_description','product_to_category','cmteh_category','cmteh_product','cmteh_route'] as $table) {
+    $state[$table]=$pdo->query('SELECT * FROM `'.DB_PREFIX.$table.'` ORDER BY 1,2')->fetchAll(PDO::FETCH_ASSOC);
+}
+echo hash('sha256',json_encode($state,JSON_THROW_ON_ERROR));'''
+        return runtime.docker("exec", "-T", "web", "php", "-r", script, capture=True).stdout.strip()
+
     try:
         nonce = uuid4().hex[:8]
         parent_slug, child_slug, product_slug = ("test-" + prefix + "-" + nonce for prefix in ("parent", "child", "product"))
         parent = save_category(parent_slug, "Штатный каталог " + nonce)
         child = save_category(child_slug, "Штатный подраздел " + nonce, parent_id=parent)
         product = save_product(product_slug, "Штатный товар " + nonce, "OLD-" + nonce, child)
+        empty_slug = "test-unlinked-" + nonce
+        empty = save_category(empty_slug, "Несвязанная тестовая категория " + nonce)
+        before_delete = catalog_snapshot()
+        for protected in (parent, child):
+            status, body = runtime.request(runtime.action("catalog/category.delete"),
+                                           urlencode({"selected[]": [empty, protected]}, doseq=True).encode("ascii"), FORM)
+            require(status == 200, "Native category dependency refusal did not return its JSON response.")
+            denied = json.loads(body)
+            require(isinstance(denied.get("error"), str) and "Категор" in denied["error"] and not denied.get("success"),
+                    "Native deletion did not clearly reject the complete dependent category batch.")
+            require(catalog_snapshot() == before_delete,
+                    "Denied native deletion changed category IDs, paths, products, links or public projections.")
+            require(runtime.request("/category/" + empty_slug)[0] == 200
+                    and runtime.request("/category/" + child_slug)[0] == 200
+                    and runtime.request("/product/" + product_slug)[0] == 200,
+                    "Denied category deletion changed an existing public URL.")
+        require(admin_post(runtime, "catalog/category.delete", {"selected[]": [empty]}).get("success"),
+                "Native deletion rejected an unlinked synthetic category.")
+        require(runtime.request("/category/" + empty_slug)[0] == 410,
+                "Native deletion of an unlinked category did not retire its URL.")
+        print("PASS: native category deletion denies whole dependent batches without mutations; unlinked deletion returns URL410", flush=True)
         code, body = runtime.request("/category/" + parent_slug)
         require(code == 200 and "Штатный подраздел " + nonce in body and "Штатный товар " + nonce in body,
                 "Native category tree did not appear or roll up its descendant's product.")
@@ -299,7 +404,9 @@ def native_catalog_editor(runtime):
         require(runtime.request("/category/" + child_slug)[0] == 404, "A disabled native category stayed visible.")
         require(admin_post(runtime, "catalog/product.delete", {"selected[]": [product]}).get("success"),
                 "Native OpenCart did not delete the test product.")
-        require(runtime.request("/product/" + product_slug)[0] == 404, "A deleted native product stayed visible.")
+        deleted_status, deleted_page = runtime.request("/product/" + product_slug)
+        require(deleted_status == 410 and "Обновлённый товар " + nonce not in deleted_page,
+                "A deleted native product did not retire its URL or retained its content.")
         print("PASS: native OpenCart creates categories, subcategories and products and updates the storefront/search", flush=True)
     finally:
         runtime.logout()
@@ -380,9 +487,25 @@ def check_recovery(runtime, upstream, lead_id):
 
 def collect_browser(runtime, tooling, reference, evidence):
     browser_dir = ROOT / "tests" / "browser"
+    password_file = runtime.directory / "admin-cms-password"
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+    try:
+        # Separate synthetic account: never add permissions to an existing group.
+        browser_routes = [MODULE, CATALOG, "catalog/product", "catalog/category", "catalog/manufacturer",
+                          "common/filemanager"]
+        browser_editor = create_role(runtime, "Browser catalog editor", browser_routes,
+                                     [route for route in browser_routes if route != MODULE],
+                                     password_file=password_file)
+    finally:
+        runtime.logout()
+    username = browser_editor.username
+    browser_editor.logout()
     env = os.environ | {"CMTEH_BROWSER_BASE": runtime.origin, "CMTEH_BROWSER_TOOLING": str(tooling),
-                        "CMTEH_BROWSER_EVIDENCE": str(evidence)}
-    for name in ("storefront.mjs", "capture.mjs"):
+                        "CMTEH_BROWSER_EVIDENCE": str(evidence),
+                        "CMTEH_ADMIN_CMS_SCENARIO": "full",
+                        "CMTEH_ADMIN_USERNAME": username,
+                        "CMTEH_ADMIN_PASSWORD_FILE": str(password_file)}
+    for name in ("storefront.mjs", "admin-cms.mjs", "capture.mjs"):
         subprocess.run(["node", str(browser_dir / name)], env=env, check=True)
 
     pairs = []

@@ -1,0 +1,32 @@
+{
+  "failed_gate": "D:/codex/temp/cmteh-admin-final-runtime-20261110",
+  "source": "77f604f",
+  "result": "FAIL",
+  "failure": "native admin page load timeout10000ms in admin-cms.mjs",
+  "earlier_stages": "native install/PHP lint/catalog/lead/HTTP-SEO/two publicbrowserflows passed",
+  "network_diagnostic": {
+    "local_document_ms": 85,
+    "all_local_assets_ms_max": 13,
+    "external_origins": [
+      "http://fonts.googleapis.com",
+      "http://fonts.gstatic.com"
+    ]
+  },
+  "controlled_reproduction": {
+    "stalled_google_css": true,
+    "navigation_timeout_ms": 10010,
+    "document_received": true
+  },
+  "control": {
+    "only_google_fonts_aborted": true,
+    "http": 200,
+    "load_ms": 84,
+    "login_input_visible": true
+  },
+  "decision": "isolate only decorative external fonts in local functional browser harness; no app request mocking, no timeout raising, no skipped assertions; fresh strict gate required",
+  "second_attempt_setup_failure": {
+    "runtime": "cmteh-admin-final-runtime-20261110-r2",
+    "reason": "subnet10.212.242.48/28 allocated concurrently by independent cleaninstall; no application checks ran",
+    "recovery": "verified free10.212.243.0/28; choose newemptyruntime r3; no foreign network removal"
+  }
+}

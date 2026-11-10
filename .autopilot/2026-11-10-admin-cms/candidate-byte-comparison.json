@@ -1,0 +1,9 @@
+{
+  "source": "cb93cc8",
+  "root_gate_extension_sha256": "dc0adea6cbcb008fecf0db02d8250f962e32b7e30ef52aa775a9066c57f3a4e7",
+  "blind_extension_sha256": "b98db3f881f5641ef5c672d0020c466662d71930ec737b21fa86469d3f3cd109",
+  "different_entries": 28,
+  "only_crlf_lf_differences": true,
+  "non_newline_differences": [],
+  "shipping_sha256": "d1cbb19df2e1946462fa57d1369d558b7799641682ee58f45feaff8341ba58c5"
+}

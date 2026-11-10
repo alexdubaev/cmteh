@@ -92,7 +92,7 @@ if (!is_dir(dirname($media))) {
     mkdir(dirname($media), 0750);
 }
 if (!is_file($media)) {
-    file_put_contents($media, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4ioAAAAASUVORK5CYII='));
+    file_put_contents($media, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAADElEQVQImWNgYGAAAAAEAAGjChXjAAAAAElFTkSuQmCC'));
 }
 foreach ([$public => 'published', $draft => 'draft'] as $uuid => $status) {
     $catalog->save('media', ['uuid' => $uuid, 'path' => basename($media), 'filename' => 'Тест.png', 'mime' => 'image/png',

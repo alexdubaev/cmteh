@@ -1,0 +1,57 @@
+{
+  "local_gate": "PASS",
+  "origin": "http://127.0.0.1:3175",
+  "opencart": "4.1.0.4",
+  "php": "PHP 8.3.36 (cli) (built: Nov  5 2026 07:26:44) (NTS)",
+  "mysql": "/usr/sbin/mysqld  Ver 8.4.13 for Linux on x86_64 (MySQL Community Server - GPL)",
+  "upstream_sha256": "cdef537f5a0a7e1b4ddbe16f589dd2e80b10150a09bfbe93ce76ef2d5c3218c0",
+  "extension_sha256": "dc0adea6cbcb008fecf0db02d8250f962e32b7e30ef52aa775a9066c57f3a4e7",
+  "candidate": "cmteh-install.zip",
+  "sha256": "d1cbb19df2e1946462fa57d1369d558b7799641682ee58f45feaff8341ba58c5",
+  "imports": {
+    "demo": {
+      "preview": {
+        "added": 36,
+        "updated": 13,
+        "skipped": 0,
+        "errors": 0,
+        "sha256": "28c6a5e8793ae7200404beca0176d37b9b966b3f78fa53bb90bd0edc5eb11a08",
+        "diagnostics": [],
+        "publication_changes": []
+      },
+      "applied": {
+        "added": 36,
+        "updated": 13,
+        "skipped": 0,
+        "errors": 0,
+        "run_key": "release-demo",
+        "sha256": "28c6a5e8793ae7200404beca0176d37b9b966b3f78fa53bb90bd0edc5eb11a08",
+        "next_line": 50,
+        "finished": true
+      }
+    },
+    "media": {
+      "preview": {
+        "added": 2,
+        "updated": 0,
+        "skipped": 0,
+        "errors": 0,
+        "sha256": "13a817c121da2573768f75af743345bf64fcce267aa25cd74df1faa3ad5d832a",
+        "diagnostics": [],
+        "publication_changes": []
+      },
+      "applied": {
+        "added": 2,
+        "updated": 0,
+        "skipped": 0,
+        "errors": 0,
+        "run_key": "release-media",
+        "sha256": "13a817c121da2573768f75af743345bf64fcce267aa25cd74df1faa3ad5d832a",
+        "next_line": 3,
+        "finished": true
+      }
+    }
+  },
+  "staging": "NOT RUN",
+  "production": "NOT RUN"
+}

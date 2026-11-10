@@ -1,0 +1,94 @@
+{
+  "status": 200,
+  "domMs": 540,
+  "loaded": true,
+  "totalMs": 1014,
+  "inputs": 1,
+  "pending": [],
+  "finished": [
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/",
+      "type": "document",
+      "ms": 85,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/image/logo.png",
+      "type": "image",
+      "ms": 7,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/stylesheet/stylesheet.css",
+      "type": "stylesheet",
+      "ms": 8,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/stylesheet/bootstrap.css",
+      "type": "stylesheet",
+      "ms": 11,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/stylesheet/fonts/fontawesome/css/all.min.css",
+      "type": "stylesheet",
+      "ms": 13,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/javascript/common.js",
+      "type": "script",
+      "ms": 13,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/javascript/jquery/jquery-3.7.1.min.js",
+      "type": "script",
+      "ms": 13,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/javascript/bootstrap/js/bootstrap.bundle.min.js",
+      "type": "script",
+      "ms": 13,
+      "result": "finished"
+    },
+    {
+      "origin": "http://fonts.googleapis.com",
+      "path": "/css",
+      "type": "stylesheet",
+      "ms": 418,
+      "result": "finished"
+    },
+    {
+      "origin": "http://127.0.0.1:3172",
+      "path": "/admin/view/stylesheet/fonts/fontawesome/webfonts/fa-solid-900.woff2",
+      "type": "font",
+      "ms": 7,
+      "result": "finished"
+    },
+    {
+      "origin": "http://fonts.gstatic.com",
+      "path": "/s/opensans/v44/memvYaGs126MiZpBA-UvWbX2vVnXBbObj2OVTSumu1aB.woff2",
+      "type": "font",
+      "ms": 434,
+      "result": "finished"
+    },
+    {
+      "origin": "http://fonts.gstatic.com",
+      "path": "/s/opensans/v44/memvYaGs126MiZpBA-UvWbX2vVnXBbObj2OVTS-muw.woff2",
+      "type": "font",
+      "ms": 474,
+      "result": "finished"
+    }
+  ]
+}
