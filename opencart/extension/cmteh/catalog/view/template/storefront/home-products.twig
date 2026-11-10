@@ -1,3 +1,5 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
 <section class="section shell home-products">
   <div class="section-heading">
     {% if home.products_title|default('') %}<div><h2>{{ home.products_title }}</h2></div>{% endif %}
@@ -9,3 +11,4 @@
     <div class="panel empty-state"><p>Каталог временно недоступен или пока не содержит опубликованных товаров.</p><a class="button primary" href="/request?import=1">Отправить список</a></div>
   {% endif %}
 </section>
+{% endautoescape %}

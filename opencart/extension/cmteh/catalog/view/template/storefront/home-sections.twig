@@ -1,3 +1,5 @@
+{% autoescape 'html' %}
 {% set sections = home.sections|default([]) %}
 {% set more = sections|filter(item => item.section_type|default('') != 'home_order') %}
 {% if more %}<section class="shell home-cms-sections">{% include templates ~ 'sections.twig' with {sections: more} %}</section>{% endif %}
+{% endautoescape %}

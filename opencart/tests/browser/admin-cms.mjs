@@ -83,6 +83,7 @@ const restoreHome = async () => {
   for (const entry of homeRestore.blocks) {
     if (entry.type === 'checkbox') await field(entry.name).setChecked(entry.checked); else await field(entry.name).fill(entry.value);
   }
+  if (homeRestore.probeFields) for (const [name,value] of Object.entries(homeRestore.probeFields)) await field(name).fill(value);
   await save(); homeRestore=null;
 };
 const restoreSite = async () => {
@@ -97,6 +98,50 @@ const restoreSite = async () => {
 const openFirst = async type => {
   await page.goto(editor(type));
   await page.locator('tbody a[href*="cmteh_catalog"]').first().click();
+};
+const homeRenderingBoundary = async () => {
+  const failures=[];
+  const observe=(condition,message)=>{ if (!condition) failures.push(message); };
+  await shop.goto('/');
+  const products=shop.locator('.home-product-grid .product-card');
+  const articles=shop.locator('.articles-home-section .article-card');
+  const productCount=await products.count(); const articleCount=await articles.count();
+  observe(productCount===6,`Home must render six published product cards, got ${productCount}`);
+  observe(articleCount===2,`Home must render two published article cards, got ${articleCount}`);
+  for (const [cards,selector,prefix] of [[products,'.product-title','/product/'],[articles,'h3 a','/articles/']]) {
+    for (const card of await cards.all()) {
+      observe(await card.isVisible(),'Home card must be visible');
+      const href=await card.locator(selector).getAttribute('href');
+      observe(href?.startsWith(prefix),'Home card must link to its published record');
+      if (href?.startsWith(prefix)) observe((await publicContext.request.get(href)).status()===200,'Home card target must be published');
+    }
+  }
+  await openFirst('home'); homeRestore=await captureHome();
+  homeRestore.probeFields={hero_text:await field('hero_text').inputValue(),hero_image_alt:await field('hero_image_alt').inputValue()};
+  const textProbe=`<span data-cmteh-text-probe="${suffix}">Local markup probe</span>`;
+  const altProbe=`Local alt " onload="window.__cmtehHomeProbe=true" data-cmteh-attribute-probe="${suffix}`;
+  try {
+    await field('hero_text').fill(textProbe); await field('hero_image_alt').fill(altProbe); await save();
+    await shop.addInitScript(()=>{ window.__cmtehHomeProbe=false; });
+    await shop.goto('/');
+    const heroImage=shop.locator('.hero-background img');
+    observe(await shop.locator('.hero-copy p').textContent()===textProbe,'Stored home text must render literally');
+    observe(await shop.locator('[data-cmteh-text-probe]').count()===0,'Stored home text must not create a markup element');
+    observe(await heroImage.getAttribute('alt')===altProbe,'Stored home image alt must render literally');
+    observe(await shop.locator('[data-cmteh-attribute-probe], .hero-background img[onload]').count()===0,'Stored home alt must not create an attribute or handler');
+    observe(await shop.evaluate(()=>window.__cmtehHomeProbe)===false,'Stored home attribute probe must never execute');
+  } finally { await restoreHome(); }
+  assert.deepEqual(failures,[],'Home rendering boundary: '+failures.join('; '));
+  if (process.env.CMTEH_BROWSER_EVIDENCE) {
+    await mkdir(process.env.CMTEH_BROWSER_EVIDENCE,{recursive:true});
+    const previousViewport=shop.viewportSize();
+    for (const [width,height] of [[1440,1000],[390,844]]) {
+      await shop.setViewportSize({width,height}); await shop.goto('/');
+      await shop.screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,`home-corrected-${width}.png`),fullPage:true});
+    }
+    await shop.setViewportSize(previousViewport);
+  }
+  console.log('PASS home rendering: six product cards and two article cards link to published records; stored home text/alt stay literal without markup, handlers or execution; existing home restored');
 };
 const reviewClosure = async () => {
   const category=await create('category',{title:'Категория проверки '+suffix,h1:'Заголовок категории '+suffix,status:'published'});
@@ -135,6 +180,7 @@ try {
   await page.locator('#form-login button[type=submit]').click();
   await page.waitForURL(/user_token=/);
   token = new URL(page.url()).searchParams.get('user_token');
+  await homeRenderingBoundary();
   await reviewClosure();
   if (process.env.CMTEH_ADMIN_CMS_SCENARIO !== 'review-closure') {
   await page.goto(editor('product','&new=1'));

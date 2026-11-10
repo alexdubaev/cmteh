@@ -1,3 +1,4 @@
+{% autoescape 'html' %}
 {% set rootCategories = model.home_categories|default([]) %}
 {% if rootCategories %}
 <section class="section shell home-categories"{% if home.categories_title|default('') %} aria-labelledby="home-categories-title"{% endif %}>
@@ -8,3 +9,4 @@
   <div class="home-category-grid">{% for category in rootCategories %}<a class="home-category-link" href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a>{% endfor %}</div>
 </section>
 {% endif %}
+{% endautoescape %}

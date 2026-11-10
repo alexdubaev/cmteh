@@ -1,3 +1,4 @@
+{% autoescape 'html' %}
 {% if heroPhoto or home.hero_title|default('') or home.hero_text|default('') %}
 <section class="hero{{ heroPhoto and not mobilePhoto ? ' hero-cms-image' : '' }}">
   {% if heroPhoto %}
@@ -25,3 +26,4 @@
   {% endif %}
 </section>
 {% endif %}
+{% endautoescape %}

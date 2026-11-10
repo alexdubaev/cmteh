@@ -1,4 +1,6 @@
+{% autoescape 'html' %}
 {% set sections = home.sections|default([]) %}
 {% for section in sections|filter(item => item.section_type|default('') == 'home_order') %}
   {% include templates ~ 'sections.twig' with {sections: [section]} %}
 {% endfor %}
+{% endautoescape %}
