@@ -46,12 +46,17 @@ final class CmtehLeads extends Controller
             ? max(1, (int) $requestedPage)
             : 1;
         $query = ['user_token' => $sessionToken];
+        if (($this->request->get['type'] ?? '') === 'quote') {
+            $this->quotes($id, $page, $query);
+            return;
+        }
         try {
             require_once DIR_EXTENSION . 'cmteh/system/Lead.php';
             $service = new Lead(Database::connectFromOpenCart(), DB_PREFIX);
             $data = [
                 'status_labels' => self::STATUS_LABELS,
                 'lead' => null,
+                'quotes' => $this->url->link(self::ROUTE, $query + ['type' => 'quote']),
                 'back' => $this->url->link(self::ROUTE, $query + ['page' => $page]),
             ];
             if ($id !== null) {
@@ -93,5 +98,56 @@ final class CmtehLeads extends Controller
         http_response_code($status);
         $this->response->addHeader('Content-Type: text/plain; charset=utf-8');
         $this->response->setOutput($message);
+    }
+
+    private function quotes(?string $id, int $page, array $query): void
+    {
+        try {
+            require_once DIR_EXTENSION . 'cmteh/system/Quote.php';
+            $service = new \Cmteh\Quote(Database::connectFromOpenCart(), DB_PREFIX);
+            $query['type'] = 'quote';
+            $action = $this->request->get['action'] ?? '';
+            if (!is_string($action) || !in_array($action, ['', 'download', 'retry', 'deleteAttachment'], true)) { $this->fail(400, 'Неизвестное действие.'); return; }
+            if ($action !== '') {
+                if ($id === null) { $this->fail(404, 'Расценка не найдена.'); return; }
+                if ($action === 'download') {
+                    if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'GET') { $this->fail(405, 'Используйте GET.'); return; }
+                    $file = $service->attachment($id);
+                    if ($file === null) { $this->fail(404, 'Файл не найден.'); return; }
+                    $this->response->addHeader('Content-Type: ' . $file['mime']);
+                    $this->response->addHeader('X-Content-Type-Options: nosniff');
+                    $this->response->addHeader("Content-Disposition: attachment; filename*=UTF-8''" . rawurlencode($file['filename']));
+                    $this->response->addHeader('Content-Length: ' . strlen($file['bytes']));
+                    // OpenCart response compression would change original attachment bytes/length.
+                    $this->response->setCompression(0);
+                    $this->response->setOutput($file['bytes']); return;
+                }
+                if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') { $this->fail(405, 'Используйте POST.'); return; }
+                if (!$this->user->hasPermission('modify', self::ROUTE)) { $this->fail(403, 'Недостаточно прав для изменения расценок.'); return; }
+                $ok = $action === 'retry' ? $service->retry($id) : $service->deleteAttachment($id);
+                if (!$ok) { $this->fail(409, 'Действие недоступно для текущего состояния расценки.'); return; }
+                $this->response->redirect($this->url->link(self::ROUTE, $query + ['id' => $id])); return;
+            }
+            $data = ['quote' => null, 'status_labels' => self::STATUS_LABELS + ['sending' => 'Передаётся почтовому серверу'],
+                'back' => $this->url->link(self::ROUTE, $query),
+                'leads' => $this->url->link(self::ROUTE, ['user_token' => $query['user_token']]),
+                'can_modify' => $this->user->hasPermission('modify', self::ROUTE)];
+            $data['status_labels']['sent'] = 'Передано почтовому серверу';
+            if ($id !== null) {
+                $data['quote'] = $service->find($id);
+                if ($data['quote'] === null) { $this->fail(404, 'Расценка не найдена.'); return; }
+                foreach (['download', 'retry', 'deleteAttachment'] as $name) { $data[$name] = $this->url->link(self::ROUTE, $query + ['id' => $id, 'action' => $name]); }
+            } else {
+                $data += $service->list($page); $page = $data['page'];
+                foreach ($data['rows'] as &$row) { $row['href'] = $this->url->link(self::ROUTE, $query + ['id' => $row['public_id'], 'page' => $page]); } unset($row);
+                $data['previous'] = $page > 1 ? $this->url->link(self::ROUTE, $query + ['page' => $page-1]) : '';
+                $data['next'] = $page < $data['pages'] ? $this->url->link(self::ROUTE, $query + ['page' => $page+1]) : '';
+            }
+            $this->document->setTitle('Расценка списков');
+            $data['header'] = $this->load->controller('common/header');
+            $data['column_left'] = $this->load->controller('common/column_left');
+            $data['footer'] = $this->load->controller('common/footer');
+            $this->response->setOutput($this->load->view('extension/cmteh/module/cmteh_quotes', $data));
+        } catch (Throwable $e) { $this->log->write('СМ ТЕХНО: расценка недоступна (' . get_class($e) . ')'); $this->fail(503, 'Расценки временно недоступны.'); }
     }
 }

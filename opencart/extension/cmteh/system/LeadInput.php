@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use JsonException;
 use stdClass;
 
+require_once __DIR__ . '/CatalogInput.php';
+
 final class LeadInput
 {
     public static function parse(string $raw): array
@@ -138,7 +140,12 @@ final class LeadInput
                 || $quantity < 1 || $quantity > 100000 || (int) $quantity != $quantity) {
                 throw new InvalidArgumentException('Укажите артикул и целое количество от 1 до 100 000.');
             }
-            $items[] = ['article' => $article, 'quantity' => (int) $quantity];
+            $parsed = ['article' => $article, 'quantity' => (int) $quantity];
+            if (property_exists($item, 'product_id')) {
+                $id = CatalogInput::text($item->product_id, 160, 'product_id', true);
+                $parsed['product_id'] = $id;
+            }
+            $items[] = $parsed;
         }
 
         return $items;

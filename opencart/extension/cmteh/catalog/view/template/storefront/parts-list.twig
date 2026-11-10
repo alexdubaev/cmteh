@@ -1,0 +1,26 @@
+{% autoescape 'html' %}
+<div class="shell page-shell parts-list-page" data-parts-list>
+  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>Список запчастей</span></div>
+  <div class="page-title"><h1>{{ model.landing.h1|default('Список запчастей') }}</h1><p>{{ model.landing.intro|default('Проверьте наличие по артикулам или отправьте потребность менеджеру на расценку.') }}</p></div>
+  <div class="parts-list-layout">
+    <section class="panel list-source" aria-labelledby="list-title">
+      <div class="list-step">01 · Ваша потребность</div><h2 id="list-title">Вставьте список или выберите файл</h2>
+      <fieldset class="list-mode"><legend>Источник списка</legend><label><input type="radio" name="list-source" value="text" checked> Ввести текст</label><label><input type="radio" name="list-source" value="file"> Выбрать файл</label></fieldset>
+      <div data-source-text><label for="parts-list-text">Артикул и количество, по одной позиции в строке</label><textarea id="parts-list-text" rows="8" placeholder="0000550380;2&#10;RE568158;3" aria-describedby="list-example"></textarea><p class="form-hint" id="list-example">Артикул в первой колонке, количество — во второй. Например: <code>0000550380;2</code>. Ведущие нули сохраняются.</p></div>
+      <div data-source-file hidden><label for="parts-list-file">Файл списка</label><input type="file" id="parts-list-file" accept=".xlsx,.csv,.txt,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"><p class="form-hint">До 5 МБ. XLSX, CSV и TXT — для проверки и расценки. PDF и фотографии — только для расценки, без распознавания текста.</p><p class="form-hint" data-file-note>После обновления страницы файл нужно выбрать заново.</p><a href="{{ assets }}parts-request-template.csv.txt" download="parts-request-template.csv">Скачать CSV-шаблон</a></div>
+      <div class="list-check-action"><button class="button secondary" type="button" data-check-list disabled>Проверить наличие</button><p class="form-hint">До 1000 позиций за одну проверку. Проверка использует опубликованный каталог; доступное количество уточняет менеджер.</p></div>
+      <p data-list-preparing role="status">Подготавливаем работу со списком. Если кнопки недоступны, <a href="/parts-list?release=20261110-6">откройте страницу заново</a> или <a href="/contacts">свяжитесь с нами</a>.</p>
+      <p class="import-message" data-list-message role="status" hidden></p><ul class="list-diagnostics" data-list-diagnostics hidden></ul>
+    </section>
+    <form class="panel lead-form quote-form" data-quote-form>
+      <div class="list-step">02 · Передать менеджеру</div><h2>Отправить на расценку</h2><p class="form-hint">Отправим исходный список или файл вместе с контактами. Выберите удобный способ связи: телефон или email.</p>
+      <label for="quote-name">Контактное лицо</label><input id="quote-name" name="name" autocomplete="name" required minlength="2" maxlength="100">
+      <label for="quote-phone">Телефон</label><input id="quote-phone" name="phone" type="tel" autocomplete="tel" maxlength="40">
+      <label for="quote-email">Email</label><input id="quote-email" name="email" type="email" autocomplete="email" maxlength="254">
+      <label for="quote-message">Комментарий</label><textarea id="quote-message" name="message" maxlength="3000" rows="3"></textarea>
+      <button class="button primary" type="submit" disabled>Отправить на расценку</button><p class="form-hint">Список и проверка сами по себе не добавляют товары в <a href="/request">корзину</a>.</p><p class="import-message" data-quote-message role="status" hidden></p><a class="form-hint" href="/contacts">Другие способы связи</a>
+    </form>
+  </div>
+  <section class="list-results" data-list-results aria-labelledby="list-results-title" hidden><div class="section-heading"><div><div class="list-step">Результат проверки</div><h2 id="list-results-title">Предложения каталога</h2><p data-result-count role="status"></p></div><a href="/request" class="button secondary">Открыть корзину</a></div><p class="form-hint">Выберите нужный бренд и добавляйте товары по одному. Наличие — по данным каталога, без подтверждения запрошенного количества.</p><div data-result-rows></div><nav class="list-pagination" aria-label="Страницы результатов"><button type="button" class="button secondary" data-results-prev>Назад</button><span data-results-page></span><button type="button" class="button secondary" data-results-next>Далее</button></nav></section>
+</div>
+{% endautoescape %}

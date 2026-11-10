@@ -11,6 +11,7 @@ use Throwable;
 
 require_once __DIR__ . '/Catalog.php';
 require_once __DIR__ . '/Lead.php';
+require_once __DIR__ . '/Quote.php';
 require_once __DIR__ . '/StorefrontPages.php';
 require_once __DIR__ . '/StorefrontSeo.php';
 
@@ -59,6 +60,10 @@ final class Storefront
 
             if ($path === '/api/lead' && $raw === $path) {
                 $this->lead($method);
+                return;
+            }
+            if (in_array($path, ['/api/quote', '/api/list-check'], true) && $raw === $path) {
+                $this->quoteRequest($path, $method);
                 return;
             }
             if (!in_array($method, ['GET', 'HEAD'], true)) {
@@ -129,7 +134,7 @@ final class Storefront
                 return;
             }
 
-            $view = $this->pages()->view($path, $params);
+            $view = $path === '/parts-list' ? $this->pages()->partsList() : $this->pages()->view($path, $params);
             if ($view !== null) {
                 $this->render(200, $view);
             } else {
@@ -248,6 +253,37 @@ final class Storefront
         $this->renderError(($route['status'] ?? null) === 410 ? 410 : 404);
     }
 
+    private function quoteRequest(string $path, string $method): void
+    {
+        if ($method !== 'POST') { $this->json(405, ['error' => 'Метод не поддерживается.'], ['Allow' => 'POST']); return; }
+        $origin = $this->server['HTTP_ORIGIN'] ?? null;
+        if (($origin !== null && $origin !== Database::siteUrl()) || ($this->server['HTTP_SEC_FETCH_SITE'] ?? '') === 'cross-site') {
+            $this->json(403, ['error' => 'Отправьте список с витрины.']); return;
+        }
+        $type = (string) ($this->server['CONTENT_TYPE'] ?? '');
+        if (strtolower(trim(explode(';', $type, 2)[0])) !== 'application/json') {
+            $this->json(415, ['error' => 'Отправьте список в формате JSON.']); return;
+        }
+        $limit = $path === '/api/quote' ? Quote::JSON_BYTES : 1048576;
+        $length = (string) ($this->server['CONTENT_LENGTH'] ?? '');
+        if (ctype_digit($length) && (int) $length > $limit) { $this->json(413, ['error' => 'Список слишком большой.']); return; }
+        $raw = file_get_contents('php://input', false, null, 0, $limit + 1);
+        if ($raw === false || strlen($raw) > $limit) { $this->json(413, ['error' => 'Список слишком большой.']); return; }
+        if ($path === '/api/quote') {
+            $result = (new Quote($this->db(), DB_PREFIX))->submit($raw, (string) ($this->server['REMOTE_ADDR'] ?? ''), ['content-type' => $type]);
+            $this->json($result['status'], $result['body'], $result['headers'] ?? []); return;
+        }
+        try {
+            $body = json_decode($raw, false, 16, JSON_THROW_ON_ERROR);
+            if (!$body instanceof \stdClass || !isset($body->rows) || !is_array($body->rows)) { throw new \InvalidArgumentException('Проверьте список.'); }
+            $rows = array_map(static function ($row): array {
+                if (!$row instanceof \stdClass) { throw new \InvalidArgumentException('Проверьте строки списка.'); }
+                return (array) $row;
+            }, $body->rows);
+            $this->json(200, $this->catalog()->checkList($rows));
+        } catch (\JsonException | \InvalidArgumentException $e) { $this->json(400, ['error' => 'Проверьте список: до 1000 строк, артикул и количество.']); }
+    }
+
     private function target(string $path): ?string
     {
         if ($this->exists($path)) {
@@ -275,7 +311,7 @@ final class Storefront
         if (str_starts_with($path, '/api/assets/')) {
             return $this->catalog()->asset(substr($path, strlen('/api/assets/'))) !== null;
         }
-        if (in_array($path, ['/robots.txt', '/sitemap', '/sitemap.xml', '/sitemaps/static.xml', '/api/search', '/api/health'], true)) {
+        if (in_array($path, ['/robots.txt', '/sitemap', '/sitemap.xml', '/sitemaps/static.xml', '/api/search', '/api/health', '/parts-list'], true)) {
             return true;
         }
         if (preg_match('~^/sitemaps/products-(0|[1-9][0-9]{0,8})\.xml$~D', $path, $matches)) {

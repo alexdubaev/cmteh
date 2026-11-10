@@ -11,10 +11,11 @@ use Throwable;
 
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/LeadInput.php';
+require_once __DIR__ . '/Catalog.php';
 
 final class Lead
 {
-    private const SCHEMA_VERSION = 1;
+    private const SCHEMA_VERSION = 3;
     private const GLOBAL_LIMIT = 240;
     private const CLIENT_LIMIT = 12;
 
@@ -78,8 +79,19 @@ final class Lead
             hits SMALLINT UNSIGNED NOT NULL,
             PRIMARY KEY (window_minute, scope_key)
         ) $options");
-        $this->pdo->exec("INSERT INTO {$table}_schema (id, version) VALUES (1, 1)
-            ON DUPLICATE KEY UPDATE version = version");
+        $columns = $this->pdo->query("SHOW COLUMNS FROM {$table}_item")->fetchAll(PDO::FETCH_COLUMN);
+        foreach (['product_id' => 'VARCHAR(160)', 'product_sku' => 'VARCHAR(128)',
+            'product_brand' => 'VARCHAR(255)', 'product_title' => 'VARCHAR(255)'] as $column => $type) {
+            if (!in_array($column, $columns, true)) {
+                $this->pdo->exec("ALTER TABLE {$table}_item ADD COLUMN $column $type NULL");
+            }
+        }
+        $identityColumn = $this->pdo->query("SHOW COLUMNS FROM {$table}_item LIKE 'product_id'")->fetch(PDO::FETCH_ASSOC);
+        if (preg_match('/^varchar\((\d+)\)$/iD', $identityColumn['Type'], $length) && (int) $length[1] < 160) {
+            $this->pdo->exec("ALTER TABLE {$table}_item MODIFY COLUMN product_id VARCHAR(160) NULL");
+        }
+        $this->pdo->exec("INSERT INTO {$table}_schema (id, version) VALUES (1, 3)
+            ON DUPLICATE KEY UPDATE version = 3");
     }
 
     /**
@@ -141,7 +153,7 @@ final class Lead
         if (!$lead) {
             return null;
         }
-        $items = $this->pdo->prepare("SELECT article, quantity FROM {$table}_item
+        $items = $this->pdo->prepare("SELECT article, quantity, product_id, product_sku, product_brand, product_title FROM {$table}_item
             WHERE lead_id = ? ORDER BY position");
         $items->execute([$lead['lead_id']]);
         unset($lead['lead_id']);
@@ -242,10 +254,22 @@ final class Lead
 
     private function saveItems(string $table, string $leadId, array $items): void
     {
-        $insert = $this->pdo->prepare("INSERT INTO {$table}_item (lead_id, position, article, quantity)
-            VALUES (?, ?, ?, ?)");
+        $ids = array_column($items, 'product_id');
+        $products = $ids ? (new Catalog($this->pdo, $this->prefix))->selectedProducts($ids) : [];
+        foreach ($items as $item) {
+            if (!isset($item['product_id'])) continue;
+            $product = $products[$item['product_id']] ?? null;
+            if (!$product || CatalogInput::normalize($product['sku']) !== CatalogInput::normalize($item['article'])) {
+                throw new InvalidArgumentException('Выбранный товар недоступен или артикул изменился. Проверьте корзину.');
+            }
+        }
+        $insert = $this->pdo->prepare("INSERT INTO {$table}_item
+            (lead_id, position, article, quantity, product_id, product_sku, product_brand, product_title)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         foreach ($items as $position => $item) {
-            $insert->execute([$leadId, $position + 1, $item['article'], $item['quantity']]);
+            $product = isset($item['product_id']) ? $products[$item['product_id']] : null;
+            $insert->execute([$leadId, $position + 1, $item['article'], $item['quantity'],
+                $product['id'] ?? null, $product['sku'] ?? null, $product['brand'] ?? null, $product['title'] ?? null]);
         }
     }
 

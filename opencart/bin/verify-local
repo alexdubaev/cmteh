@@ -14,7 +14,7 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dev"))
 from release_checks import (admin_roles, check_recovery, collect_browser, editorial_content, import_fixture, lint,
-                            native_catalog_editor, preflight, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
+                            native_catalog_editor, preflight, quote_acceptance, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
 from runtime import LocalOpenCart, build
 
 
@@ -59,6 +59,8 @@ def main() -> None:
         demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 36, "release-demo", expected_updated=13)
         run_php_suite(runtime, "catalog-integration.php")
         run_php_suite(runtime, "lead-integration.php")
+        run_php_suite(runtime, "quote-integration.php")
+        quote_acceptance(runtime, package)
         run_http(runtime, evidence)
         collect_browser(runtime, args.browser_tooling.resolve(), args.reference_dir.resolve(), evidence)
         media = verify_media(runtime)

@@ -1,83 +1,134 @@
 window.STATE =
 {
   "version": 2,
-  "slug": "mobile-ux",
-  "dir": "2026-11-10-mobile-ux",
-  "title": "Удобная мобильная витрина СМ ТЕХНО",
+  "slug": "list-quote-stock",
+  "dir": "2026-11-10-list-quote-stock--wip",
+  "title": "Списки на расценку и проверка наличия без автокорзины",
   "mode": "semi",
   "depth": "normal",
-  "tier": "T0",
+  "tier": "T1",
   "briefFile": "2026-11-10-brief.md",
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": "e3f6023",
-  "startedAt": "2026-11-10T19:04:14+03:00",
-  "updatedAt": "2026-11-10T20:23:43+03:00",
-  "finishedAt": "2026-11-10T20:23:43+03:00",
+  "baseCommit": "12366ed",
+  "startedAt": "2026-11-10T20:53:35+03:00",
+  "updatedAt": "2026-11-10T22:25:51+03:00",
+  "finishedAt": null,
   "stages": [
     {
       "id": "preflight",
       "status": "done",
-      "startedAt": "2026-11-10T19:04:14+03:00",
-      "finishedAt": "2026-11-10T19:04:34+03:00"
+      "startedAt": "2026-11-10T20:53:35+03:00",
+      "finishedAt": "2026-11-10T20:55:10+03:00"
     },
     {
       "id": "manifest",
       "status": "done",
-      "startedAt": "2026-11-10T19:04:34+03:00",
-      "finishedAt": "2026-11-10T19:05:31+03:00"
+      "startedAt": "2026-11-10T20:55:10+03:00",
+      "finishedAt": "2026-11-10T20:56:49+03:00"
     },
     {
       "id": "briefing",
       "status": "done",
-      "startedAt": "2026-11-10T19:05:31+03:00",
-      "finishedAt": "2026-11-10T19:15:43+03:00"
+      "startedAt": "2026-11-10T20:56:49+03:00",
+      "finishedAt": "2026-11-10T21:09:04+03:00"
     },
     {
       "id": "spec",
       "status": "done",
-      "startedAt": "2026-11-10T19:15:43+03:00",
-      "finishedAt": "2026-11-10T19:17:00+03:00"
+      "startedAt": "2026-11-10T21:09:04+03:00",
+      "finishedAt": "2026-11-10T21:12:54+03:00"
     },
     {
       "id": "plan",
       "status": "done",
-      "startedAt": "2026-11-10T19:17:00+03:00",
-      "finishedAt": "2026-11-10T19:17:41+03:00"
+      "startedAt": "2026-11-10T21:12:54+03:00",
+      "finishedAt": "2026-11-10T21:13:11+03:00"
     },
     {
       "id": "build",
       "status": "done",
-      "startedAt": "2026-11-10T19:17:41+03:00",
-      "finishedAt": "2026-11-10T19:42:46+03:00"
+      "startedAt": "2026-11-10T21:13:11+03:00",
+      "finishedAt": "2026-11-10T21:51:16+03:00"
     },
     {
       "id": "review",
       "status": "done",
-      "startedAt": "2026-11-10T19:42:46+03:00",
-      "finishedAt": "2026-11-10T19:51:01+03:00"
+      "startedAt": "2026-11-10T21:51:16+03:00",
+      "finishedAt": "2026-11-10T22:05:31+03:00"
     },
     {
       "id": "final",
-      "status": "done",
-      "startedAt": "2026-11-10T19:51:01+03:00",
-      "finishedAt": "2026-11-10T20:23:43+03:00"
+      "status": "active",
+      "startedAt": "2026-11-10T22:05:31+03:00"
     }
   ],
   "requirements": {
-    "total": 16,
+    "total": 17,
     "done": 16,
     "inTicket": 0,
     "inSpec": 0,
-    "placeholder": 0,
+    "placeholder": 1,
     "deferred": 0,
     "dropped": 0
   },
   "tickets": [
     {
       "id": "01",
-      "title": "Удобная мобильная витрина и короткий запрос",
+      "title": "Расценка сохраняется, передаётся почте и видна в админке",
+      "requirements": [
+        "R04",
+        "R05",
+        "R06",
+        "R10i",
+        "R11i",
+        "R12i",
+        "G01",
+        "G02",
+        "G04",
+        "G05",
+        "D02"
+      ],
+      "blockedBy": [],
+      "wave": 1,
+      "zone": [
+        "opencart/extension/cmteh/system/Quote.php",
+        "opencart/extension/cmteh/system/QuoteInput.php",
+        "opencart/extension/cmteh/system/QuoteOutbox.php",
+        "opencart/extension/cmteh/system/QuoteMail.php",
+        "opencart/extension/cmteh/system/Storefront.php",
+        "opencart/extension/cmteh/admin/controller/module/",
+        "opencart/extension/cmteh/admin/model/module/cmteh_leads.php",
+        "opencart/extension/cmteh/admin/view/template/module/",
+        "opencart/bin/send-quotes.php",
+        "opencart/bin/verify-local",
+        "opencart/tests/quote-integration.php",
+        "opencart/tests/quote-*",
+        "opencart/dev/release_checks.py",
+        "opencart/packaging/build.py",
+        "opencart/admin-guide.md",
+        "opencart/README.md"
+      ],
+      "review": "нет",
+      "model": "сильная",
+      "status": "done",
+      "startedAt": "2026-11-10T21:13:12+03:00",
+      "finishedAt": "2026-11-10T21:31:59+03:00",
+      "retries": 0,
+      "repairs": 1,
+      "repairFindings": [
+        "Original CSV/TXT quoting must accept safe Windows-1251 as well as UTF-8 without changing original bytes"
+      ],
+      "tests": {
+        "passed": 51,
+        "failed": 0
+      },
+      "commit": "f6945fe"
+    },
+    {
+      "id": "02",
+      "title": "Список проверяется и отправляется отдельно от корзины",
       "requirements": [
         "R01",
         "R02",
@@ -88,108 +139,108 @@ window.STATE =
         "R07",
         "R08",
         "R09",
-        "R10",
-        "R11",
         "R12i",
-        "R13i",
-        "R14i",
-        "G01",
         "G02",
+        "G03",
+        "G05",
         "D01"
       ],
-      "blockedBy": [],
-      "wave": 1,
+      "blockedBy": [
+        "01"
+      ],
+      "wave": 2,
       "zone": [
-        "opencart/extension/cmteh/catalog/view/",
+        "opencart/extension/cmteh/system/Catalog.php",
         "opencart/extension/cmteh/system/StorefrontPages.php",
-        "opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php",
         "opencart/extension/cmteh/system/LeadInput.php",
+        "opencart/extension/cmteh/system/Lead.php",
+        "opencart/extension/cmteh/admin/controller/module/cmteh_leads.php",
+        "opencart/extension/cmteh/admin/view/template/module/cmteh_leads.twig",
+        "opencart/extension/cmteh/catalog/view/",
+        "opencart/tests/catalog-integration.php",
         "opencart/tests/lead-integration.php",
         "opencart/tests/browser/storefront.mjs",
-        "opencart/README.md",
-        "opencart/admin-guide.md",
         "DESIGN.md"
       ],
       "review": "нет",
-      "model": "обычная",
+      "model": "сильная",
       "status": "done",
-      "startedAt": "2026-11-10T19:17:42+03:00",
-      "finishedAt": "2026-11-10T20:21:31+03:00",
+      "startedAt": "2026-11-10T21:32:01+03:00",
+      "finishedAt": "2026-11-10T21:51:15+03:00",
       "retries": 0,
-      "repairs": 1,
-      "repairFindings": [
-        "R02/R08 формально выполнены миниатюрой240px: естественный mobile heading, без hero quicklinks, фото≥85%ширины390 при сохранении fit"
-      ],
+      "repairs": 0,
       "tests": {
-        "passed": 26,
+        "passed": 62,
         "failed": 0
       },
-      "commit": "f5a61e9"
+      "commit": "8e7dcd3"
     },
     {
       "id": "F1",
-      "title": "Два подтверждённых исправления по код-ревью",
+      "title": "Три подтверждённых границы перед выпуском",
       "requirements": [
-        "R07",
-        "G01"
+        "R02",
+        "R09",
+        "R11i",
+        "R12i",
+        "G05",
+        "D01"
       ],
       "blockedBy": [],
-      "wave": 2,
+      "wave": 3,
       "zone": [
-        "opencart/extension/cmteh/catalog/view/template/storefront/lead-form.twig",
+        "opencart/extension/cmteh/system/LeadInput.php",
+        "opencart/extension/cmteh/system/Lead.php",
+        "opencart/tests/lead-integration.php",
+        "opencart/extension/cmteh/catalog/view/assets/parts-list.mjs",
         "opencart/extension/cmteh/catalog/view/assets/request.mjs",
-        "opencart/extension/cmteh/catalog/view/assets/storefront.mjs",
         "opencart/tests/browser/storefront.mjs"
       ],
       "review": "да — ремонт ветки",
       "model": "сильная",
       "status": "done",
-      "startedAt": "2026-11-10T19:46:36+03:00",
-      "finishedAt": "2026-11-10T19:49:44+03:00",
+      "startedAt": "2026-11-10T21:56:38+03:00",
+      "finishedAt": "2026-11-10T22:04:18+03:00",
       "retries": 0,
       "repairs": 0,
       "tests": {
-        "passed": 7,
+        "passed": 48,
         "failed": 0
       },
-      "commit": "3c41855"
+      "commit": "3441135"
     },
     {
       "id": "F2",
-      "title": "# F2: возврат фокуса после невалидной короткой формы",
+      "title": "Согласованное имя отправителя в локальном MIME",
       "requirements": [
-        "G01",
-        "R10",
-        "R11",
-        "R14i",
-        "D02"
+        "G04",
+        "R12i"
       ],
       "blockedBy": [],
-      "wave": 3,
+      "wave": 4,
       "zone": [
-        "opencart/extension/cmteh/catalog/view/assets/storefront.mjs",
-        "opencart/extension/cmteh/catalog/view/assets/responsive-ux.css",
-        "opencart/extension/cmteh/catalog/view/assets/request.mjs",
-        "opencart/extension/cmteh/catalog/view/assets/request-import.mjs",
-        "opencart/extension/cmteh/catalog/view/template/storefront/layout.twig",
-        "opencart/tests/browser/storefront.mjs"
+        "opencart/extension/cmteh/system/QuoteMail.php",
+        "opencart/dev/release_checks.py",
+        "opencart/README.md",
+        "opencart/admin-guide.md",
+        "opencart/packaging/README.md"
       ],
       "review": "нет",
       "model": "обычная",
       "status": "done",
-      "startedAt": "2026-11-10T20:10:01+03:00",
-      "finishedAt": "2026-11-10T20:21:32+03:00",
       "retries": 0,
       "repairs": 0,
+      "startedAt": "2026-11-10T22:17:13+03:00",
+      "finishedAt": "2026-11-10T22:22:43+03:00",
       "tests": {
-        "passed": 8,
+        "passed": 51,
         "failed": 0
       },
-      "commit": "f5a61e9"
+      "commit": "d67100d"
     }
   ],
   "tests": {
-    "passed": 104,
+    "passed": 181,
     "failed": 0
   },
   "debt": {
@@ -199,110 +250,111 @@ window.STATE =
   },
   "additions": [],
   "coverage": {
-    "found": 4,
-    "fixed": 4,
+    "found": 1,
+    "fixed": 1,
     "deferred": 0,
     "items": [
-      "Reference now specifies two equal white/yellow actions with SVG icons. Intent, compatibility and checks are implementation safeguards under existing requirements."
+      "Initial admin registry extra became explicitly requested G05; brief/spec updated and independent reader confirmed zero remaining findings."
     ]
   },
   "concerns": [],
   "blind": {
-    "checked": 6,
-    "matched": 6,
+    "checked": 10,
+    "matched": 10,
     "mismatches": []
   },
   "beats": [
-    "2026-11-10T19:04:14+03:00",
-    "2026-11-10T19:04:34+03:00",
-    "2026-11-10T19:05:30+03:00",
-    "2026-11-10T19:05:31+03:00",
-    "2026-11-10T19:12:02+03:00",
-    "2026-11-10T19:15:42+03:00",
-    "2026-11-10T19:15:43+03:00",
-    "2026-11-10T19:16:59+03:00",
-    "2026-11-10T19:17:00+03:00",
-    "2026-11-10T19:17:01+03:00",
-    "2026-11-10T19:17:02+03:00",
-    "2026-11-10T19:17:21+03:00",
-    "2026-11-10T19:17:22+03:00",
-    "2026-11-10T19:17:25+03:00",
-    "2026-11-10T19:17:41+03:00",
-    "2026-11-10T19:17:42+03:00",
-    "2026-11-10T19:37:12+03:00",
-    "2026-11-10T19:42:46+03:00",
-    "2026-11-10T19:43:25+03:00",
-    "2026-11-10T19:43:26+03:00",
-    "2026-11-10T19:43:46+03:00",
-    "2026-11-10T19:46:34+03:00",
-    "2026-11-10T19:46:35+03:00",
-    "2026-11-10T19:46:36+03:00",
-    "2026-11-10T19:49:44+03:00",
-    "2026-11-10T19:51:01+03:00",
-    "2026-11-10T19:54:17+03:00",
-    "2026-11-10T20:01:16+03:00",
-    "2026-11-10T20:01:17+03:00",
-    "2026-11-10T20:03:49+03:00",
-    "2026-11-10T20:03:50+03:00",
-    "2026-11-10T20:10:00+03:00",
-    "2026-11-10T20:10:01+03:00",
-    "2026-11-10T20:13:01+03:00",
-    "2026-11-10T20:18:10+03:00",
-    "2026-11-10T20:18:11+03:00",
-    "2026-11-10T20:21:30+03:00",
-    "2026-11-10T20:21:31+03:00",
-    "2026-11-10T20:21:32+03:00",
-    "2026-11-10T20:21:33+03:00",
-    "2026-11-10T20:21:34+03:00",
-    "2026-11-10T20:21:43+03:00",
-    "2026-11-10T20:21:44+03:00",
-    "2026-11-10T20:23:43+03:00"
+    "2026-11-10T20:53:35+03:00",
+    "2026-11-10T20:55:09+03:00",
+    "2026-11-10T20:55:10+03:00",
+    "2026-11-10T20:56:49+03:00",
+    "2026-11-10T20:56:50+03:00",
+    "2026-11-10T21:06:06+03:00",
+    "2026-11-10T21:06:07+03:00",
+    "2026-11-10T21:09:04+03:00",
+    "2026-11-10T21:12:53+03:00",
+    "2026-11-10T21:12:54+03:00",
+    "2026-11-10T21:12:55+03:00",
+    "2026-11-10T21:12:56+03:00",
+    "2026-11-10T21:12:57+03:00",
+    "2026-11-10T21:13:10+03:00",
+    "2026-11-10T21:13:11+03:00",
+    "2026-11-10T21:13:12+03:00",
+    "2026-11-10T21:17:50+03:00",
+    "2026-11-10T21:23:46+03:00",
+    "2026-11-10T21:25:13+03:00",
+    "2026-11-10T21:25:14+03:00",
+    "2026-11-10T21:29:28+03:00",
+    "2026-11-10T21:31:59+03:00",
+    "2026-11-10T21:32:00+03:00",
+    "2026-11-10T21:32:01+03:00",
+    "2026-11-10T21:34:44+03:00",
+    "2026-11-10T21:34:45+03:00",
+    "2026-11-10T21:51:15+03:00",
+    "2026-11-10T21:51:16+03:00",
+    "2026-11-10T21:56:37+03:00",
+    "2026-11-10T21:56:38+03:00",
+    "2026-11-10T22:00:36+03:00",
+    "2026-11-10T22:00:37+03:00",
+    "2026-11-10T22:04:18+03:00",
+    "2026-11-10T22:05:31+03:00",
+    "2026-11-10T22:10:57+03:00",
+    "2026-11-10T22:17:11+03:00",
+    "2026-11-10T22:17:12+03:00",
+    "2026-11-10T22:17:13+03:00",
+    "2026-11-10T22:22:43+03:00",
+    "2026-11-10T22:25:50+03:00",
+    "2026-11-10T22:25:51+03:00"
   ],
-  "rev": 52,
+  "rev": 47,
   "waiting": null,
   "waits": [
     {
       "kind": "briefing",
-      "from": "2026-11-10T19:05:31+03:00",
-      "to": "2026-11-10T19:15:42+03:00"
+      "from": "2026-11-10T20:56:50+03:00",
+      "to": "2026-11-10T21:06:06+03:00"
+    },
+    {
+      "kind": "stop",
+      "from": "2026-11-10T21:23:46+03:00",
+      "to": "2026-11-10T21:25:13+03:00"
     }
   ],
   "log": [
     {
-      "t": "2026-11-10T19:04:14+03:00",
+      "t": "2026-11-10T20:53:35+03:00",
       "k": "init"
     },
     {
-      "t": "2026-11-10T19:04:34+03:00",
+      "t": "2026-11-10T20:55:10+03:00",
       "k": "stage",
       "id": "manifest",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:05:31+03:00",
+      "t": "2026-11-10T20:56:49+03:00",
       "k": "stage",
       "id": "briefing",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:05:31+03:00",
+      "t": "2026-11-10T20:56:50+03:00",
       "k": "ask",
       "kind": "briefing",
-      "note": "Порядок первого экрана и товаров; назначение нижнего Запроса; старые SMTP/реальные данные остаются вне UX"
+      "note": "Sender/transport, allowed quote attachment formats and expected list size"
     },
     {
-      "t": "2026-11-10T19:12:02+03:00",
-      "k": "ask",
-      "kind": "briefing",
-      "note": "На test указан демонстрационный телефон; нужен выбор публичного номера для действия Позвонить"
-    },
-    {
-      "t": "2026-11-10T19:15:42+03:00",
+      "t": "2026-11-10T21:06:06+03:00",
       "k": "answered",
       "kind": "briefing"
     },
     {
-      "t": "2026-11-10T19:15:43+03:00",
+      "t": "2026-11-10T21:06:07+03:00",
+      "k": "tier",
+      "v": "T2"
+    },
+    {
+      "t": "2026-11-10T21:09:04+03:00",
       "k": "gate",
       "g": "G1",
       "ok": true,
@@ -310,63 +362,51 @@ window.STATE =
       "total": 16
     },
     {
-      "t": "2026-11-10T19:15:43+03:00",
+      "t": "2026-11-10T21:09:04+03:00",
       "k": "stage",
       "id": "spec",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:16:59+03:00",
+      "t": "2026-11-10T21:12:53+03:00",
       "k": "gate",
       "g": "G2",
       "ok": true,
-      "found": 4,
-      "fixed": 4,
+      "found": 1,
+      "fixed": 1,
       "deferred": 0
     },
     {
-      "t": "2026-11-10T19:17:00+03:00",
+      "t": "2026-11-10T21:12:54+03:00",
       "k": "stage",
       "id": "plan",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:17:01+03:00",
+      "t": "2026-11-10T21:12:55+03:00",
       "k": "tier",
-      "v": "T0"
+      "v": "T1"
     },
     {
-      "t": "2026-11-10T19:17:02+03:00",
+      "t": "2026-11-10T21:12:56+03:00",
       "k": "tickets",
-      "n": 1
+      "n": 2
     },
     {
-      "t": "2026-11-10T19:17:02+03:00",
-      "k": "gate",
-      "g": "G3",
-      "ok": false,
-      "problems": 1
-    },
-    {
-      "t": "2026-11-10T19:17:21+03:00",
-      "k": "tickets",
-      "n": 1
-    },
-    {
-      "t": "2026-11-10T19:17:22+03:00",
+      "t": "2026-11-10T21:12:57+03:00",
       "k": "gate",
       "g": "G3",
       "ok": true,
       "problems": 0
     },
     {
-      "t": "2026-11-10T19:17:41+03:00",
+      "t": "2026-11-10T21:13:11+03:00",
       "k": "stage",
       "id": "build",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:17:42+03:00",
+      "t": "2026-11-10T21:13:12+03:00",
       "k": "ticket",
       "ids": [
         "01"
@@ -374,82 +414,107 @@ window.STATE =
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:37:12+03:00",
+      "t": "2026-11-10T21:23:46+03:00",
+      "k": "ask",
+      "kind": "stop",
+      "note": "Local test session URL was printed by an early harness error; verifying session revocation and sanitized logs before continuing"
+    },
+    {
+      "t": "2026-11-10T21:25:13+03:00",
+      "k": "answered",
+      "kind": "stop"
+    },
+    {
+      "t": "2026-11-10T21:25:14+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T21:29:28+03:00",
       "k": "ticket",
       "ids": [
         "01"
       ],
       "act": "repair",
-      "note": "R02/R08 формально выполнены миниатюрой240px: естественный mobile heading, без hero quicklinks, фото≥85%ширины390 при сохранении fit"
+      "note": "Original CSV/TXT quoting must accept safe Windows-1251 as well as UTF-8 without changing original bytes"
     },
     {
-      "t": "2026-11-10T19:37:12+03:00",
-      "k": "add",
-      "key": "report",
-      "n": 1
+      "t": "2026-11-10T21:31:59+03:00",
+      "k": "tickets",
+      "n": 2
     },
     {
-      "t": "2026-11-10T19:42:46+03:00",
+      "t": "2026-11-10T21:31:59+03:00",
       "k": "ticket",
       "ids": [
         "01"
       ],
       "act": "done",
       "tests": {
-        "passed": 26,
+        "passed": 51,
         "failed": 0
       }
     },
     {
-      "t": "2026-11-10T19:42:46+03:00",
+      "t": "2026-11-10T21:32:00+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T21:32:01+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T21:34:44+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-10T21:34:45+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T21:51:15+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 62,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T21:51:16+03:00",
       "k": "stage",
       "id": "review",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:43:25+03:00",
-      "k": "ticket",
-      "ids": [
-        "01"
-      ],
-      "act": "done",
-      "tests": {
-        "passed": 26,
-        "failed": 0
-      }
-    },
-    {
-      "t": "2026-11-10T19:43:26+03:00",
-      "k": "add",
-      "key": "report",
-      "n": 1
-    },
-    {
-      "t": "2026-11-10T19:43:46+03:00",
-      "k": "ticket",
-      "ids": [
-        "01"
-      ],
-      "act": "done",
-      "tests": {
-        "passed": 26,
-        "failed": 0
-      }
-    },
-    {
-      "t": "2026-11-10T19:46:34+03:00",
+      "t": "2026-11-10T21:56:37+03:00",
       "k": "tickets",
-      "n": 2
+      "n": 3
     },
     {
-      "t": "2026-11-10T19:46:35+03:00",
+      "t": "2026-11-10T21:56:38+03:00",
       "k": "gate",
       "g": "G3",
       "ok": true,
       "problems": 0
     },
     {
-      "t": "2026-11-10T19:46:36+03:00",
+      "t": "2026-11-10T21:56:38+03:00",
       "k": "ticket",
       "ids": [
         "F1"
@@ -457,71 +522,55 @@ window.STATE =
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:49:44+03:00",
+      "t": "2026-11-10T22:00:36+03:00",
+      "k": "tickets",
+      "n": 3
+    },
+    {
+      "t": "2026-11-10T22:00:37+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T22:04:18+03:00",
       "k": "ticket",
       "ids": [
         "F1"
       ],
       "act": "done",
       "tests": {
-        "passed": 7,
+        "passed": 48,
         "failed": 0
       }
     },
     {
-      "t": "2026-11-10T19:51:01+03:00",
-      "k": "add",
-      "key": "report",
-      "n": 1
-    },
-    {
-      "t": "2026-11-10T19:51:01+03:00",
+      "t": "2026-11-10T22:05:31+03:00",
       "k": "stage",
       "id": "final",
       "act": "start"
     },
     {
-      "t": "2026-11-10T19:54:17+03:00",
-      "k": "add",
-      "key": "report",
-      "n": 1
-    },
-    {
-      "t": "2026-11-10T20:01:16+03:00",
+      "t": "2026-11-10T22:10:57+03:00",
       "k": "tests",
-      "passed": 103,
+      "passed": 181,
       "failed": 0
     },
     {
-      "t": "2026-11-10T20:01:17+03:00",
+      "t": "2026-11-10T22:17:11+03:00",
       "k": "gate",
       "g": "G4",
-      "ok": true,
-      "checked": 6,
-      "matched": 6
+      "ok": false,
+      "checked": 10,
+      "matched": 9
     },
     {
-      "t": "2026-11-10T20:03:49+03:00",
-      "k": "gate",
-      "g": "G2",
-      "ok": true,
-      "found": 4,
-      "fixed": 4,
-      "deferred": 0
-    },
-    {
-      "t": "2026-11-10T20:03:50+03:00",
-      "k": "add",
-      "key": "report",
-      "n": 1
-    },
-    {
-      "t": "2026-11-10T20:10:00+03:00",
+      "t": "2026-11-10T22:17:12+03:00",
       "k": "tickets",
-      "n": 3
+      "n": 4
     },
     {
-      "t": "2026-11-10T20:10:01+03:00",
+      "t": "2026-11-10T22:17:13+03:00",
       "k": "ticket",
       "ids": [
         "F2"
@@ -529,201 +578,150 @@ window.STATE =
       "act": "start"
     },
     {
-      "t": "2026-11-10T20:13:01+03:00",
-      "k": "ticket",
-      "ids": [
-        "01"
-      ],
-      "act": "done"
-    },
-    {
-      "t": "2026-11-10T20:18:10+03:00",
+      "t": "2026-11-10T22:22:43+03:00",
       "k": "ticket",
       "ids": [
         "F2"
       ],
       "act": "done",
       "tests": {
-        "passed": 8,
+        "passed": 51,
         "failed": 0
       }
     },
     {
-      "t": "2026-11-10T20:18:11+03:00",
-      "k": "tests",
-      "passed": 104,
-      "failed": 0
-    },
-    {
-      "t": "2026-11-10T20:21:30+03:00",
-      "k": "tickets",
-      "n": 3
-    },
-    {
-      "t": "2026-11-10T20:21:31+03:00",
-      "k": "ticket",
-      "ids": [
-        "01"
-      ],
-      "act": "done"
-    },
-    {
-      "t": "2026-11-10T20:21:32+03:00",
-      "k": "ticket",
-      "ids": [
-        "F2"
-      ],
-      "act": "done",
-      "tests": {
-        "passed": 8,
-        "failed": 0
-      }
-    },
-    {
-      "t": "2026-11-10T20:21:33+03:00",
-      "k": "tests",
-      "passed": 104,
-      "failed": 0
-    },
-    {
-      "t": "2026-11-10T20:21:34+03:00",
+      "t": "2026-11-10T22:25:50+03:00",
       "k": "gate",
-      "g": "G3",
-      "ok": false,
-      "problems": 1
-    },
-    {
-      "t": "2026-11-10T20:21:43+03:00",
-      "k": "tickets",
-      "n": 3
-    },
-    {
-      "t": "2026-11-10T20:21:44+03:00",
-      "k": "gate",
-      "g": "G3",
+      "g": "G4",
       "ok": true,
-      "problems": 0
+      "checked": 10,
+      "matched": 10
     },
     {
-      "t": "2026-11-10T20:23:43+03:00",
-      "k": "finish",
-      "result": "Мобильная витрина обновлена на test.cmteh.ru:16 требований,104 local PASS,43 host PASS; фото целиком,компактные категории,короткий запрос и Наверх"
+      "t": "2026-11-10T22:25:51+03:00",
+      "k": "tests",
+      "passed": 181,
+      "failed": 0
     }
   ],
   "reqList": [
     {
       "id": "R01",
-      "text": "«продумал навигацию и удобство»",
+      "text": "«в корзину списком он добавлять ничего не должен»",
       "status": "done"
     },
     {
       "id": "R02",
-      "text": "«по загрузке странице картинка была полностью  экране телефона»",
+      "text": "«В корзину он добавляет только из предложенных товаров»",
       "status": "done"
     },
     {
       "id": "R03",
-      "text": "«в хеадере убрать типа стрелочку вниз на кнопке каталог»",
+      "text": "«загрузить список позиций»",
       "status": "done"
     },
     {
       "id": "R04",
-      "text": "«очень долго листать до товаров»",
+      "text": "«прикрепить файл — этот файл должен просто отправляться ко мне на почту»",
       "status": "done"
     },
     {
       "id": "R05",
-      "text": "«посмотри примеры и предложи как это делают профессионалы»",
+      "text": "«или список должен отправляться на почту»",
       "status": "done"
     },
     {
       "id": "R06",
-      "text": "«Как это правильно с точки зрения ua/uix»",
+      "text": "«Это будет отдельная расценка»",
       "status": "done"
     },
     {
       "id": "R07",
-      "text": "«добавить кнопку наверх чтоб быстро к меню вернуться можно было»",
+      "text": "«он может просто проверить их по наличию нашему»",
       "status": "done"
     },
     {
       "id": "R08",
-      "text": "«как много у нас дублирующих моментов на одной странице»",
+      "text": "«ему показалось, что из этого есть в наличии, что нет»",
       "status": "done"
     },
     {
       "id": "R09",
-      "text": "«Внизу можно сделать как на моем втором сайте, позвонить»",
+      "text": "«Оттуда он уже может поочередно добавить в корзину»",
       "status": "done"
     },
     {
-      "id": "R10",
-      "text": "«и запрос»",
+      "id": "R10i",
+      "text": "(подразумевается) файл и контакты защищены от публичного доступа",
       "status": "done"
     },
     {
-      "id": "R11",
-      "text": "«в целом сайт надо сделать более удобным для посетителя»",
+      "id": "R11i",
+      "text": "(подразумевается) отправка не теряется и повтор не создаёт дубль",
       "status": "done"
     },
     {
       "id": "R12i",
-      "text": "(подразумевается) существующие поиск, каталог и заявка продолжают работать",
-      "status": "done"
-    },
-    {
-      "id": "R13i",
-      "text": "(подразумевается) адаптация сохраняет работоспособность desktop/tablet",
-      "status": "done"
-    },
-    {
-      "id": "R14i",
-      "text": "(подразумевается) удобство подтверждается проверкой реальных действий",
-      "status": "done"
+      "text": "(подразумевается) процесс работает на телефоне и тестовом хостинге",
+      "status": "placeholder",
+      "why": "Короткие E2E и фактический host/mail acceptance после безопасного выпуска"
     },
     {
       "id": "G01",
-      "text": "««Запрос» должен открывать отдельную короткую форму»",
+      "text": "«info@cmteh.ru»",
       "status": "done"
     },
     {
       "id": "G02",
-      "text": "«Да, использовать +7 911 921-22-14»",
+      "text": "«Таблицы, PDF и фото (рекомендую)»",
+      "status": "done"
+    },
+    {
+      "id": "G03",
+      "text": "«Обычно до 1 000 позиций»",
+      "status": "done"
+    },
+    {
+      "id": "G04",
+      "text": "«Да, отправлять от info@cmteh.ru»",
+      "status": "done"
+    },
+    {
+      "id": "G05",
+      "text": "«А заказы будут попадать в админку? Для статистики и вообще на будущее для менеджеров»",
       "status": "done"
     }
   ],
   "gates": {
     "G1": {
       "ok": true,
-      "at": "2026-11-10T19:15:43+03:00",
+      "at": "2026-11-10T21:09:04+03:00",
       "open": 0,
       "total": 16
     },
     "G2": {
       "ok": true,
-      "at": "2026-11-10T20:03:49+03:00",
-      "found": 4,
-      "fixed": 4,
+      "at": "2026-11-10T21:12:53+03:00",
+      "found": 1,
+      "fixed": 1,
       "deferred": 0
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T20:21:44+03:00",
+      "at": "2026-11-10T21:56:38+03:00",
       "problems": 0
     },
     "G4": {
       "ok": true,
-      "at": "2026-11-10T20:01:17+03:00",
-      "checked": 6,
-      "matched": 6
+      "at": "2026-11-10T22:25:50+03:00",
+      "checked": 10,
+      "matched": 10
     }
   },
-  "result": "Мобильная витрина обновлена на test.cmteh.ru:16 требований,104 local PASS,43 host PASS; фото целиком,компактные категории,короткий запрос и Наверх",
+  "result": null,
+  "requestStartedAt": "2026-11-10T20:52:51.996+03:00",
   "report": [
-    "Один дополнительный визуальный corrective pass объявлен пользователю: прежний fit уменьшал фото до миниатюры; после closure косметических повторов не будет",
-    "Локальная реализация принята; реальный телефон R09/G02 и host acceptance R14i честно помечены pending до после-merge операции. Это действия lead, не отсутствие данных от владельца.",
-    "Независимое whole-branch review нашло2подтверждённых UIсбоя; F1 исправлен3c41855, узкий closure обоих воспроизведений PASS, новых дефектов нет. Второе whole-review не запускалось.",
-    "Первый full gate оборван обвязкой stdout cp1251 на Unicode стрелке; это ошибка журнала lead, не PASS. Процесс завершён, его собственный runtime остановлен; неизменённый3c41855 проверяется повторно в fresh r2 с UTF-8 и redaction логов.",
-    "Readable record for earlier Windows-encoded notes: D01 corrected the thumbnail-size photo; F1 fixed two review findings and passed narrow closure; the first full run failed only in the outer cp1251 log writer and the fresh UTF-8 r2 completed 103/0; phone and host acceptance remain pending until the post-merge operation. Details: local-acceptance.md."
+    "An early loopback-only HTTP harness error printed a test-session URL into the tool transcript. Session revoked: zero authenticated owned role bindings, and old cookie/token reuse cannot download original bytes after native logout. Harness sanitizes URL-bearing errors at ingest; no production session or password was exposed. Transcript entry cannot be erased, revoked token is inert.",
+    "Whole review confirmed two fix-now boundaries (canonical ID max160 versus128, same-tab idempotency under denied Storage writes) and one report-only price identity bug. Lead explicitly announced the cost of one extra regression and includes all three in bounded F1; no second whole review."
   ]
 }

@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-5";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-6";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
@@ -26,12 +26,12 @@ function temporaryFeedback(button, label, message) {
 
 for (const button of document.querySelectorAll("[data-add-article]")) {
   button.addEventListener("click", () => {
-    const { addArticle: article, title, brand } = button.dataset;
-    if (!articleKey(article) || [...article].length > MAX_ARTICLE_LENGTH) {
-      temporaryFeedback(button, "Не добавлено", "Некорректный артикул. Добавьте позицию списком.");
+    const { addArticle: article, title, brand, productId } = button.dataset;
+    if (!productId || !articleKey(article) || [...article].length > MAX_ARTICLE_LENGTH) {
+      temporaryFeedback(button, "Не добавлено", "Некорректный артикул. Выберите товар в каталоге.");
       return;
     }
-    const result = mergeCart([{ article, title, brand, quantity: 1 }]);
+    const result = mergeCart([{ article, title, brand, productId, quantity: 1 }]);
     if (result.overflow) {
       temporaryFeedback(button, "Корзина заполнена", "Достигнут лимит 100 позиций.");
     } else {
@@ -320,3 +320,9 @@ function setupSearch() {
   form.addEventListener("submit", (event) => { event.preventDefault(); go(input.value); });
 }
 setupSearch();
+
+// Keep old deep links usable without treating pasted rows as chosen catalogue products.
+if (location.pathname === '/request' && (location.hash === '#import' || location.hash === '#request-import' || new URLSearchParams(location.search).has('import'))) {
+  const link = document.querySelector('#import a');
+  link?.scrollIntoView({ block: 'center' });
+}

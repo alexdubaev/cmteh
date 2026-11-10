@@ -1,0 +1,13 @@
+# Разведка текущей реализации
+
+Base333a614, после прошлой сдачи продуктовых изменений нет. Рабочий стекopencart/, прежний Next/Directus — эталон. Read-only исследователи explore_list_stock/explore_quote_mail; никаких изменений/тестов приложения в разведке.
+
+- request.twig содержит import+cart. request-import.mjs::setupImport/append напрямую вызывает cart.mjs::mergeCart. Текущий parser принимает5MiB/10000rawrows/32MiBexpanded; старыйMAX_ITEMS100 относится к корзине и не должен ограничивать отдельный список.
+- ui.twig macro формирует все data-add-article, включая product.twig. storefront.mjs handler добавляетarticle/title/brand; canonical id раньше не сохранялся. cart.mjs ключsmtechno-request, normalize/mergeCart/acknowledgeCart; RFQ request_items остаютсяarticle/quantity и прежнийfingerprint.
+- Catalog::productDto id — строковыйsource_id (mock-11 и т.п.), не nativeinteger. Exactbatch может использоватьsku_norm и sku_lookup(sku_norm,product_id), productFrom/publicProduct store/publicfilters. Общий /api/search ограничен10 иpartial, поэтому дляbatchнеподходит. Не подбирать поprefix/MPN какточныйSKU.
+- DTO availability_status без достоверногочисловогоостатка. NativeCatalog quantity>0→in_stock, иначеnull; импорт/CMS тоже задаётстатус. Ни реальноеERP, ни обещаниезапрошенногоколичества не подтверждены.
+- Lead::submit(raw,address,headers), private save(key,data), allowAttempt и LeadInput обслуживают старыеleadконтракты. list/find INNERJOIN старогоoutbox. LeadMail::smtp/capture передают genericID безсписка/контактов/вложений. Нельзя просто прикрепитьновыеquotejobs кстаромуworker: rollback может отметить genericписьмо безфайла отправленным.
+- Nativecmteh_leads permission подходитдляновогоquote tab/download, publicassetmediaдлявходящихфайловнеподходит. Приватныйкаталог внеwebroot существует. Новыеquote-таблицы/отдельныйworker сохраняют старыеlead/RFQ/quickконтракты и очереди.
+- HostCLI PHP8.2.35/MySQL5.7;PDO max_allowed_packet32MiB:5MiBMEDIUMBLOB помещается. CLI upload_max_filesize2M/post_max_size8M, webнеизмерен. JSONbase64newendpointсencoded+decodedcaps позволяетнеперенастраиватьupload/старый512000bytesleadguard.
+- NativeSMTPconfig/lead-smtp.json отсутствуют. Sendmailесть; односинтетическоеписьмо от/наinfo@cmteh.ru принято MTA/YandexMX, владелец подтвердилВходящие. SPF/DKIMполученного письма отдельнонепроверены, DNSнеизменён. Операционныйevidence D:/codex/temp/cmteh-list-quote-stock-20261110/mail-probe.md.
+- Проверки: realPDO catalog-integration/lead-integration, browserstorefront, strictpython opencart/bin/verify-local. Новыйquoteintegration включать вэтотреальныйgate, неNextwrapper. ReusecachedDocker/officialZIP/browsertoolingD:/codex/cmteh ссобственнымиprefix/runtime, неиспользоватьчужиеданные.

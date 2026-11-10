@@ -1,5 +1,4 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-5";
-import { setupImport } from "./request-import.mjs?v=20261110-5";
+import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-6";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
@@ -28,6 +27,7 @@ function exactProduct(item, payload) {
   if (!Array.isArray(result) || result.length !== payload.meta?.total || payload.meta.partial) return null;
   const sku = articleKey(item.article);
   const candidates = result.filter((product) => {
+    if (item.productId && product?.id !== item.productId) return false;
     if (typeof product?.sku !== "string" || articleKey(product.sku) !== sku) return false;
     if (!hasBrand(item.brand)) return true;
     return typeof product.brand === "string" && product.brand.trim().toLocaleLowerCase("ru") === item.brand.trim().toLocaleLowerCase("ru");
@@ -143,7 +143,7 @@ function setupCart(cart) {
 
   function update(retry = false) {
     const items = readCart();
-    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand]));
+    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand, item.productId || null]));
     if (retry || nextIdentity !== identity) {
       identity = nextIdentity;
       controller?.abort();
@@ -265,7 +265,7 @@ function setupLead(form) {
       show(note.length > 3000 ? "Сократите компанию и комментарий до 3 000 символов вместе." : "Откройте страницу без лишних параметров и повторите отправку.", true);
       return;
     }
-    const request_items = items.map(({ article, quantity }) => ({ article, quantity }));
+    const request_items = items.map(({ article, quantity, productId }) => ({ article, quantity, ...(productId ? { product_id: productId } : {}) }));
     const page_url = location.href;
     // Preserve the original field order for pending hashes stored before migration.
     const payload = rfq
@@ -326,4 +326,3 @@ function setupLead(form) {
 const cart = document.querySelector("[data-cart]");
 if (cart) setupCart(cart);
 for (const form of document.querySelectorAll("[data-lead]")) setupLead(form);
-setupImport();

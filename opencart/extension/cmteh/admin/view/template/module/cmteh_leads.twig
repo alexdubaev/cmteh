@@ -3,6 +3,7 @@
   <div class="page-header">
     <div class="container-fluid">
       <h1>Заявки СМ ТЕХНО</h1>
+      <a href="{{ quotes }}">Расценка списков</a>
     </div>
   </div>
   <div class="container-fluid">
@@ -35,10 +36,10 @@
           {% if lead.items %}
             <div class="table-responsive">
               <table class="table table-bordered">
-                <thead><tr><th scope="col">Артикул</th><th scope="col">Количество</th></tr></thead>
+                <thead><tr><th scope="col">Артикул</th><th scope="col">Количество</th><th scope="col">Выбранный товар</th></tr></thead>
                 <tbody>
                   {% for item in lead.items %}
-                    <tr><td class="text-break">{{ item.article|e }}</td><td>{{ item.quantity|e }}</td></tr>
+                    <tr><td class="text-break">{{ item.article|e }}</td><td>{{ item.quantity|e }}</td><td class="text-break">{% if item.product_id %}<strong>{{ item.product_brand|e }}</strong><br>{{ item.product_title|e }}<br><small>{{ item.product_sku|e }} · {{ item.product_id|e }}</small>{% else %}—{% endif %}</td></tr>
                   {% endfor %}
                 </tbody>
               </table>

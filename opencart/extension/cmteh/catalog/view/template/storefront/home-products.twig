@@ -8,7 +8,7 @@
   {% if model.products|default([]) %}
     <div class="product-grid home-product-grid">{% for product in model.products|slice(0, 6) %}{{ ui.card(product) }}{% endfor %}</div>
   {% else %}
-    <div class="panel empty-state"><p>Каталог временно недоступен или пока не содержит опубликованных товаров.</p><a class="button primary" href="/request?import=1">Отправить список</a></div>
+    <div class="panel empty-state"><p>Каталог временно недоступен или пока не содержит опубликованных товаров.</p><a class="button primary" href="/parts-list">Отправить список</a></div>
   {% endif %}
 </section>
 {% endautoescape %}

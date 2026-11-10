@@ -10,7 +10,7 @@ let persistent = true;
 export const articleKey = (value) => value.trim().toUpperCase().replace(/[^A-Z0-9А-ЯЁ]+/g, "");
 const brandKey = (value) => value.trim().toLocaleLowerCase("ru");
 export const hasBrand = (value) => Boolean(value.trim()) && brandKey(value) !== brandKey(UNKNOWN_BRAND);
-export const lineKey = (item) => JSON.stringify([articleKey(item.article), brandKey(item.brand)]);
+export const lineKey = (item) => JSON.stringify(item.productId ? ["product", item.productId] : [articleKey(item.article), brandKey(item.brand)]);
 export function normalizeQuantity(value) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(1, Math.min(MAX_QUANTITY, Math.floor(number))) : 1;
@@ -24,6 +24,7 @@ function normalize(items, limit = MAX_ITEMS) {
       title: String(item.title ?? "Позиция из списка"),
       brand: String(item.brand ?? UNKNOWN_BRAND),
       quantity: normalizeQuantity(item.quantity),
+      ...(typeof item.productId === "string" && item.productId.trim() ? { productId: item.productId.trim() } : {}),
     }))
     .filter((item) => articleKey(item.article) && [...item.article].length <= MAX_ARTICLE_LENGTH)
     .slice(0, limit);
@@ -58,9 +59,11 @@ export function mergeCart(incoming) {
   let overflow = false;
   for (const item of normalize(incoming, incoming.length)) {
     const sameArticle = result.filter((candidate) => articleKey(candidate.article) === articleKey(item.article));
-    const existing = hasBrand(item.brand)
-      ? sameArticle.find((candidate) => brandKey(candidate.brand) === brandKey(item.brand))
-      : sameArticle.length === 1 ? sameArticle[0] : sameArticle.find((candidate) => !hasBrand(candidate.brand));
+    const existing = item.productId
+      ? result.find((candidate) => candidate.productId === item.productId)
+      : hasBrand(item.brand)
+      ? sameArticle.find((candidate) => !candidate.productId && brandKey(candidate.brand) === brandKey(item.brand))
+      : sameArticle.filter((candidate) => !candidate.productId).length === 1 ? sameArticle.find((candidate) => !candidate.productId) : sameArticle.find((candidate) => !candidate.productId && !hasBrand(candidate.brand));
     if (existing) {
       existing.quantity = normalizeQuantity(existing.quantity + item.quantity);
     } else if (result.length < MAX_ITEMS) {

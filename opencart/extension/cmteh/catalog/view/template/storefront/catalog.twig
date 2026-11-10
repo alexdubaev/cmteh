@@ -74,7 +74,7 @@
         <div class="product-grid catalog-grid">{% for product in products %}{{ ui.card(product) }}{% endfor %}</div>
       {% else %}
         <div class="panel empty-state"><h2>Ничего не найдено</h2><p>Проверьте артикул или измените фильтры. Вы также можете передать артикул для подбора в заявке.</p>
-          <a class="button primary" href="/request?import=1{% if query %}&amp;article={{ query|url_encode }}{% endif %}">{{ query ? 'Передать артикул для подбора' : 'Передать список для подбора' }}</a>
+          <a class="button primary" href="/parts-list{% if query %}?article={{ query|url_encode }}{% endif %}">{{ query ? 'Передать артикул для подбора' : 'Передать список для подбора' }}</a>
         </div>
       {% endif %}
       {% if maxPage > 1 %}
