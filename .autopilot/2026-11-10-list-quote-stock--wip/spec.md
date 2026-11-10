@@ -52,6 +52,9 @@ Native MTA адаптер и собственный `send-quotes.php` cron то�
 Подключение ERP/синхронизация реальных остатков, реальное наполнение каталога, OCR/PDF parsing, цены/сроки расценки, оплата, изменение других сайтов/DNS/production, включение старой lead SMTP очереди. Сравнение наличия использует опубликованные CMS данные, не обещает реальное время и количество.
 
 ## Открытые места
+
+### D03 — проверка реального хостинга
+ПередактивациейPHP8.2.35/libmagic хостинга ошибочноопределилbigASCII/multiline5MiBTXT/CSVкакapplication/octet-stream. Старыйcandidateс50integrationостановленна22PASS, неPASS. F3разрешаетambiguousMIMEтолькопослеexistingUTF8/Windows1251/NUL/control/script/sizeпроверок; PDFсрасширениемCSV/TXTпо-прежнемуотвергается. РеальныйprivateparsehostRED→GREENподтвердил3positiveи2negative случаябезDB/schema/mail/livecode. Последующийполныйизолированныйhost54checkиHTTP5MiBпередworkerenableобязательны.
 Нет продуктовых развилок. Контрольное письмо воВходящих подтверждено. Фактическая отправка новых quote text+originalfile и native/host acceptance остаются обязательной завершающей проверкой, не placeholders по умолчанию.
 
 ## D01 — сохранение выбранного предложения для менеджеров
