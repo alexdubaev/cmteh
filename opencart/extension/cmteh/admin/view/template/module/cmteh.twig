@@ -2,9 +2,16 @@
 <div id="content">
   <div class="page-header"><div class="container-fluid"><h1>СМ ТЕХНО</h1></div></div>
   <div class="container-fluid">
-    {% if catalog %}<p><a href="{{ catalog|escape }}">Каталог и публикации</a></p>{% endif %}
-    {% if leads %}<p><a href="{{ leads|escape }}">Заявки</a></p>{% endif %}
-    {% if upgrade %}<form action="{{ upgrade|escape }}" method="post"><button class="btn btn-primary" type="submit">Применить миграции</button></form>{% endif %}
+    <p>Выберите раздел. Сохраните изменения в форме, затем откройте витрину для проверки результата.</p>
+    <nav aria-label="Разделы управления СМ ТЕХНО"><div class="row g-3 mb-4">
+      {% for link in links %}<div class="col-sm-6 col-lg-4"><a class="btn btn-outline-primary w-100 text-start" href="{{ link.href|escape }}">{{ link.name|escape }}</a></div>{% endfor %}
+    </div></nav>
+    <p>Товары, категории и бренды OpenCart редактируют те же записи каталога. Дополнительные поля витрины находятся в соответствующих разделах СМ ТЕХНО.</p>
+    {% if missing_catalog or missing_leads %}<div class="alert alert-info">
+      Некоторые разделы недоступны вашей группе. Права назначает администратор; обновление расширения их не меняет.
+      {% if permissions %}<a href="{{ permissions|escape }}">Открыть группы пользователей</a>. Для каталога нужен доступ к <code>extension/cmteh/module/cmteh_catalog</code>, для заявок — к <code>extension/cmteh/module/cmteh_leads</code>. Право изменения каталога назначается отдельно.{% endif %}
+    </div>{% endif %}
+    {% if upgrade %}<details><summary>Обслуживание расширения</summary><p>После установки обновлённых файлов примените миграции. Существующие записи сохраняются.</p><form action="{{ upgrade|escape }}" method="post"><button class="btn btn-secondary" type="submit">Применить миграции</button></form></details>{% endif %}
   </div>
 </div>
 {{ footer }}

@@ -23,16 +23,19 @@ final class Cmteh extends Controller
     public function index(): void
     {
         $token = 'user_token=' . $this->session->data['user_token'];
-        $catalog = $this->url->link('extension/cmteh/module/cmteh_catalog', $token);
-        $leads = $this->url->link('extension/cmteh/module/cmteh_leads', $token);
+        require_once DIR_EXTENSION . 'cmteh/admin/controller/event/cmteh_admin.php';
+        $navigation = new \Opencart\Admin\Controller\Extension\Cmteh\Event\CmtehAdmin($this->registry);
 
         $this->document->setTitle('СМ ТЕХНО');
         $this->response->setOutput($this->load->view('extension/cmteh/module/cmteh', [
             'header' => $this->load->controller('common/header'),
             'column_left' => $this->load->controller('common/column_left'),
             'footer' => $this->load->controller('common/footer'),
-            'catalog' => $this->user->hasPermission('access', 'extension/cmteh/module/cmteh_catalog') ? $catalog : '',
-            'leads' => $this->user->hasPermission('access', 'extension/cmteh/module/cmteh_leads') ? $leads : '',
+            'links' => $navigation->links(),
+            'missing_catalog' => !$this->user->hasPermission('access', 'extension/cmteh/module/cmteh_catalog'),
+            'missing_leads' => !$this->user->hasPermission('access', 'extension/cmteh/module/cmteh_leads'),
+            'permissions' => $this->user->hasPermission('access', 'user/user_permission')
+                ? $this->url->link('user/user_permission', $token) : '',
             'upgrade' => $this->user->hasPermission('modify', self::ROUTE)
                 ? $this->url->link(self::ROUTE . '.upgrade', $token)
                 : '',
@@ -79,6 +82,14 @@ final class Cmteh extends Controller
                     'sort_order' => 0,
                 ]);
             }
+        }
+        foreach ($this->adminEvents() as $code => [$trigger, $action]) {
+            // Re-register our two hooks to repair stale versions without touching other events.
+            $this->model_setting_event->deleteEventByCode($code);
+            $this->model_setting_event->addEvent([
+                'code' => $code, 'description' => 'СМ ТЕХНО: русская панель управления',
+                'trigger' => $trigger, 'action' => $action, 'status' => true, 'sort_order' => 1000,
+            ]);
         }
         $this->clearCompiledTemplates();
 
@@ -132,6 +143,17 @@ final class Cmteh extends Controller
         foreach (array_keys($this->nativeCatalogEvents()) as $code) {
             $this->model_setting_event->deleteEventByCode($code);
         }
+        foreach (array_keys($this->adminEvents()) as $code) {
+            $this->model_setting_event->deleteEventByCode($code);
+        }
+    }
+
+    private function adminEvents(): array
+    {
+        return [
+            'cmteh_admin_menu' => ['admin/view/common/column_left/before', 'extension/cmteh/event/cmteh_admin.menu'],
+            'cmteh_admin_language' => ['admin/language/*/after', 'extension/cmteh/event/cmteh_admin.language'],
+        ];
     }
 
     private function nativeCatalogEvents(): array
