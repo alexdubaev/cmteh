@@ -28,3 +28,12 @@ site.social_links=[{label,url}] через обычные поля, безопа
 PHP 8.3, OpenCart 4.1.0.4 из D:/codex/temp/cmteh-opencart-cache/opencart-4.1.0.4.zip (SHA проверяется сборщиком); Docker cached cmteh-opencart-web:local; Node/Playwright из D:/codex/cmteh/node_modules (не npm ci заново).
 Полный выпуск: python opencart/bin/verify-local --upstream UPSTREAM --runtime-dir NEW_RUNTIME --reference-dir REFERENCE --browser-tooling D:/codex/cmteh --port PORT. Для одного PHP-теста: python opencart/dev/runtime.py --runtime-dir RUNTIME --port PORT compose exec -T web php /workspace/tests/NAME.php. Runtime вне checkout; локальные письма перехватываются.
 Секретные файлы runtime читать только в процессы, не выводить и не коммитить. Не останавливать/удалять чужие контейнеры, БД и сети.
+
+## Фактически построено — 01
+CatalogAdmin trait реализует editRows(string,int=1,string="",string=""):array; editorChoices(string):array; saveFromAdmin(string,array,bool=false):string; deleteRecord(string,string):void. editRecord возвращает native_id/parent_slug/category_slugs/main_image_path/specification_items. Choices включают id/slug/title/status/native_id/path, status=published|draft|archived. Публичные home selection arrays сохраняют порядок и исключают неопубликованное; действующие save/validate импорта совместимы.
+
+## Фактически построено — 03
+Events: admin/view/common/column_left/before→cmteh_admin.menu; admin/language/*/after→cmteh_admin.language. Русские оригинальные словари внутри расширения не меняют язык данных и ACL; общие ключи накладываются после регистрации событий, так как initial default language загружен раньше. collect_browser создаёт собственную синтетическую группу/пользователя и передаёт CMTEH_ADMIN_USERNAME/CMTEH_ADMIN_PASSWORD_FILE в admin-cms.mjs, без изменения первоначальной группы. admin_navigation подтверждён независимым запуском оркестратора.
+
+## Фактически построено — 02
+Named scalar/collection POST; internal_target/external_url; confirm_slug_change; action=delete+confirm_delete. sections_revision сохранён. Произвольный details отклоняется, metadata и ID приватных вложений берутся с сервера; обычные подписи/удаление доступны, новое private attachment — только прежний одобренный import. Новое public фото — main filemanager/native gallery. Черновик предпросматривается только в авторизованном sandbox. Ошибки422 сохраняют введённые title/image path. Browser admin-cms —6групп с reload/реальной витриной и очисткой только собственных тестовых записей.

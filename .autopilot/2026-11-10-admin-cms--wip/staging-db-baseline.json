@@ -1,0 +1,74 @@
+{
+  "observed": "2026-11-10",
+  "scope": "read-only test.cmteh.ru; production and engine sites untouched",
+  "transport": "existing strict SSH known-host verification; credentials never printed",
+  "php_cli": "8.2.35",
+  "mysql": "5.7.44-48",
+  "groups": {
+    "product": {
+      "native_total": 35,
+      "mapped_total": 16,
+      "missing_native": 0
+    },
+    "category": {
+      "native_total": 46,
+      "mapped_total": 8,
+      "missing_native": 0
+    },
+    "brand": {
+      "native_total": 17,
+      "mapped_total": 11,
+      "missing_native": 0
+    }
+  },
+  "content": {
+    "article": 2,
+    "home": 1,
+    "navigation": 15,
+    "page": 8,
+    "site": 1
+  },
+  "all_content_published": true,
+  "admin_language": "en-gb",
+  "catalog_sha256": "5e97dd6c73dc00d048c501da507659a00a6e66d48bd18dfbdaf6a32260d54b00",
+  "admin_sha256": "3824f5d3dc37dbb177482f2cc0dd1d2ee8ec3722c3c676246074b5effcdbd7a0",
+  "http_mapped_routes": {
+    "product": {
+      "total": 16,
+      "200": 16
+    },
+    "category": {
+      "total": 8,
+      "200": 8
+    },
+    "brand": {
+      "total": 11,
+      "200": 11
+    },
+    "page": {
+      "total": 8,
+      "200": 8
+    },
+    "article": {
+      "total": 2,
+      "200": 2
+    }
+  },
+  "admin_acl": {
+    "access_count": 167,
+    "modify_count": 167,
+    "cmteh_access": [
+      "extension/cmteh/module/cmteh"
+    ],
+    "cmteh_modify": [
+      "extension/cmteh/module/cmteh"
+    ],
+    "can_manage_groups": true,
+    "can_manage_extensions": true,
+    "editor_route_result": "Permission Denied",
+    "stage_role_changed": false
+  },
+  "admin_group_name": "Administrator",
+  "admin_group_member_count": 1,
+  "lead_count": 0
+}

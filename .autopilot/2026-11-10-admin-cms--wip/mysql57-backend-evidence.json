@@ -1,0 +1,12 @@
+{
+  "environment": "dedicated local PHP8.3/OpenCart4.1.0.4/MySQL5.7.44",
+  "runtime": "D:/codex/temp/cmteh-admin-mysql57-20261110",
+  "port": 3171,
+  "image": "mysql:5.7.44@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb",
+  "checked_source": "ffd953b",
+  "admin_catalog_assertions": 23,
+  "catalog_assertions": 13,
+  "failures": 0,
+  "hosting_acceptance": false,
+  "note": "Changed admin boundary rerun23PASS after explicit-null category clear; unchanged catalog13PASS from b33e049 retained honestly."
+}

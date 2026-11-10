@@ -1,9 +1,9 @@
 # 03 — Прямое русское меню, штатные экраны и инструкция
 
 **Требования:** R01, R02, R03, R04, R05, R07, R08, R09, R10, R11, R12, R14, R15, R16, R17, R18, R19, R20, R21, R22, R24, R29, R30, R50, R51, R52, R53, R54, R55, R56, R57, R61, R63, R66, R67, R68, R69, R70, R71, R72, R73, R74, R75, R76
-**Зависит от:** 01
+**Зависит от:** —
 **Зона:** `opencart/extension/cmteh/admin/controller/event/cmteh_admin.php` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/extension/cmteh/admin/language/` · `opencart/extension/cmteh/admin/view/template/module/cmteh.twig` · `opencart/extension/cmteh/admin/controller/module/cmteh_leads.php` · `opencart/extension/cmteh/admin/view/template/module/cmteh_leads.twig` · `opencart/dev/release_checks.py` · `opencart/admin-guide.md` · `opencart/README.md`
-**Волна:** 2
+**Волна:** 1
 **Ревью:** нет — один независимый обзор всей ветки по политике владельца
 **Модель:** сильная
 
@@ -111,3 +111,6 @@
 ## Разделы спецификации
 
 Решение; Сценарии и границы качества; Приёмка; Решения по реализации; Вне рамок.
+
+## Уточнение порядка
+Навигация/язык изолированы от новых Catalog API; разрешено выполнять параллельно 01. Изменения gate, зависящие от API 01/форм 02, запускать после их готовности. Это сокращение искусственной зависимости, не новый таск.

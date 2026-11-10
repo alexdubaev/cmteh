@@ -1,0 +1,34 @@
+{
+  "adminLogin": true,
+  "menu": " NAVIGATION\n Dashboard\n Catalog\n CMS\n Extensions\n Design\n Sales\n Customers\n Marketing\n System\n Reports\nOrders Completed\n0%\n0%\nOrders Processing\n0%\n0%\nOther Statuses\n0%\n0%",
+  "screens": {
+    "product": {
+      "heading": [
+        "Products"
+      ],
+      "rows": 10,
+      "hasJson": 0
+    },
+    "category": {
+      "heading": [
+        "Categories"
+      ],
+      "rows": 10,
+      "hasJson": 0
+    },
+    "brand": {
+      "heading": [
+        "Manufacturers"
+      ],
+      "rows": 10,
+      "hasJson": 0
+    },
+    "editor": {
+      "heading": [
+        "Permission Denied!"
+      ],
+      "rows": 0,
+      "hasJson": 0
+    }
+  }
+}
