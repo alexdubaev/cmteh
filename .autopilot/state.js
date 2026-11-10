@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "list-quote-stock",
-  "dir": "2026-11-10-list-quote-stock--wip",
+  "dir": "2026-11-10-list-quote-stock",
   "title": "Списки на расценку и проверка наличия без автокорзины",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "12366ed",
   "startedAt": "2026-11-10T20:53:35+03:00",
-  "updatedAt": "2026-11-10T22:42:04+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-10T23:03:25+03:00",
+  "finishedAt": "2026-11-10T23:03:25+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -60,16 +60,17 @@ window.STATE =
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-11-10T22:05:31+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T22:05:31+03:00",
+      "finishedAt": "2026-11-10T23:03:25+03:00"
     }
   ],
   "requirements": {
     "total": 17,
-    "done": 16,
+    "done": 17,
     "inTicket": 0,
     "inSpec": 0,
-    "placeholder": 1,
+    "placeholder": 0,
     "deferred": 0,
     "dropped": 0
   },
@@ -258,14 +259,14 @@ window.STATE =
       "model": "сильная",
       "status": "done",
       "startedAt": "2026-11-10T22:34:06+03:00",
-      "finishedAt": "2026-11-10T22:40:14+03:00",
+      "finishedAt": "2026-11-10T23:03:15+03:00",
       "retries": 0,
       "repairs": 0,
       "tests": {
         "passed": 54,
         "failed": 0
       },
-      "commit": "7769899"
+      "commit": "7769899d181a"
     }
   ],
   "tests": {
@@ -340,9 +341,14 @@ window.STATE =
     "2026-11-10T22:40:13+03:00",
     "2026-11-10T22:40:14+03:00",
     "2026-11-10T22:40:15+03:00",
-    "2026-11-10T22:42:04+03:00"
+    "2026-11-10T22:42:04+03:00",
+    "2026-11-10T23:03:14+03:00",
+    "2026-11-10T23:03:15+03:00",
+    "2026-11-10T23:03:16+03:00",
+    "2026-11-10T23:03:24+03:00",
+    "2026-11-10T23:03:25+03:00"
   ],
-  "rev": 55,
+  "rev": 61,
   "waiting": null,
   "waits": [
     {
@@ -700,6 +706,37 @@ window.STATE =
       "k": "tests",
       "passed": 185,
       "failed": 0
+    },
+    {
+      "t": "2026-11-10T23:03:14+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-10T23:03:15+03:00",
+      "k": "ticket",
+      "ids": [
+        "F3"
+      ],
+      "act": "done"
+    },
+    {
+      "t": "2026-11-10T23:03:16+03:00",
+      "k": "tests",
+      "passed": 185,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-10T23:03:24+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T23:03:25+03:00",
+      "k": "finish",
+      "result": "Списки проверяются отдельно от корзины; расценки и оригиналы сохраняются в админке, automatic quote cron проверен на test.cmteh.ru; Inbox confirmation явно pending"
     }
   ],
   "reqList": [
@@ -761,8 +798,7 @@ window.STATE =
     {
       "id": "R12i",
       "text": "(подразумевается) процесс работает на телефоне и тестовом хостинге",
-      "status": "placeholder",
-      "why": "Короткие E2E и фактический host/mail acceptance после безопасного выпуска"
+      "status": "done"
     },
     {
       "id": "G01",
@@ -806,7 +842,7 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T22:40:15+03:00",
+      "at": "2026-11-10T23:03:24+03:00",
       "problems": 0
     },
     "G4": {
@@ -816,7 +852,7 @@ window.STATE =
       "matched": 10
     }
   },
-  "result": null,
+  "result": "Списки проверяются отдельно от корзины; расценки и оригиналы сохраняются в админке, automatic quote cron проверен на test.cmteh.ru; Inbox confirmation явно pending",
   "requestStartedAt": "2026-11-10T20:52:51.996+03:00",
   "report": [
     "An early loopback-only HTTP harness error printed a test-session URL into the tool transcript. Session revoked: zero authenticated owned role bindings, and old cookie/token reuse cannot download original bytes after native logout. Harness sanitizes URL-bearing errors at ingest; no production session or password was exposed. Transcript entry cannot be erased, revoked token is inert.",
