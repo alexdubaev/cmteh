@@ -290,7 +290,7 @@ def editorial_content(runtime):
                           'src="/image/catalog/opencart-logo.png"', "Изменённое описание в подвале",
                           "Проверка редактора подвала"])
 
-        menu = {"slug": "header-articles", "label": "Публикации из редактора", "url": "/articles",
+        menu = {"slug": "header-articles", "label": "Публикации из редактора", "internal_target": "/articles",
                 "location": "header", "sort_order": "99"}
         save("navigation", "header-articles", **menu)
         page("/", ["Публикации из редактора"])
@@ -371,7 +371,9 @@ def native_catalog_editor(runtime):
         require(runtime.request("/category/" + child_slug)[0] == 404, "A disabled native category stayed visible.")
         require(admin_post(runtime, "catalog/product.delete", {"selected[]": [product]}).get("success"),
                 "Native OpenCart did not delete the test product.")
-        require(runtime.request("/product/" + product_slug)[0] == 404, "A deleted native product stayed visible.")
+        deleted_status, deleted_page = runtime.request("/product/" + product_slug)
+        require(deleted_status == 410 and "Обновлённый товар " + nonce not in deleted_page,
+                "A deleted native product did not retire its URL or retained its content.")
         print("PASS: native OpenCart creates categories, subcategories and products and updates the storefront/search", flush=True)
     finally:
         runtime.logout()
