@@ -190,6 +190,25 @@ try {
         'The email-only contact form and omitted request key remain supported');
     check(submit($lead, array_replace($contact, ['page_url' => 'http://localhost/request']), '192.0.2.2')['status'] === 400,
         'An empty cart request is rejected');
+    $quick = array_replace($contact, [
+        'request_key' => 'feee7c0a-51e6-466c-8208-63f931e206df',
+        'phone' => '+7 (000) 000-00-00',
+        'message' => 'Короткий вопрос',
+        'page_url' => 'http://localhost/request',
+        'request_items' => [],
+        'intent' => 'quick',
+    ]);
+    $acceptedQuick = submit($lead, $quick, '192.0.2.2');
+    check($acceptedQuick['status'] === 200 && $lead->find($acceptedQuick['body']['id'])['items'] === []
+        && $lead->find($acceptedQuick['body']['id'])['page_url'] === $quick['page_url'],
+        'An explicit quick request stores an empty item list with its real request page URL');
+    foreach ([
+        ['intent' => 'unknown'],
+        ['intent' => 'quick', 'request_items' => [['article' => '001A', 'quantity' => 1]]],
+    ] as $invalidQuick) {
+        check(submit($lead, array_replace($quick, $invalidQuick), '192.0.2.2')['status'] === 400,
+            'Invalid quick intent shape is rejected');
+    }
     check($lead->submit(str_repeat('x', 512001), '192.0.2.2', $headers)['status'] === 413
         && $lead->submit('{}', '192.0.2.2', ['content-type' => 'text/plain'])['status'] === 415,
         'The byte limit and JSON content type are enforced');
@@ -209,7 +228,7 @@ try {
             throw new RuntimeException("Invalid lead case $position was accepted.");
         }
     }
-    check(countRows($pdo, $table) === 3, 'Invalid shapes, limits, attachments and spam do not create records');
+    check(countRows($pdo, $table) === 4, 'Invalid shapes, limits, attachments and spam do not create records');
 
     $limited = false;
     for ($run = 0; $run < 3 && !$limited; $run++) {
@@ -234,7 +253,7 @@ try {
         ]), '192.0.2.4');
         check($failed === ['status' => 503, 'body' => [
             'error' => 'Сохранение заявки не подтверждено. Повторите отправку.',
-        ]] && countRows($pdo, $table) === 3 && countRows($pdo, $table . '_item') === 2,
+        ]] && countRows($pdo, $table) === 4 && countRows($pdo, $table . '_item') === 2,
             'An outbox write failure rolls back the lead and items and returns a safe error');
     } finally {
         $pdo->exec("RENAME TABLE {$table}_outbox_unavailable TO {$table}_outbox");
@@ -276,7 +295,7 @@ try {
     }
     $status = $lead->find($failedId);
     check($result['failed'] === 1 && $status['status'] === 'failed' && (int) $status['attempts'] === 3
-        && $worker->run($capture)['sent'] === 0 && countRows($pdo, $table) === 3,
+        && $worker->run($capture)['sent'] === 0 && countRows($pdo, $table) === 4,
         'After three delivery failures the worker stops retrying and preserves all requests');
 } finally {
     foreach (['outbox_unavailable', 'outbox', 'item', 'rate', 'schema'] as $suffix) {

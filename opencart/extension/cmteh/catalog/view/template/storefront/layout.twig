@@ -25,16 +25,16 @@
   <meta property="og:type" content="{{ page == 'article' ? 'article' : 'website' }}">
   {% if meta.description|default('') %}<meta property="og:description" content="{{ meta.description }}">{% endif %}
   {% if meta.image|default('') %}<meta property="og:image" content="{{ meta.image }}">{% endif %}
-  <link rel="stylesheet" href="{{ assets }}theme.css">
-  <link rel="stylesheet" href="{{ assets }}globals.css">
-  <link rel="stylesheet" href="{{ assets }}home-ux.css">
-  <link rel="stylesheet" href="{{ assets }}catalog-ux.css">
-  <link rel="stylesheet" href="{{ assets }}request-ux.css">
-  <link rel="stylesheet" href="{{ assets }}articles.css">
-  <link rel="stylesheet" href="{{ assets }}responsive-ux.css">
-  <link rel="stylesheet" href="{{ assets }}storefront.css">
-  <script type="module" src="{{ assets }}storefront.mjs?v=20261110-3"></script>
-  {% if page in ['request', 'page'] %}<script type="module" src="{{ assets }}request.mjs?v=20261110-3"></script>{% endif %}
+  <link rel="stylesheet" href="{{ assets }}theme.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}globals.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}home-ux.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}catalog-ux.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}request-ux.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}articles.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261110-4">
+  <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261110-4">
+  <script type="module" src="{{ assets }}storefront.mjs?v=20261110-4"></script>
+  <script type="module" src="{{ assets }}request.mjs?v=20261110-4"></script>
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>
@@ -45,13 +45,20 @@
     {% include templates ~ (screens[page]|default('error')) ~ '.twig' %}
   </main>
   {% include templates ~ 'footer.twig' %}
-  <nav class="mobile-actions" aria-label="Быстрая навигация">
-    <button type="button" class="mobile-action" data-focus-search aria-label="Перейти к поиску"><span class="mobile-action-icon" aria-hidden="true">⌕</span><span>Поиск</span></button>
-    <a class="mobile-action" href="/catalog"><span class="mobile-action-icon" aria-hidden="true">▦</span><span>Каталог</span></a>
-    <a class="mobile-action mobile-action-cart" href="/request" aria-label="Открыть корзину" data-cart-link="Открыть корзину">
-      <span class="mobile-action-icon mobile-cart-icon" aria-hidden="true"><img src="{{ assets }}images/cart-icon-black.webp" alt="" width="20" height="20"><b data-cart-count hidden></b></span><span>Корзина</span>
+  <nav class="mobile-actions" aria-label="Связаться с компанией">
+    <a class="mobile-action mobile-action-call" href="{{ tel ?: '/contacts' }}" aria-label="{{ tel ? 'Позвонить' : 'Контакты' }}">
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h3.2l1.6 4.2-2 1.7a15 15 0 0 0 6.8 6.8l1.7-2 4.2 1.6V19c0 1.1-.9 2-2 2C10 21 3 14 3 5.5c0-1.1.9-2 2-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ tel ? 'Позвонить' : 'Контакты' }}</span>
+    </a>
+    <a class="mobile-action mobile-action-request" href="/contacts" data-open-quick>
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h17v13h-17zM4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Запрос</span>
     </a>
   </nav>
+  <a class="back-to-top" href="#site-header" data-back-to-top aria-label="Наверх" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 14 7-7 7 7M12 8v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Наверх</span></a>
+  <dialog class="quick-dialog" aria-labelledby="quick-dialog-title" data-quick-dialog>
+    <button class="quick-dialog-close" type="button" data-close-quick aria-label="Закрыть форму"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    {% include templates ~ 'lead-form.twig' with {leadType: 'quick', compact: true} %}
+    <a class="quick-fallback" href="/contacts">Связаться через страницу контактов</a>
+  </dialog>
 </body>
 </html>
 {% endautoescape %}

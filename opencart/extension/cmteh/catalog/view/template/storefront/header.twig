@@ -1,10 +1,10 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
-<header class="site-header">
+<header class="site-header" id="site-header" tabindex="-1">
   <div class="shell header-inner">
     <a class="brand" href="/" aria-label="{{ company ? company ~ " — главная" : "Главная" }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="220" height="86">{% else %}{{ company|default("Главная") }}{% endif %}</a>
     <details class="catalog-menu">
-      <summary>Каталог <span aria-hidden="true">⌄</span></summary>
+      <summary>Каталог</summary>
       <div class="catalog-menu-panel">
         <section><strong>Категории</strong><a href="/catalog">Все товары</a>
           {% for category in categories %}<a href="/category/{{ category.slug|url_encode }}">{% if category.parent_slug|default('') %}<span aria-hidden="true">↳ </span>{% endif %}{{ category.title }}</a>{% endfor %}

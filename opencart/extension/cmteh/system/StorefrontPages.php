@@ -229,7 +229,7 @@ final class StorefrontPages
     private function homeBlocks(array $settings): array
     {
         $blocks = [];
-        foreach (['hero', 'brands', 'categories', 'products', 'order', 'articles', 'sections'] as $order => $key) {
+        foreach (['hero', 'categories', 'products', 'brands', 'order', 'articles', 'sections'] as $order => $key) {
             $blocks[$key] = ['key' => $key, 'enabled' => true, 'sort_order' => $order * 10];
         }
         foreach ($settings as $block) if (isset($blocks[$block['key'] ?? ''])) $blocks[$block['key']] = $block;

@@ -12,7 +12,7 @@
     {% if home.hero_text|default('') %}<p>{{ home.hero_text }}</p>{% endif %}
     {% if primary and home.hero_primary_button_text|default('') or secondary and home.hero_secondary_button_text|default('') %}
       <div class="hero-cms-actions">
-        {% if primary and home.hero_primary_button_text|default('') %}<a class="button primary" href="{{ primary }}">{{ home.hero_primary_button_text }}</a>{% endif %}
+        {% if primary and home.hero_primary_button_text|default('') %}<a class="button primary" href="{{ primary }}"{% if primary == '/catalog' %} data-hero-catalog-cta{% endif %}>{{ home.hero_primary_button_text }}</a>{% endif %}
         {% if secondary and home.hero_secondary_button_text|default('') %}<a class="button secondary" href="{{ secondary }}">{{ home.hero_secondary_button_text }}</a>{% endif %}
       </div>
     {% endif %}
