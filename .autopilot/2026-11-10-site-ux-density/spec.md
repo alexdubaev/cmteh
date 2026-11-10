@@ -43,3 +43,9 @@ Home сохраняет целое фото и согласованный пор
 ## Открытые места
 
 Решений владельца/новых секретов не требуется. Три упомянутых новыхскриншота в сообщении отсутствуют; проблема воспроизведена на самомtest, недостатокattachments не блокируетисправление.
+
+## D01 — фактическая упаковка
+При hoststageR1 строгийbyteguard выявил только CRLF→LF в5неизменённыхprotectedfiles. Gitcanonical/sourcebusiness тотже, ноfrontend-onlyrelease сохраняет точные ранее принятые байты этихфайлов. Разрешена только physicalrestoreпослеproof normalizedequality, безновойлогики/измененийGitblob/ослабленияguard. ExactR2artifact повторнопроверяетсясуществующимstrictgate; прежнийR1PASSиstageSTOPсохраняются. Повторwhole-review/blindнеобоснован: presentation иcanonicalsourceне меняются.
+
+## F1 — возврат к редактированию
+ActualWebKit390×664 приreturnedit оставляетtextarea[-39.91,51.66] после3сек: nativefocus прокручиваеткcaretвконце, нецеломуполю. Исправляемpresentationfocus/явнуюпрокрутку, wholeinputvisible/draft/cartpreserved, reducedmotion. R09/R11 reopenedдоclosure; основнойcheck/resultsи15publicroutesv7прошли. Обновитьgraph8; толькоnarrowChromium/WebKitclosure+existingbrowser/requiredstrictnewartifact, безповторwhole-review/G4/no backendchange.

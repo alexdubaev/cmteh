@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "site-ux-density",
-  "dir": "2026-11-10-site-ux-density--wip",
+  "dir": "2026-11-10-site-ux-density",
   "title": "Удобный компактный интерфейс всего публичного сайта",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "0a3c69877a1c01f755ac3362bf807b502c94bf42",
   "startedAt": "2026-11-10T23:16:04+03:00",
-  "updatedAt": "2026-11-10T23:41:54+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-11T00:11:22+03:00",
+  "finishedAt": "2026-11-11T00:11:22+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -61,16 +61,17 @@ window.STATE =
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-11-10T23:37:15+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T23:37:15+03:00",
+      "finishedAt": "2026-11-11T00:11:22+03:00"
     }
   ],
   "requirements": {
     "total": 13,
-    "done": 12,
+    "done": 13,
     "inTicket": 0,
     "inSpec": 0,
-    "placeholder": 1,
+    "placeholder": 0,
     "deferred": 0,
     "dropped": 0
   },
@@ -103,15 +104,46 @@ window.STATE =
       "review": "нет",
       "model": "обычная",
       "status": "done",
-      "retries": 0,
-      "repairs": 0,
       "startedAt": "2026-11-10T23:22:32+03:00",
       "finishedAt": "2026-11-10T23:37:13+03:00",
+      "retries": 0,
+      "repairs": 0,
       "tests": {
         "passed": 14,
         "failed": 0
       },
       "commit": "5c6728c5e706"
+    },
+    {
+      "id": "F1",
+      "title": "Полностью видимое поле после возврата к списку",
+      "requirements": [
+        "R03",
+        "R09",
+        "R11",
+        "R12i",
+        "R13i",
+        "D01"
+      ],
+      "blockedBy": [],
+      "wave": 2,
+      "zone": [
+        "opencart/extension/cmteh/catalog/view/",
+        "opencart/tests/browser/storefront.mjs",
+        "DESIGN.md"
+      ],
+      "review": "нет",
+      "model": "обычная",
+      "status": "done",
+      "startedAt": "2026-11-10T23:57:30+03:00",
+      "finishedAt": "2026-11-11T00:09:43+03:00",
+      "retries": 0,
+      "repairs": 0,
+      "tests": {
+        "passed": 14,
+        "failed": 0
+      },
+      "commit": "cc893a09884c"
     }
   ],
   "tests": {
@@ -157,9 +189,22 @@ window.STATE =
     "2026-11-10T23:37:13+03:00",
     "2026-11-10T23:37:14+03:00",
     "2026-11-10T23:37:15+03:00",
-    "2026-11-10T23:41:54+03:00"
+    "2026-11-10T23:41:54+03:00",
+    "2026-11-10T23:51:17+03:00",
+    "2026-11-10T23:57:28+03:00",
+    "2026-11-10T23:57:29+03:00",
+    "2026-11-10T23:57:30+03:00",
+    "2026-11-10T23:57:31+03:00",
+    "2026-11-10T23:58:29+03:00",
+    "2026-11-11T00:02:29+03:00",
+    "2026-11-11T00:05:29+03:00",
+    "2026-11-11T00:09:42+03:00",
+    "2026-11-11T00:09:43+03:00",
+    "2026-11-11T00:09:44+03:00",
+    "2026-11-11T00:11:21+03:00",
+    "2026-11-11T00:11:22+03:00"
   ],
-  "rev": 20,
+  "rev": 33,
   "waiting": null,
   "waits": [],
   "log": [
@@ -285,6 +330,92 @@ window.STATE =
       "ok": true,
       "checked": 6,
       "matched": 6
+    },
+    {
+      "t": "2026-11-10T23:51:17+03:00",
+      "k": "tests",
+      "passed": 186,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-10T23:57:28+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-10T23:57:29+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T23:57:30+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T23:57:31+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T23:58:29+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-11T00:02:29+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 14,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T00:05:29+03:00",
+      "k": "tests",
+      "passed": 186,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-11T00:09:42+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-11T00:09:43+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done"
+    },
+    {
+      "t": "2026-11-11T00:09:44+03:00",
+      "k": "tests",
+      "passed": 186,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-11T00:11:21+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T00:11:22+03:00",
+      "k": "finish",
+      "result": "Все13требований: компактныйпубличныйсайт, видимыерезультатыиполередактирования; actualtesthost/cache/Chromium/WebKitPASS,186strictPASS"
     }
   ],
   "reqList": [
@@ -351,8 +482,7 @@ window.STATE =
     {
       "id": "R13i",
       "text": "(подразумевается) результат проверен и установлен на test.cmteh.ru",
-      "status": "placeholder",
-      "why": "Standing owner testdeploy authorization, полезные локальные проверки и actualhost visual/action acceptance"
+      "status": "done"
     }
   ],
   "gates": {
@@ -371,7 +501,7 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T23:22:18+03:00",
+      "at": "2026-11-11T00:11:21+03:00",
       "problems": 0
     },
     "G4": {
@@ -381,6 +511,9 @@ window.STATE =
       "matched": 6
     }
   },
-  "result": null,
-  "requestStartedAt": "2026-11-10T23:15:34+03:00"
+  "result": "Все13требований: компактныйпубличныйсайт, видимыерезультатыиполередактирования; actualtesthost/cache/Chromium/WebKitPASS,186strictPASS",
+  "requestStartedAt": "2026-11-10T23:15:34+03:00",
+  "report": [
+    "Host обнаружил WebKit возврат к списку: focus оставлял верх textarea вне экрана; F1 узко исправляет этот переход. Основная UXверсия уже работает; её не откатываем."
+  ]
 }
