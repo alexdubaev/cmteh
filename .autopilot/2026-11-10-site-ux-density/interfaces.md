@@ -25,3 +25,6 @@ No publicsignature/HTTP/datachanges. data-parts-list/data-list-results/data-resu
 
 ## Построено T01
 Source5c6728c,17presentation/browser/designfiles,281insert/103delete. Results DOM перед раскрываемой quoteform; focuslist-results-title/scrollstaticheadernear16; query/data/storage/submissionunchanged. Native detailsдляsecondarycontent, activefilterscountvisible, media compact. Graph20261110-7. Real browser14PASS after14baseline(13previous+1newvisibility). Actualcommand: CMTEH_BROWSER_BASE=http://127.0.0.1:3179 CMTEH_BROWSER_TOOLING=D:/codex/cmteh node opencart/tests/browser/storefront.mjs. Rootstrict3180 running; R12i/R13i placeholdersuntilacceptance. Cleancloneblindtrial overlapread-onlyreview to shortentime, no sourcechanges; anyconfirmedfixgetsboundedclosureagainstactualnewsource.
+
+## F1 локально
+Sourcecc893a0,8files/34insert23delete, фактическоеизменениелогикитолькоreturneditfocus.preventScroll+explicitinstantcenter, остальноеgraph8/shortregression/docs. Existingbrowser14PASS; focusedChromium/WebKitnormal/reducedmotion4PASS: exactRED[-39.906,51.656]→GREEN[250.094,341.656]. Draft/cart/selectionfocusостались. RootfullstrictR3идёт поexactфизическомуCRLFprotectedoverlayD01,безновойлогики. Mainmerge/hostF1pending. Одинwhole-review5ccleanиG4сохранены; узкийhost найденныйfixверифицируетсяtargetedtest, повторwhole-review/G4неоправдан.

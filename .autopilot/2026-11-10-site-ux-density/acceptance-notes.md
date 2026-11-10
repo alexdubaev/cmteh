@@ -15,3 +15,6 @@ Live390×664 исходный /parts-list textarea602/check939, fixedbar596. HTT
 Первыйdevstart не прошёл: Docker defaultpools exhausted. Проверенысуществующиесети; следующаявзятая10.219.0.0/28 оказаласьзанята, overlapотказдоcontainerstart. Использованасвободная10.221.0.0/28 existingdocumentedoverride вownedruntime/network.json. Dev3179READY, foreignnetworks/containersнеудалялись. Этоroutineenvrecovery, не appPASS/непричина менятьproduct.
 
 Hostreadonlypreflight current97files/rootguards/config/cron/schema3/ownerdataPASS. Actualsamefilesystemprivateexchange+reverse+dummydirbytesPASS, ownfixturescleaned. НовыйGOпутьотдельный, старыйquoteGOнепринимается. Доmergedartifact/rootGOlivecodeнепереключается;quotecronработает. Полныйopsplanиproofвоexternaltemp; финальныйhostрезультат ещёpending.
+
+## D01 hoststage STOP доактивации
+R1package186PASS, но защищённыйhoststage остановился: admin/cmteh_leads.twig иsystem Catalog/Lead/LeadInput/StorefrontPages имеют CRLF→LF только. Proofprotected-newline-diff.json. Rootнеразрешилwhitelist/слабыйguard: сохраняемточныепрежниепятьфизическихфайлов приGitcanonicalequality, новыйR2strict. Live/DB/config/cronнеизменены;backup/extract/activationR1непроводились. Этоrecoveryartifactoperation, не новаяproductdecision, никакихвопросоввладельцуне требуется.
