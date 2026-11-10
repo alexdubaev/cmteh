@@ -319,6 +319,8 @@ function setupLead(form) {
       for (const field of names) form.elements.namedItem(field).readOnly = false;
     }
   });
+  const preparing = form.querySelector("[data-lead-preparing]");
+  if (preparing) preparing.hidden = true;
 }
 
 const cart = document.querySelector("[data-cart]");

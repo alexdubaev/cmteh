@@ -152,13 +152,16 @@ quickDialog?.addEventListener("close", () => quickTrigger?.focus({ preventScroll
 
 const backToTop = document.querySelector("[data-back-to-top]");
 if (backToTop) {
-  let submitVisible = false;
-  const updateBackToTop = () => { backToTop.hidden = window.scrollY < 360 || submitVisible; };
+  const visibleSubmits = new Set();
+  const updateBackToTop = () => { backToTop.hidden = window.scrollY < 360 || visibleSubmits.size > 0; };
   window.addEventListener("scroll", updateBackToTop, { passive: true });
   updateBackToTop();
   if ("IntersectionObserver" in window) {
     const submitObserver = new IntersectionObserver((entries) => {
-      submitVisible = entries.some((entry) => entry.isIntersecting);
+      for (const entry of entries) {
+        if (entry.isIntersecting) visibleSubmits.add(entry.target);
+        else visibleSubmits.delete(entry.target);
+      }
       updateBackToTop();
     }, { threshold: 0.1 });
     for (const submit of document.querySelectorAll(".lead-form button[type=submit]")) submitObserver.observe(submit);

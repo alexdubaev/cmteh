@@ -13,6 +13,7 @@
   </div>
   <label>{{ compact or rfq ? 'Комментарий' : 'Сообщение' }}<textarea name="message" rows="{{ compact ? 3 : 4 }}" maxlength="3000" placeholder="{{ rfq ? 'Сроки, доставка, аналоги, реквизиты…' : 'Чем можем помочь?' }}"></textarea></label>
   <input name="website" type="hidden" value="" autocomplete="off" aria-hidden="true" tabindex="-1">
+  {% if compact %}<p class="form-hint" role="status" data-lead-preparing>Форма подготавливается. Если отправка недоступна, свяжитесь с нами через страницу контактов.</p>{% endif %}
   <button class="button primary wide" type="submit" disabled>{{ compact ? 'Отправить запрос' : 'Отправить заявку' }}</button>
   <p class="form-hint" role="status" data-lead-loading hidden>Отправляем заявку…</p>
   {% if rfq %}<p class="form-hint" data-cart-required>Добавьте позиции в корзину, чтобы отправить заявку.</p>{% endif %}

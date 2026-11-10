@@ -57,6 +57,16 @@ try {
     await page.locator('[data-import-unavailable]').getByRole('link', { name: 'откройте страницу заново' }).waitFor();
   });
 
+  await scenario("Недоступный модуль заявки → объяснение в короткой форме и контакты", async (page) => {
+    await page.route((url) => url.pathname.endsWith('/request.mjs'), (route) => route.abort());
+    await page.goto("/");
+    await page.getByRole("link", { name: "Запрос", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    assert.equal(await dialog.getByRole("button", { name: "Отправить запрос" }).isDisabled(), true);
+    assert.match(await dialog.getByRole("status").filter({ visible: true }).allTextContents().then((messages) => messages.join(" ")), /Форма подготавливается/);
+    assert.equal(await dialog.getByRole("link", { name: "Связаться через страницу контактов" }).getAttribute("href"), "/contacts");
+  });
+
   await scenario("Поиск → карточка → корзина → заявка", async (page) => {
     const response = await page.goto("/");
     assert.equal(response.status(), 200);
@@ -136,6 +146,7 @@ try {
     const homeDialog = page.getByRole("dialog");
     await homeDialog.getByLabel("Контактное лицо").waitFor();
     assert.equal(await homeDialog.getByRole("button", { name: "Отправить запрос" }).isDisabled(), false);
+    assert.equal(await homeDialog.getByText(/Форма подготавливается/).isVisible(), false);
     await page.keyboard.press("Escape");
     await page.goto("/request");
     const trigger = page.getByRole("link", { name: "Запрос", exact: true });
@@ -165,6 +176,32 @@ try {
     await dialog.getByText(/Запрос принят/).waitFor();
     assert.equal(await page.locator(".request-line").count(), 1);
     assert.equal((await storage(page)).length, 1);
+  });
+
+  await scenario("Закрытие короткой формы не перекрывает отправку на контактах", async (page) => {
+    await page.setViewportSize({ width: 390, height: 664 });
+    await page.goto("/contacts");
+    const submit = page.locator('main .lead-form button[type="submit"]');
+    const backToTop = page.locator("[data-back-to-top]");
+    await submit.evaluate((button) => window.scrollTo({ top: window.scrollY + button.getBoundingClientRect().bottom - 588, behavior: "instant" }));
+    await page.waitForFunction(() => window.scrollY > 360 && document.querySelector("[data-back-to-top]").hidden);
+    const before = await submit.boundingBox();
+    assert.ok(before.y >= 0 && before.y + before.height <= 664);
+    await page.getByRole("link", { name: "Запрос", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Отправить запрос" }).scrollIntoViewIfNeeded();
+    // Allow the native observer to report the dialog submit entering the viewport.
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    const after = await submit.boundingBox();
+    assert.ok(after.y >= 0 && after.y + after.height <= 664);
+    const floating = await backToTop.boundingBox();
+    const overlaps = floating && floating.x < after.x + after.width && floating.x + floating.width > after.x
+      && floating.y < after.y + after.height && floating.y + floating.height > after.y;
+    assert.equal(Boolean(overlaps), false, "Наверх перекрывает видимую отправку после Escape: " + JSON.stringify({ submit: after, backToTop: floating }));
+    assert.equal(await backToTop.isVisible(), false);
   });
 } finally {
   await browser.close();
