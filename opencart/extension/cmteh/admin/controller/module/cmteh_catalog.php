@@ -23,7 +23,10 @@ final class CmtehCatalog extends Controller
     private const FIELDS = [
         'title' => ['Заголовок', 'text'], 'h1' => ['Заголовок страницы', 'text'],
         'name' => ['Название бренда', 'text'], 'sku' => ['Артикул', 'text'], 'mpn' => ['MPN', 'text'],
-        'brand' => ['Название бренда', 'text'], 'brand_slug' => ['Адрес бренда', 'text'], 'category_slug' => ['Адрес категории', 'text'],
+        'brand_slug' => ['Бренд', 'text'], 'category_slug' => ['Основная категория', 'text'],
+        'parent_slug' => ['Родительская категория', 'text'], 'image_path' => ['Изображение', 'image'],
+        'main_image_path' => ['Основное фото', 'image'], 'delivery_status' => ['Условия доставки товара', 'text'],
+        'date' => ['Дата статьи', 'text'], 'author' => ['Автор статьи', 'text'],
         'price_status' => ['Режим цены', ['on_request' => 'По запросу', 'fixed' => 'Фиксированная', 'hidden' => 'Скрыта']],
         'price' => ['Цена', 'number'], 'currency' => ['Код валюты', 'text'],
         'availability_status' => ['Наличие', ['' => 'Не указано', 'in_stock' => 'В наличии', 'on_request' => 'Под заказ', 'out_of_stock' => 'Нет в наличии']],
@@ -97,10 +100,10 @@ final class CmtehCatalog extends Controller
         'status' => ['Статус', ['draft' => 'Черновик', 'published' => 'Опубликовано', 'archived' => 'В архиве']],
     ];
     private const TYPE_FIELDS = [
-        'product' => ['title', 'sku', 'mpn', 'brand', 'brand_slug', 'category_slug', 'price_status', 'price', 'currency', 'availability_status', 'part_type', 'short_description', 'full_description'],
-        'category' => ['title', 'h1', 'description'],
-        'brand' => ['name', 'description'],
-        'article' => ['title', 'excerpt', 'content', 'cover_image_path', 'image_alt', 'og_image_path'],
+        'product' => ['title', 'sku', 'mpn', 'brand_slug', 'category_slug', 'price_status', 'price', 'currency', 'availability_status', 'part_type', 'short_description', 'full_description', 'main_image_path', 'delivery_status'],
+        'category' => ['title', 'h1', 'description', 'parent_slug', 'image_path'],
+        'brand' => ['name', 'description', 'image_path'],
+        'article' => ['title', 'date', 'author', 'excerpt', 'content', 'cover_image_path', 'image_alt', 'og_image_path'],
         'page' => ['title', 'h1', 'intro', 'content', 'button_text', 'button_url', 'cover_image_path', 'image_alt', 'og_image_path', 'seo_text'],
         'home' => [
             'h1', 'hero_title', 'hero_text', 'hero_image_path', 'hero_mobile_image_path', 'hero_image_alt',
@@ -109,7 +112,7 @@ final class CmtehCatalog extends Controller
             'brands_title', 'brands_link_text', 'brands_scroll_hint', 'categories_title', 'categories_link_text',
             'products_title', 'products_link_text', 'articles_title', 'articles_link_text',
         ],
-        'navigation' => ['label', 'url', 'location', 'open_in_new_tab'],
+        'navigation' => ['label', 'location', 'open_in_new_tab'],
         'site' => [
             'company_name', 'logo', 'phone', 'email', 'city', 'address', 'working_hours',
             'legal_name', 'legal_address', 'inn', 'kpp', 'ogrn', 'vat_info', 'footer_text', 'footer_disclaimer',
@@ -123,6 +126,7 @@ final class CmtehCatalog extends Controller
 
     private const LEGACY_IMAGES = [
         'hero_image_path' => 'hero_image', 'cover_image_path' => 'cover_image', 'og_image_path' => 'og_image',
+        'main_image_path' => 'main_image', 'image_path' => 'image',
     ];
 
     private const SECTION_FIELDS = [
@@ -168,10 +172,16 @@ final class CmtehCatalog extends Controller
         $type = is_string($type) && isset(self::TYPES[$type]) ? $type : 'product';
         $id = $_GET['id'] ?? '';
         $id = is_string($id) && mb_strlen($id) <= 160 ? $id : '';
+        $search = is_string($this->request->get['search'] ?? null) ? mb_substr($this->request->get['search'], 0, 128) : '';
+        $status = is_string($this->request->get['status'] ?? null) && in_array($this->request->get['status'], ['', 'published', 'draft', 'archived'], true) ? $this->request->get['status'] : '';
         $page = (int) $this->request->get('page', 'int');
         $page = max(1, min(4000, $page));
         $fields = [...self::TYPE_FIELDS[$type], 'seo_title', 'seo_description', 'canonical_url', 'sort_order', 'published_at', 'is_indexable', 'status'];
         $link = fn(array $params): string => $this->url->link(self::ROUTE, ['user_token' => $token] + $params, true);
+        $choices = [];
+        foreach (['brand', 'category', 'product', 'page'] as $choiceType) {
+            $choices[$choiceType] = $catalog->editorChoices($choiceType);
+        }
         $record = $id === '' ? null : $catalog->editRecord($type, $id);
         if ($id !== '' && $record === null) {
             http_response_code(404);
@@ -192,14 +202,23 @@ final class CmtehCatalog extends Controller
         $error = null;
         if ($isPost) {
             try {
-                $record = $this->readForm($type, $fields, $id, $_POST, $record ?? [], $showSections);
+                if (($this->request->post['action'] ?? '') === 'delete') {
+                    if ($id === '' || ($this->request->post['confirm_delete'] ?? '') !== '1') {
+                        throw new InvalidArgumentException('Подтвердите удаление записи. Предпочтительно снять её с публикации.');
+                    }
+                    $catalog->deleteRecord($type, $id);
+                    $this->response->redirect($link(['type' => $type, 'deleted' => 1]));
+                    return;
+                }
+                $record = $this->readForm($type, $fields, $id, $_POST, $record ?? [], $showSections, $choices);
                 if ($showSections && ($input = $this->formString($_POST, 'sections_json')) !== '') {
                     $submittedSections = json_decode($input, true, 16, JSON_THROW_ON_ERROR);
                 }
-                $catalog->save($type, $record);
+                $catalog->saveFromAdmin($type, $record, ($_POST['confirm_slug_change'] ?? '') === '1');
                 $this->response->redirect($link(['type' => $type, 'id' => $record['id'], 'saved' => 1]));
                 return;
             } catch (InvalidArgumentException | JsonException $exception) {
+                if (($_POST['action'] ?? '') !== 'delete') $record = $this->submittedRecord($type, $fields, $_POST, $record ?? []);
                 http_response_code(422);
                 $error = $exception->getMessage();
             } catch (Throwable $exception) {
@@ -216,6 +235,13 @@ final class CmtehCatalog extends Controller
             if ($type === 'brand' && $field === 'description') {
                 $control = 'textarea';
             }
+            if (in_array($field, ['brand_slug', 'category_slug', 'parent_slug'], true)) {
+                $control = ['' => $field === 'parent_slug' ? 'Корневая категория' : 'Не выбрано'];
+                foreach ($choices[$field === 'brand_slug' ? 'brand' : 'category'] as $choice) {
+                    if ($field === 'parent_slug' && $choice['id'] === ($record['id'] ?? '')) continue;
+                    $control[$choice['slug']] = $choice['title'] . ($choice['status'] !== 'published' ? ' (скрыто)' : '');
+                }
+            }
             $value = $record[$field] ?? '';
             $value = is_bool($value) ? (string) (int) $value : (is_scalar($value) ? (string) $value : '');
             $formFields[] = compact('field', 'label', 'control', 'value') + [
@@ -226,9 +252,10 @@ final class CmtehCatalog extends Controller
             ];
         }
 
-        $rows = $catalog->editRows($type, $page);
+        $rows = $catalog->editRows($type, $page, $search, $status);
         foreach ($rows as &$row) {
-            $row['href'] = $link(['type' => $type, 'id' => $row['id'], 'page' => $page]);
+            $row['href'] = $link(['type' => $type, 'id' => $row['id'], 'page' => $page, 'search' => $search, 'status' => $status]);
+            $row['native_href'] = $this->nativeLink($type, (int) ($row['native_id'] ?? 0), $token);
         }
 
         $tabs = [];
@@ -236,9 +263,30 @@ final class CmtehCatalog extends Controller
             $tabs[] = ['title' => $title, 'href' => $link(['type' => $key]), 'active' => $key === $type];
         }
 
-        $details = array_diff_key($record, array_flip(['id', 'slug', 'confirm_zero_price', ...$fields]));
-        if ($showSections) {
-            unset($details['sections']);
+        $targets = ['/catalog' => 'Каталог', '/brands' => 'Все бренды', '/articles' => 'Все статьи', '/request' => 'Заявка', '/' => 'Главная'];
+        foreach (['page', 'category', 'brand'] as $targetType) {
+            foreach ($choices[$targetType] as $choice) {
+                $targets[$choice['path']] = self::TYPES[$targetType] . ': ' . $choice['title'] . ($choice['status'] === 'published' ? '' : ' (скрыто)');
+            }
+        }
+        $relationOptions = ['source_id' => ['' => 'Выберите товар'], 'relation_type' => ['analog'=>'Аналог', 'oem_cross'=>'OEM-замена', 'compatible'=>'Совместимый', 'superseded_by'=>'Заменён товаром']];
+        foreach ($choices['product'] as $choice) if ($choice['id'] !== ($record['id'] ?? '')) $relationOptions['source_id'][$choice['id']] = $choice['title'];
+        $blocks = [];
+        foreach (['hero'=>'Обложка', 'brands'=>'Бренды', 'categories'=>'Категории', 'products'=>'Товары', 'order'=>'Порядок заказа', 'articles'=>'Статьи', 'sections'=>'Разделы'] as $key=>$label) {
+            $value = ['key'=>$key, 'enabled'=>true, 'sort_order'=>count($blocks)*10, 'label'=>$label];
+            foreach ($record['home_blocks'] ?? [] as $block) if (($block['key'] ?? '') === $key) $value = array_replace($value, $block);
+            $blocks[] = $value;
+        }
+        usort($blocks, fn($a,$b)=>$a['sort_order'] <=> $b['sort_order']);
+        $publicPath = match ($type) {
+            'product','brand','category' => '/' . $type . '/' . ($record['slug'] ?? ''),
+            'page' => '/' . ($record['slug'] ?? ''), 'article' => '/articles/' . ($record['slug'] ?? ''), 'home' => '/', default => '',
+        };
+        $previewHtml = '<!doctype html><meta charset="utf-8"><h1>' . htmlspecialchars((string)($record['title'] ?? $record['name'] ?? $record['h1'] ?? ''), ENT_QUOTES, 'UTF-8') . '</h1>';
+        $previewHtml .= CatalogInput::html($record['content'] ?? $record['full_description'] ?? $record['description'] ?? $record['hero_text'] ?? '');
+        foreach ($record['sections'] ?? [] as $section) {
+            if (!is_array($section)) continue;
+            $previewHtml .= '<h2>' . htmlspecialchars((string)($section['title'] ?? ''), ENT_QUOTES, 'UTF-8') . '</h2>' . CatalogInput::html($section['text'] ?? '');
         }
         $sections = $showSections ? $this->sectionRows($record['sections'] ?? [], $submittedSections) : [];
         $this->document->setTitle('Каталог и публикации СМ ТЕХНО');
@@ -248,31 +296,32 @@ final class CmtehCatalog extends Controller
             'footer' => $this->load->controller('common/footer'),
             'tabs' => $tabs, 'rows' => $rows, 'error' => $error, 'can_write' => $canWrite, 'type' => $type,
             'edit_id' => $id, 'record' => $record, 'fields' => $formFields, 'type_label' => self::TYPES[$type],
-            'details' => json_encode((object) $details, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
-            'action' => $link(['type' => $type, 'id' => $id, 'page' => $page]),
+            'choices' => $choices, 'relation_options' => $relationOptions, 'targets' => $targets, 'home_blocks' => $blocks,
+            'native_href' => $this->nativeLink($type, (int)($record['native_id'] ?? 0), $token),
+            'public_href' => ($record['status'] ?? '') === 'published' && $publicPath !== '' ? rtrim(HTTP_CATALOG, '/') . $publicPath : '',
+            'preview_html' => $previewHtml, 'search' => $search, 'filter_status' => $status,
+            'filter_action' => $link(['type' => $type]), 'user_token' => $token,
+            'deleted' => ($this->request->get['deleted'] ?? '') === '1',
+            'action' => $link(['type' => $type, 'id' => $id, 'page' => $page, 'search' => $search, 'status' => $status]),
             'new_record' => $link(['type' => $type, 'new' => 1, 'page' => $page]),
             'show_form' => $showForm, 'show_sections' => $showSections, 'sections' => $sections,
             'section_revision' => $sectionRevision,
             'section_fields' => self::SECTION_FIELDS, 'section_types' => self::SECTION_TYPES, 'item_fields' => self::ITEM_FIELDS,
-            'can_browse_images' => $canBrowseImages, 'ckeditor_lang' => str_starts_with($this->language->get('code'), 'ru') ? 'ru' : 'en',
+            'can_browse_images' => $canBrowseImages, 'ckeditor_lang' => 'ru',
             'store_origin' => rtrim(HTTP_CATALOG, '/'),
             'saved' => ($this->request->get['saved'] ?? '') === '1',
-            'previous' => $page > 1 ? $link(['type' => $type, 'page' => $page - 1]) : '',
-            'next' => count($rows) === 25 ? $link(['type' => $type, 'page' => $page + 1]) : '',
+            'previous' => $page > 1 ? $link(['type' => $type, 'page' => $page - 1, 'search' => $search, 'status' => $status]) : '',
+            'next' => count($rows) === 25 ? $link(['type' => $type, 'page' => $page + 1, 'search' => $search, 'status' => $status]) : '',
         ]));
     }
 
-    private function readForm(string $type, array $fields, string $id, array $post, array $existing, bool $showSections): array
+    private function readForm(string $type, array $fields, string $id, array $post, array $existing, bool $showSections, array $choices): array
     {
-        $details = $post['details'] ?? '{}';
-        if (!is_string($details) || strlen($details) > 300000) {
-            throw new InvalidArgumentException('Дополнительные данные слишком велики');
+        if (array_key_exists('details', $post)) {
+            throw new InvalidArgumentException('Произвольные дополнительные данные не принимаются. Используйте поля формы.');
         }
-        $object = json_decode($details, false, 16, JSON_THROW_ON_ERROR);
-        if (!$object instanceof \stdClass) {
-            throw new InvalidArgumentException('Дополнительные данные должны быть объектом JSON');
-        }
-        $record = array_replace($existing, json_decode($details, true, 16, JSON_THROW_ON_ERROR));
+        // Provenance, native identity and unsupported metadata always come from storage.
+        $record = $existing;
         $sourceId = $this->formString($post, 'id');
         $record['id'] = $id !== '' ? $id : ($sourceId ?: $type . '-' . bin2hex(random_bytes(8)));
         $record['slug'] = in_array($type, ['home', 'site'], true) ? $type : $this->formString($post, 'slug');
@@ -292,10 +341,23 @@ final class CmtehCatalog extends Controller
         if (is_array($cleared)) {
             foreach (self::LEGACY_IMAGES as $field => $legacy) {
                 if (in_array($field, $fields, true) && ($record[$field] ?? '') === '' && ($cleared[$field] ?? null) === '1') {
-                    unset($record[$legacy]);
+                    $record[$legacy] = null;
                 }
             }
         }
+        if ($type === 'navigation') {
+            $target = $this->formString($post, 'internal_target');
+            if ($target !== '') {
+                $allowed = ['/', '/catalog', '/brands', '/articles', '/request'];
+                foreach (['page', 'category', 'brand'] as $targetType) foreach ($choices[$targetType] as $choice) $allowed[] = $choice['path'];
+                if (!in_array($target, $allowed, true)) throw new InvalidArgumentException('Выберите существующую страницу, категорию или бренд');
+                $record['url'] = $target;
+            } else {
+                $record['url'] = trim($this->formString($post, 'external_url'));
+                if (!preg_match('~^https?://~i', $record['url'])) throw new InvalidArgumentException('Для внешней ссылки укажите полный адрес https://…');
+            }
+        }
+        $record = $this->readCollections($type, $post, $record, $existing);
         if ($record['slug'] === '') {
             $record['slug'] = CatalogInput::slugify($record['title'] ?? $record['name'] ?? $record['label'] ?? '');
         }
@@ -308,6 +370,89 @@ final class CmtehCatalog extends Controller
             $record['sections'] = $this->readSections($post['sections_json'], $previousSections);
         }
         $record['confirm_zero_price'] = ($post['confirm_zero_price'] ?? null) === '1';
+        return $record;
+    }
+
+    private function nativeLink(string $type, int $id, string $token): string
+    {
+        $native = match ($type) { 'product'=>['product','product_id'], 'category'=>['category','category_id'], 'brand'=>['manufacturer','manufacturer_id'], default=>null };
+        if (!$native || $id < 1 || !$this->user->hasPermission('access', 'catalog/' . $native[0])) return '';
+        return $this->url->link('catalog/' . $native[0] . '.form', ['user_token'=>$token, $native[1]=>$id], true);
+    }
+
+    private function submittedRecord(string $type, array $fields, array $post, array $record): array
+    {
+        foreach (['id','slug', ...$fields] as $field) if (isset($post[$field]) && is_string($post[$field])) $record[$field] = $post[$field];
+        foreach (['category_slugs','brand_slugs','specification_items','codes','relations','social_links','home_blocks'] as $field) {
+            if (isset($post[$field]) && is_array($post[$field])) $record[$field] = $post[$field];
+        }
+        foreach (['brands_mode','categories_mode','categories_limit'] as $field) if (isset($post[$field]) && is_string($post[$field])) $record[$field] = $post[$field];
+        if ($type === 'navigation') $record['url'] = is_string($post['internal_target'] ?? null) && $post['internal_target'] !== '' ? $post['internal_target'] : (is_string($post['external_url'] ?? null) ? $post['external_url'] : '');
+        if (is_string($post['sections_json'] ?? null)) {
+            try { $record['sections'] = $this->readSections($post['sections_json'], $record['sections'] ?? []); } catch (InvalidArgumentException | JsonException) {
+                // Keep the last valid section projection; the validation error remains visible above.
+            }
+        }
+        return $record;
+    }
+
+    private function readCollections(string $type, array $post, array $record, array $existing): array
+    {
+        if (in_array($type, ['product','home'], true)) {
+            foreach ($type === 'home' ? ['brand_slugs','category_slugs'] : ['category_slugs'] as $field) {
+                if (!isset($post[$field . '_present'])) continue;
+                $values = $post[$field] ?? [];
+                if (!is_array($values) || count($values)>300 || array_filter($values, fn($value)=>!is_string($value))) throw new InvalidArgumentException('Некорректный список выбора');
+                $record[$field] = array_values(array_unique($values));
+            }
+        }
+        $collections = match($type) {
+            'product' => ['specification_items'=>['group_name','name','value','unit'], 'codes'=>['code','code_type','source_name'], 'relations'=>['source_id','relation_type']],
+            'site' => ['social_links'=>['label','url']], default => [],
+        };
+        foreach ($collections as $field=>$keys) {
+            if (!isset($post[$field . '_present'])) continue;
+            $rows = $post[$field] ?? [];
+            if (!is_array($rows) || count($rows)>100) throw new InvalidArgumentException('Слишком много строк');
+            $record[$field] = [];
+            foreach ($rows as $row) {
+                if (!is_array($row)) throw new InvalidArgumentException('Некорректная строка');
+                $values = [];
+                foreach ($keys as $key) $values[$key] = $this->formString($row, $key);
+                $record[$field][] = $values;
+            }
+        }
+        // Private media IDs cannot be injected: only edit captions/remove the stored linked media.
+        if ($type === 'product') foreach (['images'=>'alt_text', 'documents'=>'title'] as $field=>$caption) {
+            if (!isset($post[$field . '_present'])) continue;
+            $rows = $post[$field] ?? [];
+            if (!is_array($rows) || count($rows) > 50) throw new InvalidArgumentException('Некорректный список вложений');
+            $record[$field] = [];
+            foreach ($rows as $key=>$row) {
+                if (!isset($existing[$field][$key]) || !is_array($row)) throw new InvalidArgumentException('Медиа изменились. Обновите страницу.');
+                $value = $existing[$field][$key];
+                $value[$caption] = $this->formString($row, $caption);
+                $record[$field][] = $value;
+            }
+        }
+        if ($type === 'home') {
+            foreach (['brands_mode','categories_mode'] as $field) if (isset($post[$field])) $record[$field] = $this->formString($post, $field);
+            if (isset($post['categories_limit'])) {
+                $limit = $this->formString($post, 'categories_limit');
+                if (!preg_match('/^\d{1,3}$/D', $limit)) throw new InvalidArgumentException('Лимит категорий: от 0 до 300');
+                $record['categories_limit'] = (int)$limit;
+            }
+            if (isset($post['home_blocks_present'])) {
+                if (!is_array($post['home_blocks'] ?? null)) throw new InvalidArgumentException('Некорректные блоки главной');
+                $record['home_blocks'] = [];
+                foreach (['hero','brands','categories','products','order','articles','sections'] as $key) {
+                    $row = $post['home_blocks'][$key] ?? [];
+                    $order = $this->formString($row, 'sort_order');
+                    if (!preg_match('/^-?\d{1,5}$/D', $order)) throw new InvalidArgumentException('Некорректный порядок блока');
+                    $record['home_blocks'][] = ['key'=>$key, 'enabled'=>($row['enabled']??'')==='1', 'sort_order'=>(int)$order];
+                }
+            }
+        }
         return $record;
     }
 
