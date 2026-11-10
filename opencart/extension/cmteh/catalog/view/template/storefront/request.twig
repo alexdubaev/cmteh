@@ -13,11 +13,12 @@
           <label for="bulk-parts">Артикул и количество, по одной позиции в строке</label>
           <textarea id="bulk-parts" aria-describedby="bulk-example" rows="7" placeholder="АРТИКУЛ 2">{{ params.article|default('')|slice(0, 128) }}</textarea>
           <p class="bulk-example" id="bulk-example">Например: <code>АРТИКУЛ 2</code> — артикул и 2 шт.</p>
-          <button class="button secondary" type="button" data-import-text>Добавить список</button>
+          <button class="button secondary" type="button" data-import-text disabled>Добавить список</button>
+          <p class="bulk-example" data-import-unavailable role="status">Подготавливаем добавление списка. Если кнопка недоступна, <a href="/request?import=1&amp;release=20261110-2">откройте страницу заново</a>.</p>
         </div>
         <div class="bulk-file">
           <strong>XLSX / CSV / TXT</strong><p>До 5 МБ. В одну заявку можно добавить до 100 позиций.</p>
-          <label class="button primary file-button">Выбрать файл<input type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain" data-import-file></label>
+          <label class="button primary file-button">Выбрать файл<input type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain" data-import-file disabled></label>
           <a class="template-link" href="{{ assets }}parts-request-template.csv.txt" download="parts-request-template.csv">Скачать CSV-шаблон</a>
         </div>
       </div>

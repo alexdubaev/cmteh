@@ -33,8 +33,8 @@
   <link rel="stylesheet" href="{{ assets }}articles.css">
   <link rel="stylesheet" href="{{ assets }}responsive-ux.css">
   <link rel="stylesheet" href="{{ assets }}storefront.css">
-  <script type="module" src="{{ assets }}storefront.mjs"></script>
-  {% if page in ['request', 'page'] %}<script type="module" src="{{ assets }}request.mjs"></script>{% endif %}
+  <script type="module" src="{{ assets }}storefront.mjs?v=20261110-2"></script>
+  {% if page in ['request', 'page'] %}<script type="module" src="{{ assets }}request.mjs?v=20261110-2"></script>{% endif %}
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>

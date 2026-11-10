@@ -27,6 +27,9 @@ async function fill(page, name) {
 }
 try {
   await scenario("Список неизвестных артикулов → три позиции по 1 шт. → reload", async (page) => {
+    // Old unversioned URLs can remain cached with the hosting's invalid MIME.
+    await page.route((url) => url.pathname.endsWith('.mjs') && !url.search,
+      (route) => route.fulfill({ contentType: 'text/plain', body: 'stale module response' }));
     const response = await page.goto("/request?import=1");
     assert.equal(response.status(), 200);
     const articles = ["R267987", "Dz100599", "H280976"];
@@ -43,6 +46,14 @@ try {
     assert.equal(await page.locator(".request-line").count(), 3);
     assert.deepEqual((await storage(page)).map(({ article, quantity }) => ({ article, quantity })),
       articles.map((article) => ({ article, quantity: 1 })));
+  });
+
+  await scenario("Недоступный модуль импорта → явное сообщение и заблокированная кнопка", async (page) => {
+    await page.route((url) => url.pathname.endsWith('/request.mjs'), (route) => route.abort());
+    await page.goto("/request?import=1");
+    assert.equal(await page.locator('[data-import-text]').isDisabled(), true);
+    assert.equal(await page.locator('[data-import-file]').isDisabled(), true);
+    await page.locator('[data-import-unavailable]').getByRole('link', { name: 'откройте страницу заново' }).waitFor();
   });
 
   await scenario("Поиск → карточка → корзина → заявка", async (page) => {

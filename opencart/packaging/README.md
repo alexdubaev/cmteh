@@ -28,6 +28,10 @@ python opencart/packaging/build.py --upstream /path/opencart-4.1.0.4.zip --outpu
    Content-Type файлов `storefront.mjs`, `request.mjs`, `request-import.mjs`
    и `cart.mjs`, затем реальный клик «В корзину», добавление списка и reload.
    HTTP 200 самого файла не доказывает, что браузер запускает модуль.
+   При смене версии клиентских модулей обновляйте `v` в layout и во всех
+   их статических import вместе. Смена только адреса входного скрипта
+   оставляет старые зависимости в кеше; общая корзина должна загружаться
+   из одного и того же URL во всей цепочке. XLSX reader наследует эту версию.
 4. В админке загрузите `cmteh.ocmod.zip` в Extensions → Installer и нажмите
    Install для пакета. Затем Extensions → Extensions → Modules → СМ ТЕХНО →
    Install. Убедитесь, что витрина и админка работают до открытия доступа.
