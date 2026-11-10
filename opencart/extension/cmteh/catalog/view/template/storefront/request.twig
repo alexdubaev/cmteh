@@ -4,36 +4,13 @@
   <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>{{ landing.title|default('Корзина') }}</span></div>
   <div class="page-title request-title"><h1>{{ landing.h1|default(landing.title|default('Корзина')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
   {% include templates ~ 'editorial.twig' with {content: landing} %}
-  <details class="bulk-request-details" id="request-import"{% if params.import|default('') == '1' %} open{% endif %}>
-    <summary>Добавить позиции списком или из файла</summary>
-    <section class="bulk-import panel">
-      <div><h2>Загрузить список артикулов</h2><p>Первая колонка — артикул, вторая — количество. Можно вставить список вручную или выбрать XLSX/CSV/TXT.</p></div>
-      <div class="bulk-grid">
-        <div class="bulk-paste">
-          <label for="bulk-parts">Артикул и количество, по одной позиции в строке</label>
-          <textarea id="bulk-parts" aria-describedby="bulk-example" rows="7" placeholder="АРТИКУЛ 2">{{ params.article|default('')|slice(0, 128) }}</textarea>
-          <p class="bulk-example" id="bulk-example">Например: <code>АРТИКУЛ 2</code> — артикул и 2 шт.</p>
-          <button class="button secondary" type="button" data-import-text disabled>Добавить список</button>
-          <p class="bulk-example" data-import-unavailable role="status">Подготавливаем добавление списка. Если кнопка недоступна, <a href="/request?import=1&amp;release=20261110-3">откройте страницу заново</a>.</p>
-        </div>
-        <div class="bulk-file">
-          <strong>XLSX / CSV / TXT</strong><p>До 5 МБ. В одну заявку можно добавить до 100 позиций.</p>
-          <label class="button primary file-button">Выбрать файл<input type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain" data-import-file disabled></label>
-          <a class="template-link" href="{{ assets }}parts-request-template.csv.txt" download="parts-request-template.csv">Скачать CSV-шаблон</a>
-        </div>
-      </div>
-      <p class="import-message" data-import-message hidden></p>
-      <div class="import-problems" data-import-problems aria-labelledby="import-problems-title" hidden>
-        <h3 id="import-problems-title"></h3><p>Количество можно изменить в заявке. Пропущенные позиции исправьте в исходном списке и добавьте повторно.</p><ul></ul><p data-import-omitted hidden></p>
-      </div>
-    </section>
-  </details>
+  <section class="panel list-transition" id="import"><h2>Есть список запчастей?</h2><p>Проверьте наличие по артикулам или передайте исходный файл менеджеру. В корзину можно добавить выбранные предложения каталога.</p><a class="button secondary" href="/parts-list{% if params.article|default('') %}?article={{ params.article|url_encode }}{% endif %}">Проверить список или отправить на расценку</a></section>
   <div class="request-layout">
     <section class="request-items panel" data-cart>
       <div class="section-heading"><div><h2 data-cart-heading>Корзина пока пуста</h2></div></div>
       <div class="empty-state" data-cart-empty>
-        <p>Найдите деталь в каталоге или добавьте свои артикулы списком.</p>
-        <div class="request-empty-actions"><a class="button primary" href="/catalog">Перейти в каталог</a><a class="button secondary" href="/request?import=1#request-import" data-open-import>Добавить список</a></div>
+        <p>Найдите деталь в каталоге и добавьте выбранный товар в корзину.</p>
+        <div class="request-empty-actions"><a class="button primary" href="/catalog">Перейти в каталог</a><a class="button secondary" href="/parts-list">Проверить список</a></div>
       </div>
       <div class="request-lines" hidden></div>
       <div class="cart-totals" aria-live="polite" hidden></div>

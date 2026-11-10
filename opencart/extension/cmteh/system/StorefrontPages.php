@@ -11,7 +11,7 @@ require_once __DIR__ . '/EditorialDefaults.php';
 final class StorefrontPages
 {
     public const INFO = ['about', 'contacts', 'delivery', 'payment'];
-    public const SYSTEM = ['catalog', 'brands', 'articles', 'request'];
+    public const SYSTEM = ['catalog', 'brands', 'articles', 'request', 'parts-list'];
 
     private const RESERVED = ['admin', 'api', 'account', 'brand', 'cart', 'category', 'checkout', 'extension', 'image',
         'information', 'install', 'product', 'sitemap', 'sitemaps', 'system', '_cmteh_platform'];
@@ -60,6 +60,11 @@ final class StorefrontPages
         };
 
         return $record === null ? null : [$prefix === 'articles' ? 'article' : $prefix, $record];
+    }
+
+    public function partsList(): array
+    {
+        return $this->view('/parts-list', []);
     }
 
     public function view(string $path, array $rawParams): ?array
@@ -195,6 +200,10 @@ final class StorefrontPages
                 $slug = substr($path, 1);
                 $model['slug'] = $slug;
                 $model['content'] = self::htmlFields($record);
+                break;
+            case 'parts-list':
+                $meta['title'] = $meta['title'] ?: 'Список запчастей';
+                $meta['robots'] = 'noindex,nofollow';
                 break;
             case 'request':
                 $meta['robots'] = 'noindex,nofollow';

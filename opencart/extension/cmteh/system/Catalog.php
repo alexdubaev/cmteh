@@ -84,6 +84,69 @@ final class Catalog
         });
     }
 
+    /** Ordered exact-SKU batch. A bounded response never labels an unexamined row missing. */
+    public function checkList(array $rows): array
+    {
+        if (!array_is_list($rows) || count($rows) < 1 || count($rows) > 1000
+            || strlen(json_encode($rows, JSON_THROW_ON_ERROR)) > 1048576) {
+            throw new InvalidArgumentException('Для проверки нужен список от 1 до 1000 строк, до 1 МБ.');
+        }
+        $needles = [];
+        foreach ($rows as $row) {
+            if (!is_array($row) || !is_string($row['article'] ?? null)
+                || trim($row['article']) === '' || mb_strlen($row['article']) > 128
+                || preg_match('/[\x00-\x1F\x7F]/', $row['article'])
+                || !is_int($row['quantity'] ?? null) || $row['quantity'] < 1 || $row['quantity'] > 100000) {
+                throw new InvalidArgumentException('Проверьте артикулы и целое количество от 1 до 100 000.');
+            }
+            $needles[] = CatalogInput::normalize(trim($row['article']));
+        }
+        $keys = array_values(array_unique($needles));
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        // sku_lookup supports one indexed batch, independent of input row count and duplicates.
+        $hits = $this->run($this->productSelect() . $this->productFrom()
+            . ' WHERE ' . $this->publicProduct() . " AND x.sku_norm IN ($placeholders)"
+            . ' ORDER BY x.sku_norm, x.product_id LIMIT 5001', $keys)->fetchAll(PDO::FETCH_ASSOC);
+        $cut = count($hits) > 5000;
+        if ($cut) array_pop($hits);
+        $last = $cut ? $hits[array_key_last($hits)]['sku_norm'] : null;
+        $groups = [];
+        $counts = [];
+        foreach ($hits as $hit) {
+            $key = $hit['sku_norm'];
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+            if (count($groups[$key] ?? []) >= 5) continue;
+            $dto = $this->productDto($hit);
+            $groups[$key][] = array_intersect_key($dto, array_flip([
+                'id', 'slug', 'sku', 'title', 'brand', 'availability_status',
+            ]));
+        }
+        $result = [];
+        $partial = $cut;
+        foreach ($rows as $index => $row) {
+            $key = $needles[$index];
+            $products = $groups[$key] ?? [];
+            $more = ($counts[$key] ?? 0) > 5 || ($cut && strcmp($key, $last) >= 0);
+            $partial = $partial || $more;
+            $result[] = ['index' => $index, 'article' => trim($row['article']), 'quantity' => $row['quantity'],
+                'status' => $more || count($products) > 1 ? 'ambiguous' : ($products ? 'matched' : 'not_found'),
+                'products' => $products, 'more_matches' => $more];
+        }
+        return ['rows' => $result, 'partial' => $partial];
+    }
+
+    /** Canonical published snapshots for at most 100 explicitly chosen offers. */
+    public function selectedProducts(array $ids): array
+    {
+        if (!$ids || count($ids) > 100) return [];
+        $ids = array_values(array_unique($ids));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $rows = $this->run($this->productSelect() . $this->productFrom()
+            . ' WHERE ' . $this->publicProduct() . " AND x.source_id IN ($placeholders) LIMIT 100", $ids)
+            ->fetchAll(PDO::FETCH_ASSOC);
+        return array_column(array_map($this->productDto(...), $rows), null, 'id');
+    }
+
     public function explain(array $query): array
     {
         [$where, $params] = $this->productFilters($query, CatalogInput::normalize((string) ($query['q'] ?? '')));

@@ -1,10 +1,10 @@
-import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey, mergeCart } from "./cart.mjs?v=20261110-5";
+import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey } from "./cart.mjs?v=20261110-6";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 32 * 1024 * 1024;
 const MAX_ROWS = 10_000;
 const HEADERS = new Set(["артикул", "article", "sku", "part number", "part_number"]);
-const labels = {
+export const labels = {
   quantity: "Некорректное количество: использовано 1 шт.",
   clamped: "Количество ограничено до 100 000 шт.",
   extra: "Колонки после количества не использованы.",
@@ -49,6 +49,7 @@ function inspect(rows) {
     else if (quantity > MAX_QUANTITY) reasons.push("clamped");
     if (cells.slice(2).some((cell) => String(cell ?? "").trim())) reasons.push("extra");
     if (reasons.length) problem(row, article, reasons);
+    if (items.length >= 1000) { truncated = true; break; }
     items.push({ article, quantity: good ? Math.min(quantity, MAX_QUANTITY) : 1, title: "Позиция из списка", brand: "Не указан" });
   }
   return { items, problems, count, truncated };
@@ -169,90 +170,18 @@ async function inspectXlsx(file) {
   return inspect(indexedRows());
 }
 
-export function setupImport() {
-  const details = document.querySelector("#request-import");
-  if (!details) return;
-  const manual = details.querySelector("#bulk-parts");
-  const button = details.querySelector("[data-import-text]");
-  const upload = details.querySelector("[data-import-file]");
-  const message = details.querySelector("[data-import-message]");
-  const problems = details.querySelector("[data-import-problems]");
-  const omitted = details.querySelector("[data-import-omitted]");
-  const list = problems.querySelector("ul");
-
-  function feedback(text, error = false) {
-    message.hidden = !text;
-    message.textContent = text;
-    message.setAttribute("role", error ? "alert" : "status");
-    message.classList.toggle("error", error);
-  }
-  function showProblems(result = { count: 0, problems: [] }) {
-    problems.hidden = !result.count;
-    problems.querySelector("h3").textContent = "Проверьте строки: " + result.count;
-    omitted.hidden = result.count <= result.problems.length;
-    omitted.textContent = "Показаны первые " + result.problems.length + " строк из " + result.count + ". Проверьте остальные строки в исходном файле.";
-    list.replaceChildren(...result.problems.map(({ row, article, reasons }) => {
-      const entry = document.createElement("li");
-      const heading = document.createElement("strong");
-      const description = document.createElement("span");
-      heading.textContent = "Строка " + row + (article ? " · " + article : "");
-      description.textContent = reasons.map((reason) => labels[reason]).join(" ");
-      entry.append(heading, description);
-      return entry;
-    }));
-  }
-  function append(result, source) {
-    showProblems(result);
-    if (!result.items.length) {
-      feedback("Не удалось найти артикулы. Используйте артикул и количество, по одной позиции в строке.", true);
-      return false;
-    }
-    const changes = mergeCart(result.items);
-    const overflow = changes.overflow ? " Достигнут лимит 100 позиций." : "";
-    const truncate = result.truncated ? " Обработано не более 10 000 строк." : "";
-    const warnings = result.count ? " Проверьте строки: " + result.count + "." : "";
-    feedback(source + ": позиций в списке " + result.items.length + ", добавлено " + changes.added + ", обновлено " + changes.updated + ", всего " + changes.total + "." + overflow + truncate + warnings);
-    return true;
-  }
-
-  button.addEventListener("click", () => {
-    if (new TextEncoder().encode(manual.value).byteLength > MAX_BYTES) {
-      showProblems();
-      feedback("Список слишком большой. Используйте список до 5 МБ.", true);
-      return;
-    }
-    if (append(inspect(lines(manual.value)), "Список")) manual.value = "";
-  });
-  upload.addEventListener("change", async () => {
-    const file = upload.files?.[0];
-    upload.value = "";
-    if (!file) return;
-    showProblems();
-    if (file.size > MAX_BYTES) {
-      feedback("Файл слишком большой. Выберите файл до 5 МБ.", true);
-      return;
-    }
-    if (!/\.(xlsx|csv|txt)$/i.test(file.name)) {
-      feedback("Поддерживаются XLSX, CSV и TXT.", true);
-      return;
-    }
-    upload.disabled = true;
-    feedback("Читаем файл…");
-    try {
-      if (/\.xlsx$/i.test(file.name)) append(await inspectXlsx(file), "XLSX");
-      else append(inspect(lines(await file.text())), "CSV/TXT");
-    } catch {
-      feedback("Не удалось прочитать файл. Проверьте содержимое XLSX, CSV или TXT.", true);
-    } finally {
-      upload.disabled = false;
-    }
-  });
-  document.querySelector("[data-open-import]")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    details.open = true;
-    manual.focus();
-  });
-  button.disabled = false;
-  upload.disabled = false;
-  details.querySelector("[data-import-unavailable]").hidden = true;
+export function inspectText(text) {
+  if (new TextEncoder().encode(text).byteLength > 1048576) throw new Error('Список для проверки должен быть до 1 МБ. Исходный файл можно отправить на расценку.');
+  return inspect(lines(text));
+}
+export async function inspectFile(file) {
+  if (file.size > MAX_BYTES) throw new Error('Выберите файл до 5 МБ.');
+  if (/\.xlsx$/i.test(file.name)) return inspectXlsx(file);
+  if (!/\.(csv|txt)$/i.test(file.name)) throw new Error('PDF и фотографии можно отправить на расценку. Проверка доступна для XLSX, CSV и TXT, без распознавания изображений.');
+  const buffer = await file.arrayBuffer();
+  let text;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(buffer); }
+  catch { text = new TextDecoder('windows-1251', { fatal: true }).decode(buffer); }
+  if (/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(text)) throw new Error('Файл содержит нетекстовые данные. Используйте CSV/TXT в UTF-8 или Windows-1251.');
+  return inspectText(text);
 }

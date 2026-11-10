@@ -147,6 +147,13 @@ $captureFile = $captureRoot . '/lead-test-capture/notices.ndjson';
 try {
     $lead->migrate();
     $lead->migrate();
+    [, $legacyParsed] = \Cmteh\LeadInput::parse(json_encode($payload, JSON_THROW_ON_ERROR));
+    check(json_encode($legacyParsed['items']) === '[{"article":"001A","quantity":2}]',
+        'Legacy item serialization and key order remain byte exact');
+    $identified = array_replace($payload, ['request_items' => [['article' => '001A', 'quantity' => 2, 'product_id' => 'source-001']]]);
+    [, $identifiedParsed] = \Cmteh\LeadInput::parse(json_encode($identified, JSON_THROW_ON_ERROR));
+    check(($identifiedParsed['items'][0]['product_id'] ?? null) === 'source-001',
+        'New item preserves its string canonical product identity');
     $accepted = submit($lead, $payload);
     check($accepted['status'] === 200 && $accepted['body']['replayed'] === false
         && is_string($accepted['body']['id']), 'A new request is accepted and acknowledged with an ID');
@@ -297,11 +304,60 @@ try {
     check($result['failed'] === 1 && $status['status'] === 'failed' && (int) $status['attempts'] === 3
         && $worker->run($capture)['sent'] === 0 && countRows($pdo, $table) === 4,
         'After three delivery failures the worker stops retrying and preserves all requests');
+    // D01 uses the same isolated prefix as the lead; no live catalogue data is changed.
+    require_once __DIR__ . '/../extension/cmteh/system/CatalogImport.php';
+    $native = ['product', 'product_code', 'product_description', 'product_to_store', 'product_to_category', 'product_attribute',
+        'category', 'category_description', 'category_to_store', 'category_path', 'manufacturer', 'manufacturer_to_store',
+        'attribute', 'attribute_description', 'attribute_group', 'attribute_group_description'];
+    $catalogTables = array_merge($native, array_map(static fn(string $suffix): string => 'cmteh_' . $suffix,
+        ['schema', 'product', 'category', 'brand', 'attribute', 'content', 'route', 'media', 'media_link', 'import']));
+    foreach ($native as $suffix) $pdo->exec("CREATE TABLE {$prefix}{$suffix} LIKE " . DB_PREFIX . $suffix);
+    $catalog = new \Cmteh\Catalog($pdo, $prefix);
+    $catalog->migrate();
+    $import = new \Cmteh\CatalogImport($pdo, $catalog, $prefix);
+    $fixture = __DIR__ . '/../fixtures/demo.ndjson';
+    $preview = $import->preview($fixture);
+    $import->apply($fixture, $preview['sha256'], 'lead-snapshots');
+    $product = $catalog->editRecord('product', 'mock-11');
+    $other = array_replace($product, ['id' => 'another-offer', 'slug' => 'another-offer', 'brand_slug' => 'caterpillar']);
+    $catalog->save('product', $other);
+    $chosen = array_replace(payload(), ['request_key' => \Cmteh\LeadInput::uuid(), 'request_items' => [
+        ['article' => 'RE568158', 'quantity' => 2, 'product_id' => 'mock-11'],
+        ['article' => 'RE568158', 'quantity' => 3, 'product_id' => 'another-offer'],
+    ]]);
+    $snapshotResult = submit($lead, $chosen, '192.0.2.110');
+    check($snapshotResult['status'] === 200, 'Canonical selected offers are accepted');
+    $snapshotId = $snapshotResult['body']['id'];
+    $snapshot = $lead->find($snapshotId)['items'];
+    check(array_column($snapshot, 'product_id') === ['mock-11', 'another-offer']
+        && array_column($snapshot, 'product_brand') === ['John Deere', 'Caterpillar']
+        && $snapshot[0]['product_sku'] === 'RE568158' && $snapshot[0]['product_title'] === $product['title'],
+        'The private history retains two canonical brands and immutable SKU/title snapshots');
+    $catalog->save('product', array_replace($product, ['title' => 'Renamed', 'status' => 'draft']));
+    check(submit($lead, $chosen, '192.0.2.110')['body'] === ['id' => $snapshotId, 'replayed' => true]
+        && $lead->find($snapshotId)['items'] === $snapshot,
+        'Accepted immutable replay returns the old ID and snapshot after catalogue rename and hiding');
+    $countBefore = countRows($pdo, $table);
+    foreach ([['RE568158', 'unknown'], ['RE568158', 'mock-11'], ['WRONG-SKU', 'another-offer']] as [$article, $pid]) {
+        $invalid = array_replace($chosen, ['request_key' => \Cmteh\LeadInput::uuid(), 'request_items' => [
+            ['article' => $article, 'quantity' => 1, 'product_id' => $pid],
+        ]]);
+        check(submit($lead, $invalid, '192.0.2.111')['status'] === 400
+            && countRows($pdo, $table) === $countBefore && countRows($pdo, $table . '_outbox') === $countBefore,
+            'New unknown, hidden or wrong-SKU selection rejects without orphan lead or job');
+    }
+    $conflict = $chosen;
+    $conflict['request_items'][0]['product_id'] = 'another-offer';
+    check(submit($lead, $conflict, '192.0.2.110')['status'] === 409,
+        'Changing canonical identity with the same key conflicts');
+    check($lead->find($id)['items'][0]['product_id'] === null,
+        'Existing legacy rows remain readable without a canonical identity');
 } finally {
     foreach (['outbox_unavailable', 'outbox', 'item', 'rate', 'schema'] as $suffix) {
         $pdo->exec("DROP TABLE IF EXISTS {$table}_{$suffix}");
     }
     $pdo->exec("DROP TABLE IF EXISTS $table");
+    foreach (($catalogTables ?? []) as $suffix) $pdo->exec("DROP TABLE IF EXISTS {$prefix}{$suffix}");
     if (is_file($captureFile)) {
         unlink($captureFile);
     }

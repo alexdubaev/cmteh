@@ -1,5 +1,5 @@
-{% macro href(value) %}{% autoescape 'html' %}{% if value matches '~^(?:/(?![/\\x5c])|https?://)[^\\x00-\\x20\\x5c]*$~i' %}{{ value }}{% endif %}{% endautoescape %}{% endmacro %}
-{% macro nav(item) %}{% autoescape 'html' %}{% set href = _self.href(item.url|default('')) %}{% if href %}
+{% macro href(value) %}{% autoescape 'html' %}{% if value in ['/request?import=1', '/request#import', '/request#request-import'] %}{% set value = '/parts-list' %}{% endif %}{% if value matches '~^(?:/(?![/\\x5c])|https?://)[^\\x00-\\x20\\x5c]*$~i' %}{{ value }}{% endif %}{% endautoescape %}{% endmacro %}
+{% macro nav(item) %}{% autoescape 'html' %}{% set navUrl = item.url|default('') %}{% if navUrl == '/request' and item.label|default('') in ['Заявка по списку', 'Отправить список'] %}{% set navUrl = '/parts-list' %}{% endif %}{% set href = _self.href(navUrl) %}{% if href %}
 <a href="{{ href }}"{% if item.open_in_new_tab|default(false) %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ item.label|default('') }}</a>
 {% endif %}{% endautoescape %}{% endmacro %}
 {% macro asset(id) %}{% autoescape 'html' %}{% if id matches '/^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/' %}/api/assets/{{ id }}{% endif %}{% endautoescape %}{% endmacro %}
@@ -22,7 +22,7 @@
 </span>
 {% endautoescape %}{% endmacro %}
 {% macro add(product, full = false) %}{% autoescape 'html' %}
-<button class="{{ full ? 'button primary wide' : 'card-action' }}" type="button" data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}">В корзину</button>
+<button class="{{ full ? 'button primary wide' : 'card-action' }}" type="button" data-product-id="{{ product.id }}" data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}">В корзину</button>
 <span class="request-announcement" role="status" aria-live="polite"></span>
 {% endautoescape %}{% endmacro %}
 {% macro card(product) %}{% autoescape 'html' %}

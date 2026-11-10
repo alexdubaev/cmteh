@@ -27,34 +27,116 @@ async function fill(page, name) {
   await form.getByLabel("Телефон").fill(phone);
 }
 try {
-  await scenario("Список неизвестных артикулов → три позиции по 1 шт. → reload", async (page) => {
-    // Old unversioned URLs can remain cached with the hosting's invalid MIME.
-    await page.route((url) => url.pathname.endsWith('.mjs') && !url.search,
-      (route) => route.fulfill({ contentType: 'text/plain', body: 'stale module response' }));
-    const response = await page.goto("/request?import=1");
+  await scenario("Список 1000 строк → одна пакетная проверка → явный выбор товара", async (page) => {
+    const calls = [];
+    await page.route("**/api/list-check", async (route) => { calls.push(route.request().postDataJSON()); await route.continue(); });
+    const response = await page.goto("/parts-list");
     assert.equal(response.status(), 200);
-    const articles = ["R267987", "Dz100599", "H280976"];
     const input = page.getByLabel("Артикул и количество, по одной позиции в строке");
-    await input.fill(articles.join("\n"));
-    await page.getByRole("button", { name: "Добавить список", exact: true }).click();
-    await page.locator("[data-import-message]").getByText(/добавлено 3/).waitFor();
-    assert.equal(await input.inputValue(), "");
-    assert.deepEqual((await storage(page)).map(({ article, quantity }) => ({ article, quantity })),
-      articles.map((article) => ({ article, quantity: 1 })));
-    assert.equal(await page.locator(".request-line").count(), 3);
-    await page.reload();
-    await page.getByRole("button", { name: "Увеличить количество H280976" }).waitFor();
-    assert.equal(await page.locator(".request-line").count(), 3);
-    assert.deepEqual((await storage(page)).map(({ article, quantity }) => ({ article, quantity })),
-      articles.map((article) => ({ article, quantity: 1 })));
+    await input.fill([sku + " 3", "0000550380;2", "UNKNOWN-TEST;4", ...Array(997).fill(sku + " 1")].join("\n"));
+    assert.deepEqual(await storage(page), []);
+    await page.getByRole("button", { name: "Проверить наличие", exact: true }).click();
+    await page.getByText("Проверено строк: 1000", { exact: true }).waitFor();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].rows.length, 1000);
+    assert.equal(calls[0].rows[1].article, "0000550380");
+    assert.equal(await page.locator('[data-result-row]').count(), 50);
+    await page.getByText("В каталоге не найдено", { exact: true }).waitFor();
+    assert.deepEqual(await storage(page), []);
+    await page.locator('[data-result-row]').first().getByRole('button', { name: 'В корзину' }).click();
+    assert.deepEqual((await storage(page)).map(({ article, quantity, productId }) => ({ article, quantity, productId })),
+      [{ article: sku, quantity: 3, productId: "mock-11" }]);
+    await input.fill(Array(1001).fill(sku).join("\n"));
+    await page.getByRole("button", { name: "Проверить наличие", exact: true }).click();
+    await page.locator('[data-list-message]').getByText(/не более 1000/).waitFor();
+    assert.equal(calls.length, 1);
+    await page.goto('/request#import');
+    assert.equal(await page.getByRole('link', { name: 'Проверить список или отправить на расценку' }).getAttribute('href'), '/parts-list');
   });
 
-  await scenario("Недоступный модуль импорта → явное сообщение и заблокированная кнопка", async (page) => {
-    await page.route((url) => url.pathname.endsWith('/request.mjs'), (route) => route.abort());
-    await page.goto("/request?import=1");
-    assert.equal(await page.locator('[data-import-text]').isDisabled(), true);
-    assert.equal(await page.locator('[data-import-file]').isDisabled(), true);
-    await page.locator('[data-import-unavailable]').getByRole('link', { name: 'откройте страницу заново' }).waitFor();
+  await scenario("Расценка текста: email, потерянный ответ, повтор; файл CP1251 сохраняет оригинал", async (page) => {
+    const payloads = [];
+    let id;
+    await page.route('**/api/quote', async (route) => {
+      const payload = route.request().postDataJSON(); payloads.push(payload);
+      const response = await route.fetch();
+      assert.equal(response.status(), 200);
+      const body = await response.json();
+      if (payloads.length === 1) { id = body.id; await route.abort(); }
+      else { if (payloads.length === 2) { assert.equal(body.id, id); assert.equal(body.replayed, true); } await route.fulfill({ response }); }
+    });
+    await page.goto('/parts-list');
+    await page.getByLabel('Артикул и количество, по одной позиции в строке').fill('0000550380;2\nUNKNOWN;3');
+    const form = page.locator('[data-quote-form]');
+    await form.getByLabel('Контактное лицо').fill('Тест Расценки');
+    await form.getByLabel('Email').fill('quote@example.invalid');
+    await form.getByRole('button', { name: 'Отправить на расценку' }).click();
+    await page.locator('[data-quote-message][role=alert]').waitFor();
+    await page.reload();
+    assert.equal(await form.getByLabel('Email').inputValue(), 'quote@example.invalid');
+    await form.getByRole('button', { name: 'Отправить на расценку' }).click();
+    await page.locator('[data-quote-message]').getByText(/Расценка принята/).waitFor();
+    assert.deepEqual(payloads[0], payloads[1]);
+    assert.equal(payloads[0].input_kind, 'text');
+    assert.deepEqual(await storage(page), []);
+    const bytes = Buffer.from([0xc0,0xf0,0xf2,0xe8,0xea,0xf3,0xeb,0x3b,0xca,0xee,0xeb,0x0a,0x30,0x30,0x30,0x30,0x35,0x35,0x30,0x33,0x38,0x30,0x3b,0x32]);
+    await page.getByLabel('Файл списка').setInputFiles({ name: 'список.csv', mimeType: 'text/csv', buffer: bytes });
+    await page.getByRole('button', { name: 'Проверить наличие', exact: true }).click();
+    await page.getByText('Проверено строк: 1', { exact: true }).waitFor();
+    await form.getByLabel('Контактное лицо').fill('Тест Файла');
+    await form.getByLabel('Email').fill('file@example.invalid');
+    await form.getByRole('button', { name: 'Отправить на расценку' }).click();
+    await page.locator('[data-quote-message]').getByText(/Расценка принята/).waitFor();
+    assert.equal(payloads[2].file.data_base64, bytes.toString('base64'));
+    assert.deepEqual(await storage(page), []);
+    assert.ok(!(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).includes(bytes.toString('base64')));
+  });
+
+  await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
+    let first = true;
+    await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
+      assert.equal(new URL(route.request().url()).search, '?v=20261110-6');
+      if (first) { first = false; await route.abort(); } else await route.continue();
+    });
+    await page.goto('/parts-list');
+    await page.getByLabel('Файл списка').setInputFiles({ name: 'parts.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from('UEsDBBQAAAAIAIital0cQqjhkAAAAO4AAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbHWPQQ6CQAxFr0Jma6DEhQsDbNQbeIFmLMzEYaah1eDtHZCV0WX7/u9Lm+uLSYp5DFFa41T5CCDW0YhSJaaYSZ+mETWP0wCM9o4Dwb6uD2BTVIpa6nLDdM2ZenwELS5zXotPsTUTBTHF6RNcXK1B5uAtaubwjLcvS7kZqtxcM+I8yy4HDPw0LOS/YOvB+mb3BlBLAwQUAAAACACIrWpd/luGcooAAADwAAAACwAAAF9yZWxzLy5yZWxzjc8xDsIwDAXQq1Q+QF0YGFDaiaUr4gImddqqTRw5QZTbk7EgBkbrf70vmyuvlGcJaZpjqja/htTClHM8IyY7sadUS+RQEifqKZdTR4xkFxoZj01zQt0b0Jm9WfVDC9oPB6hur8j/2OLcbPki9uE55B8TX40ik46cW9hWfIoud5GlLihgZ/Djwe4NUEsDBBQAAAAIAIital0HdP4ykQAAAOMAAAAPAAAAeGwvd29ya2Jvb2sueG1sjY8xDoMwDEWvEvkANXTogICpS7dewQXTRJA4slO1xy+Csney///y+3L7Fp0fIrP7xCVZB76U3CDa4DmSnSRzWpNJNFJZpT7RsjKN5plLXPBcVReMFBLshEb/Ycg0hYGvMrwip7JDlBcqQZL5kA36dmuw33SJIndwJy0GbrNuYwc1OG3CuuhtrAH7Fo8rPB7rv1BLAwQUAAAACACIrWpdtlSqz44AAADxAAAAGgAAAHhsL19yZWxzL3dvcmtib29rLnhtbC5yZWxzjc89DsIwDAXgq1Q5QN0yMKAmE0tXxAWi1G2iNj+yjYDbEzGgIjEwWX6WvicPF9yshJzYh8LNI26JtfIi5QTAzmO03OaCqV7mTNFKXWmBYt1qF4RD1x2B9oYyw95sxkkrGqdeNddnwX/sPM/B4Tm7W8QkPyrgnmlljygVtbSgaPWJGN6jb6uqwAzw9aF5AVBLAwQUAAAACACIrWpdyQlVHJMAAADNAAAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQxLnhtbE2PUQrCMAxArzJ6ANMpE5EsoHgDT1BmdcW1HWnYPL7ZFDEfIXnhJQTnzM/Sey/VKw6ptKYXGY8Apet9dGWTR590cs8cnWjLDygje3dbpTjA1to9RBeSIVzZxYkj5DxX3JpaabcUp9pU0pqQhpD8VVh5KIRCVqNp7O5gEYQQFgrd1zov/kRbhOlDQfdq/jsEvw/oDVBLAQIUABQAAAAIAIital0cQqjhkAAAAO4AAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQAFAAAAAgAiK1qXf5bhnKKAAAA8AAAAAsAAAAAAAAAAAAAAIABwQAAAF9yZWxzLy5yZWxzUEsBAhQAFAAAAAgAiK1qXQd0/jKRAAAA4wAAAA8AAAAAAAAAAAAAAIABdAEAAHhsL3dvcmtib29rLnhtbFBLAQIUABQAAAAIAIital22VKrPjgAAAPEAAAAaAAAAAAAAAAAAAACAATICAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc1BLAQIUABQAAAAIAIital3JCVUckwAAAM0AAAAYAAAAAAAAAAAAAACAAfgCAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWxQSwUGAAAAAAUABQBFAQAAwQMAAAAA', 'base64') });
+    const check = page.getByRole('button', { name: 'Проверить наличие', exact: true });
+    await check.click();
+    await page.locator('[data-list-message][role=alert]').waitFor();
+    await check.click();
+    await page.getByText('Проверено строк: 1', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-result-row] h3').textContent(), '1. 0000550380');
+    await page.evaluate(() => localStorage.setItem('smtechno-request', JSON.stringify(Array.from({ length: 100 }, (_, i) => ({ article: 'LEGACY' + i, title: 'Legacy', brand: 'Не указан', quantity: 1 })))));
+    await page.locator('[data-result-row]').getByRole('button', { name: 'В корзину' }).click();
+    await page.getByText(/Корзина заполнена: максимум 100/).waitFor();
+    const before = await storage(page);
+    await page.getByLabel('Файл списка').setInputFiles({ name: 'parts.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
+    await check.click();
+    await page.locator('[data-list-message][role=alert]').getByText(/PDF и фотографии можно отправить на расценку/).waitFor();
+    assert.deepEqual(await storage(page), before);
+  });
+
+  await scenario("Недоступный модуль списка → ясная загрузка и контакты", async (page) => {
+    await page.route((url) => url.pathname.endsWith('/parts-list.mjs'), (route) => route.abort());
+    await page.goto('/parts-list');
+    assert.equal(await page.getByRole('button', { name: 'Проверить наличие', exact: true }).isDisabled(), true);
+    await page.locator('[data-list-preparing]').getByRole('link', { name: 'откройте страницу заново' }).waitFor();
+  });
+
+  await scenario("Canonical identity separates offers and preserves fresh additions during acknowledgement", async (page) => {
+    await page.goto('/request');
+    const result = await page.evaluate(async () => {
+      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-6');
+      const legacy = { article: 'SAME', brand: 'Brand', title: 'Legacy', quantity: 2 };
+      writeCart([legacy]);
+      mergeCart([{ ...legacy, productId: 'offer-a', quantity: 3 }, { ...legacy, productId: 'offer-b', quantity: 4 }]);
+      const selected = readCart();
+      mergeCart([{ ...legacy, productId: 'offer-a', quantity: 1 }]);
+      acknowledgeCart([legacy, selected[1]]);
+      return { selected, remaining: readCart() };
+    });
+    assert.deepEqual(result.selected.map(({ productId, quantity }) => [productId || null, quantity]), [[null, 2], ['offer-a', 3], ['offer-b', 4]]);
+    assert.deepEqual(result.remaining.map(({ productId, quantity }) => [productId, quantity]), [['offer-a', 1], ['offer-b', 4]]);
   });
 
   await scenario("Недоступный модуль заявки → объяснение в короткой форме и контакты", async (page) => {
@@ -116,10 +198,11 @@ try {
         await route.fulfill({ response });
       }
     });
-    const response = await page.goto("/request?import=1");
-    assert.equal(response.status(), 200);
-    await page.getByLabel("Артикул и количество, по одной позиции в строке").fill(sku + " 3");
-    await page.getByRole("button", { name: "Добавить список" }).click();
+    await page.goto('/request');
+    await page.evaluate((article) => {
+      localStorage.setItem('smtechno-request', JSON.stringify([{ article, quantity: 3, title: 'Legacy', brand: 'Не указан' }]));
+    }, sku);
+    await page.reload();
     await fill(page, "Иван Тест");
     const requestForm = page.locator('form[data-lead="request"]');
     const submit = requestForm.getByRole("button", { name: "Отправить заявку" });

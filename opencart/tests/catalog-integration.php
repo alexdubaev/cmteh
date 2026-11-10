@@ -94,6 +94,22 @@ try {
     $tail = $catalog->products(['page' => 2]);
     expect($claas['total'] === 1 && $claas['products'][0]['sku'] === '0000550380' && count($tail['products']) === 4,
         'Exact search preserves leading zeros and pagination reaches the tail');
+    $batch = $catalog->checkList(array_merge(
+        [['article' => 'RE-568158', 'quantity' => 3], ['article' => '0000550380', 'quantity' => 2],
+         ['article' => 'RE-56815', 'quantity' => 1], ['article' => 'ANOTHER000', 'quantity' => 1]],
+        array_fill(0, 996, ['article' => '0000550380', 'quantity' => 7])
+    ));
+    expect(count($batch['rows']) === 1000 && !$batch['partial']
+        && $batch['rows'][0]['status'] === 'matched' && $batch['rows'][0]['products'][0]['id'] === 'mock-11'
+        && $batch['rows'][1]['article'] === '0000550380' && $batch['rows'][999]['quantity'] === 7
+        && $batch['rows'][2]['status'] === 'not_found' && $batch['rows'][3]['status'] === 'not_found',
+        'Exact batch checks 1000 ordered duplicate rows, preserves zeros and ignores prefix and MPN matches');
+    try {
+        $catalog->checkList(array_fill(0, 1001, ['article' => 'x', 'quantity' => 1]));
+        throw new RuntimeException('Oversize batch accepted');
+    } catch (InvalidArgumentException) {
+        expect(true, 'More than 1000 rows is an explicit error');
+    }
     $item = $catalog->editRecord('product', 'mock-11');
     $copy = array_replace($item, ['id' => 'ranking-mpn', 'slug' => 'ranking-mpn', 'sku' => 'ANOTHER-000', 'mpn' => 'RE-568158']);
     $catalog->save('product', $copy);
@@ -105,6 +121,9 @@ try {
         && $catalog->products(['q' => 'масляный', 'brand' => 'john-deere'])['total'] === 3
         && count($catalog->explain(['q' => 'RE-568158', 'brand' => 'john-deere'])) > 0,
         'SKU, MPN and prefix rank without duplicates, Russian title filters and EXPLAIN run');
+    $exactOnly = $catalog->checkList([['article' => 'RE568158', 'quantity' => 1]]);
+    expect(array_column($exactOnly['rows'][0]['products'], 'id') === ['mock-11'],
+        'Batch excludes prefix and MPN offers even when search finds them');
     $changed = array_replace($item, ['title' => 'Обновлённый фильтр', 'full_description' => '<p>Описание <strong>детали</strong></p><script>bad()</script>']);
     $catalog->save('product', $changed);
     expect($catalog->product('jd-re568158')['title'] === 'Обновлённый фильтр'
@@ -168,6 +187,32 @@ try {
     expect($catalog->routes('/legacy/re568158') === ['status' => 301, 'target' => '/product/jd-re568158']
         && $catalog->routes('/legacy/removed') === ['status' => 410, 'target' => null]
         && $catalog->routes('/legacy/unmapped') === null, 'Legacy route lookup distinguishes redirects, removals and unknown paths');
+    $uniqueRows = [];
+    for ($i = 0; $i < 1000; $i++) {
+        $sku = '000BATCH' . str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+        $catalog->save('product', array_replace($item, ['id' => 'batch-' . $i, 'slug' => 'batch-' . $i,
+            'sku' => $sku, 'availability_status' => [null, 'in_stock', 'on_request', 'out_of_stock'][$i % 4]]));
+        $uniqueRows[] = ['article' => $sku, 'quantity' => $i + 1];
+    }
+    $thousand = $catalog->checkList($uniqueRows);
+    expect(count($thousand['rows']) === 1000 && !$thousand['partial']
+        && $thousand['rows'][0]['products'][0]['id'] === 'batch-0'
+        && $thousand['rows'][999]['products'][0]['id'] === 'batch-999'
+        && array_column(array_map(static fn(array $r): array => $r['products'][0], array_slice($thousand['rows'], 0, 4)), 'availability_status')
+            === [null, 'in_stock', 'on_request', 'out_of_stock'],
+        '1000 distinct published SKUs return canonical offers and the actual four availability states');
+    $catalog->save('product', array_replace($item, ['id' => 'second-brand', 'slug' => 'second-brand', 'brand_slug' => 'caterpillar']));
+    $ambiguous = $catalog->checkList([['article' => 'RE568158', 'quantity' => 1], ['article' => 'FUTURE123', 'quantity' => 1]]);
+    expect($ambiguous['rows'][0]['status'] === 'ambiguous' && count($ambiguous['rows'][0]['products']) === 2
+        && $ambiguous['rows'][1]['status'] === 'not_found', 'Same SKU offers stay ambiguous and future publication is excluded');
+    $pdo->exec("DELETE s FROM {$prefix}product_to_store s JOIN {$prefix}cmteh_product x USING (product_id) WHERE x.source_id = 'batch-999'");
+    expect($catalog->checkList([['article' => '000BATCH0999', 'quantity' => 1]])['rows'][0]['status'] === 'not_found',
+        'A product absent from this store is excluded from the exact batch');
+    for ($i = 0; $i < 6; $i++) $catalog->save('product', array_replace($item,
+        ['id' => 'many-' . $i, 'slug' => 'many-' . $i, 'sku' => 'MANY-OFFERS']));
+    $bounded = $catalog->checkList([['article' => 'MANY-OFFERS', 'quantity' => 1]]);
+    expect($bounded['partial'] && $bounded['rows'][0]['more_matches'] && count($bounded['rows'][0]['products']) === 5
+        && $bounded['rows'][0]['status'] === 'ambiguous', 'Bounded matches report partial ambiguity instead of a false missing result');
 } finally {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

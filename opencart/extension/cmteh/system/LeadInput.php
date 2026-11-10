@@ -138,7 +138,13 @@ final class LeadInput
                 || $quantity < 1 || $quantity > 100000 || (int) $quantity != $quantity) {
                 throw new InvalidArgumentException('Укажите артикул и целое количество от 1 до 100 000.');
             }
-            $items[] = ['article' => $article, 'quantity' => (int) $quantity];
+            $parsed = ['article' => $article, 'quantity' => (int) $quantity];
+            if (property_exists($item, 'product_id')) {
+                $id = self::field($item, 'product_id', 128);
+                if ($id === null) throw new InvalidArgumentException('Проверьте выбранный товар.');
+                $parsed['product_id'] = $id;
+            }
+            $items[] = $parsed;
         }
 
         return $items;
