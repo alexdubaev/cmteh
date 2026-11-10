@@ -2,37 +2,29 @@
 {% import templates ~ 'ui.twig' as ui %}
 {% if page == 'brand' %}
   {% set brand = model.brand|default({}) %}
-  <section class="brand-hero"><div class="shell brand-hero-grid">
-    <div><div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span><span>{{ brand.name }}</span></div>
-      <h1>{{ brand.name }}</h1><p>{{ brand.description }}</p><a class="button primary" href="/catalog?brand={{ brand.slug|url_encode }}">Все товары {{ brand.name }}</a>
-    </div>
-    <div class="brand-monogram" aria-hidden="true">{% if brand.image_url|default('') %}<img src="{{ brand.image_url }}" alt="">{% else %}<span>{{ brand.name }}</span>{% endif %}</div>
-  </div></section>
-  <section class="section shell">
-    <div class="brand-stats">
-      <div><strong>{{ model.total|default(0) }}</strong><span>товаров в каталоге бренда</span></div>
-      <div><strong>Поиск</strong><span>по артикулу и названию</span></div>
-      <div><strong>Заявка</strong><span>запрос по выбранным позициям</span></div>
-      {% if site.brand_business_label|default('') %}<div><strong>{{ site.brand_business_label }}</strong><span>{{ site.brand_business_text }}</span></div>{% endif %}
-    </div>
-    <div class="section-heading"><div><h2>Товары</h2></div></div>
+  <div class="shell page-shell collection-page">
+    <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span><span>{{ brand.name }}</span></div>
+    <div class="collection-heading"><h1>{{ brand.name }}</h1>{% if brand.image_url|default('') %}<img src="{{ brand.image_url }}" alt="" width="96" height="64">{% endif %}<a class="button secondary" href="/catalog?brand={{ brand.slug|url_encode }}">Все товары {{ brand.name }}</a></div>
+    <p class="collection-count">Товаров: {{ model.total|default(0) }}</p>
     {% if model.products|default([]) %}
       <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
     {% else %}<div class="panel empty-state"><p>В опубликованном каталоге пока нет товаров этого бренда.</p><a class="button primary" href="/request">Запросить запчасть</a></div>{% endif %}
     {{ ui.collectionPagination(model.collection_path, model.page, model.total, model.limit) }}
-  </section>
+    {% if brand.description or site.brand_business_label|default('') %}<details class="collection-about panel"><summary>О бренде {{ brand.name }}</summary><div class="prose">{% if brand.description %}<p>{{ brand.description }}</p>{% endif %}{% if site.brand_business_label|default('') %}<h2>{{ site.brand_business_label }}</h2><p>{{ site.brand_business_text }}</p>{% endif %}</div></details>{% endif %}
+  </div>
 {% else %}
   {% set category = model.category|default({}) %}
   <div class="shell page-shell">
     <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span><span>{{ category.title }}</span></div>
-    <div class="page-title category-title"><h1>{{ category.h1|default(category.title) }}</h1>{% if category.intro|default(category.description|default('')) %}<p>{{ category.intro|default(category.description)|striptags }}</p>{% endif %}<a class="button secondary" href="/catalog?category={{ category.slug|url_encode }}">Открыть с фильтрами</a></div>
-    {% if category.image_url|default('') %}<figure class="article-cover"><img src="{{ category.image_url }}" alt="{{ category.title }}"></figure>{% endif %}
+    <div class="page-title category-title"><h1>{{ category.h1|default(category.title) }}</h1><a class="button secondary" href="/catalog?category={{ category.slug|url_encode }}">Открыть с фильтрами</a></div>
+
     {% set children = categories|filter(item => item.parent_slug|default('') == category.slug) %}
     {% if children %}<nav class="panel prose" aria-label="Подкатегории"><ul>{% for child in children %}<li><a href="/category/{{ child.slug|url_encode }}">{{ child.title }}</a></li>{% endfor %}</ul></nav>{% endif %}
     {% if model.products|default([]) %}
       <div class="product-grid">{% for product in model.products %}{{ ui.card(product) }}{% endfor %}</div>
     {% else %}<div class="panel empty-state"><h2>Пока нет опубликованных товаров</h2><a class="button primary" href="/request">Отправить запрос</a></div>{% endif %}
     {{ ui.collectionPagination(model.collection_path, model.page, model.total, model.limit) }}
+    {% if category.intro|default(category.description|default('')) or category.image_url|default('') %}<details class="collection-about panel"><summary>О категории</summary><div class="prose">{% if category.intro|default(category.description|default('')) %}<p>{{ category.intro|default(category.description)|striptags }}</p>{% endif %}{% if category.image_url|default('') %}<figure class="article-cover"><img src="{{ category.image_url }}" alt="{{ category.title }}"></figure>{% endif %}</div></details>{% endif %}
   </div>
 {% endif %}
 {% endautoescape %}

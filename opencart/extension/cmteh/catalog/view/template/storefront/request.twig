@@ -4,7 +4,7 @@
   <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><span>{{ landing.title|default('Корзина') }}</span></div>
   <div class="page-title request-title"><h1>{{ landing.h1|default(landing.title|default('Корзина')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
   {% include templates ~ 'editorial.twig' with {content: landing} %}
-  <section class="panel list-transition" id="import"><h2>Есть список запчастей?</h2><p>Проверьте наличие по артикулам или передайте исходный файл менеджеру. В корзину можно добавить выбранные предложения каталога.</p><a class="button secondary" href="/parts-list{% if params.article|default('') %}?article={{ params.article|url_encode }}{% endif %}">Проверить список или отправить на расценку</a></section>
+  <p class="list-transition" id="import"><a href="/parts-list{% if params.article|default('') %}?article={{ params.article|url_encode }}{% endif %}">Проверить список или отправить на расценку</a></p>
   <div class="request-layout">
     <section class="request-items panel" data-cart>
       <div class="section-heading"><div><h2 data-cart-heading>Корзина пока пуста</h2></div></div>

@@ -18,16 +18,10 @@
 }|filter(label => label is not empty) %}
 <div class="shell page-shell">
   <div class="breadcrumbs catalog-breadcrumbs"><a href="/">Главная</a><span>/</span><span>{{ landing.title|default('Каталог') }}</span></div>
-  {% include templates ~ 'editorial.twig' with {content: landing} %}
   <div class="catalog-layout">
     <div class="catalog-heading-row">
-      <div class="catalog-head"><h1>{{ landing.h1|default(landing.title|default('Каталог')) }}</h1>{% if landing.intro|default('') %}<p>{{ landing.intro }}</p>{% endif %}</div>
+      <div class="catalog-head"><h1>{{ landing.h1|default(landing.title|default('Каталог')) }}</h1></div>
       <div class="catalog-controls">
-        {% if filters %}
-        <div class="active-filters" aria-label="Активные фильтры">
-          {% for key, label in filters %}<a href="{{ ui.catalogHref(params, {(key): ''}) }}">{{ label }} <b aria-hidden="true">×</b></a>{% endfor %}
-          <a class="active-filters-reset" href="/catalog">Сбросить все</a>
-        </div>{% endif %}
         <div class="catalog-toolbar">
           <span>Найдено: <strong>{{ model.total|default(products|length) }}</strong></span>
           {% if model.partial|default(false) %}<span class="catalog-partial" role="status">Часть совпадений не проверена.</span>{% endif %}
@@ -43,8 +37,14 @@
         </div>
       </div>
     </div>
-    <details class="filter-disclosure" open><summary>Фильтры и подбор</summary>
+    <details class="filter-disclosure" open><summary>Фильтры и подбор{% if filters %} · {{ filters|length }}{% endif %}</summary>
       <aside class="filters panel">
+        {% if filters %}
+        <div class="active-filters" aria-label="Активные фильтры">
+          {% for key, label in filters %}<a href="{{ ui.catalogHref(params, {(key): ''}) }}">{{ label }} <b aria-hidden="true">×</b></a>{% endfor %}
+          <a class="active-filters-reset" href="/catalog">Сбросить все</a>
+        </div>{% endif %}
+
         <form class="facet-form" action="/catalog" method="get">
           {% for key in ['q', 'brand', 'category', 'sort'] %}{% if params[key]|default('') %}<input type="hidden" name="{{ key }}" value="{{ params[key] }}">{% endif %}{% endfor %}
           <label>Наличие<select name="availability"><option value="">Любое</option>
@@ -91,5 +91,7 @@
       </nav>{% endif %}
     </section>
   </div>
+  {% if landing.intro|default('') %}<details class="collection-about panel"><summary>О каталоге</summary><p>{{ landing.intro }}</p></details>{% endif %}
+  {% include templates ~ 'editorial.twig' with {content: landing} %}
 </div>
 {% endautoescape %}

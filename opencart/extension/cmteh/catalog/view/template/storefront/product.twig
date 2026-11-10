@@ -17,21 +17,6 @@
     {% if brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span>/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span>/</span>{% endif %}<span>{{ product.sku }}</span>
   </div>
   <section class="product-page panel{{ photos ? '' : ' product-page-no-photo' }}">
-    <div class="product-media">
-      {% if photos %}
-        {% set first = photos|first %}
-        <div class="product-gallery">
-          <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
-          {% if photos|length > 1 %}<div class="product-thumbs" aria-label="Галерея товара">
-            {% for image in photos|slice(0, 8) %}
-              <button class="{{ loop.first ? 'active' : '' }}" type="button" data-gallery-src="{{ image.url }}" aria-label="Показать изображение {{ loop.index }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}"><img src="{{ image.url }}" alt="{{ image.alt_text|default(product.title ~ ', изображение ' ~ loop.index) }}" width="160" height="120" loading="lazy" decoding="async"></button>
-            {% endfor %}
-          </div>{% endif %}
-        </div>
-      {% else %}
-        <div class="product-placeholder product-placeholder-compact" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(24) }}<span>Фото не предоставлено</span></div>
-      {% endif %}
-    </div>
     <div class="product-info">
       <div class="product-tags">{% if product.brand %}<span>{{ product.brand }}</span>{% endif %}
         {% if ui.part(product.part_type|default('')) %}<span>{{ ui.part(product.part_type) }}</span>{% endif %}
@@ -46,6 +31,21 @@
           {% if site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
           {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
         </div>
+      {% endif %}
+    </div>
+    <div class="product-media">
+      {% if photos %}
+        {% set first = photos|first %}
+        <div class="product-gallery">
+          <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
+          {% if photos|length > 1 %}<div class="product-thumbs" aria-label="Галерея товара">
+            {% for image in photos|slice(0, 8) %}
+              <button class="{{ loop.first ? 'active' : '' }}" type="button" data-gallery-src="{{ image.url }}" aria-label="Показать изображение {{ loop.index }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}"><img src="{{ image.url }}" alt="{{ image.alt_text|default(product.title ~ ', изображение ' ~ loop.index) }}" width="160" height="120" loading="lazy" decoding="async"></button>
+            {% endfor %}
+          </div>{% endif %}
+        </div>
+      {% else %}
+        <div class="product-placeholder product-placeholder-compact" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(24) }}<span>Фото не предоставлено</span></div>
       {% endif %}
     </div>
   </section>
