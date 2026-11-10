@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-4";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-5";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
@@ -148,7 +148,11 @@ document.querySelector("[data-close-quick]")?.addEventListener("click", () => qu
 quickDialog?.addEventListener("click", (event) => {
   if (event.target === quickDialog) quickDialog.close();
 });
-quickDialog?.addEventListener("close", () => quickTrigger?.focus({ preventScroll: true }));
+quickDialog?.addEventListener("close", () => {
+  // The opener must be visible before focus can leave a validated dialog field.
+  mobileActions?.classList.remove("is-field-focused");
+  quickTrigger?.focus({ preventScroll: true });
+});
 
 const backToTop = document.querySelector("[data-back-to-top]");
 if (backToTop) {

@@ -136,6 +136,28 @@ try {
     assert.equal((await storage(page))[0].quantity, 2);
   });
 
+  await scenario("Невалидный короткий запрос → закрытие → фокус и нижняя навигация", async (page) => {
+    await page.setViewportSize({ width: 390, height: 664 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    const trigger = page.getByRole("link", { name: "Запрос", exact: true });
+    const dialog = page.getByRole("dialog");
+    for (const close of [() => page.keyboard.press("Escape"), () => dialog.locator("[data-close-quick]").click()]) {
+      await trigger.click();
+      await dialog.getByRole("button", { name: "Отправить запрос", exact: true }).click();
+      await page.waitForFunction(() => getComputedStyle(document.querySelector(".mobile-actions")).visibility === "hidden");
+      await close();
+      await dialog.waitFor({ state: "hidden" });
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+      assert.equal(await trigger.evaluate((link) => document.activeElement === link), true,
+        "После закрытия невалидной формы фокус должен вернуться на видимую ссылку Запрос");
+      assert.equal(await page.locator(".mobile-actions").evaluate((bar) => getComputedStyle(bar).visibility), "visible");
+    }
+    // A real click proves that the restored bottom action remains reachable.
+    await trigger.click();
+    assert.equal(await dialog.isVisible(), true);
+  });
+
   await scenario("Короткий запрос со страницы корзины сохраняет корзину", async (page) => {
     await page.addInitScript(() => localStorage.setItem("smtechno-request", JSON.stringify([
       { article: "RE568158", title: "Тестовая позиция", brand: "John Deere", quantity: 2 },
