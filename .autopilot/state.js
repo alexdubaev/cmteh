@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "mobile-ux",
-  "dir": "2026-11-10-mobile-ux--wip",
+  "dir": "2026-11-10-mobile-ux",
   "title": "Удобная мобильная витрина СМ ТЕХНО",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "e3f6023",
   "startedAt": "2026-11-10T19:04:14+03:00",
-  "updatedAt": "2026-11-10T20:01:17+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-10T20:23:43+03:00",
+  "finishedAt": "2026-11-10T20:23:43+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -60,16 +60,17 @@ window.STATE =
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-11-10T19:51:01+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T19:51:01+03:00",
+      "finishedAt": "2026-11-10T20:23:43+03:00"
     }
   ],
   "requirements": {
     "total": 16,
-    "done": 13,
+    "done": 16,
     "inTicket": 0,
     "inSpec": 0,
-    "placeholder": 3,
+    "placeholder": 0,
     "deferred": 0,
     "dropped": 0
   },
@@ -93,7 +94,8 @@ window.STATE =
         "R13i",
         "R14i",
         "G01",
-        "G02"
+        "G02",
+        "D01"
       ],
       "blockedBy": [],
       "wave": 1,
@@ -112,7 +114,7 @@ window.STATE =
       "model": "обычная",
       "status": "done",
       "startedAt": "2026-11-10T19:17:42+03:00",
-      "finishedAt": "2026-11-10T19:43:46+03:00",
+      "finishedAt": "2026-11-10T20:21:31+03:00",
       "retries": 0,
       "repairs": 1,
       "repairFindings": [
@@ -122,7 +124,7 @@ window.STATE =
         "passed": 26,
         "failed": 0
       },
-      "commit": "3828b38"
+      "commit": "f5a61e9"
     },
     {
       "id": "F1",
@@ -142,19 +144,52 @@ window.STATE =
       "review": "да — ремонт ветки",
       "model": "сильная",
       "status": "done",
-      "retries": 0,
-      "repairs": 0,
       "startedAt": "2026-11-10T19:46:36+03:00",
       "finishedAt": "2026-11-10T19:49:44+03:00",
+      "retries": 0,
+      "repairs": 0,
       "tests": {
         "passed": 7,
         "failed": 0
       },
       "commit": "3c41855"
+    },
+    {
+      "id": "F2",
+      "title": "# F2: возврат фокуса после невалидной короткой формы",
+      "requirements": [
+        "G01",
+        "R10",
+        "R11",
+        "R14i",
+        "D02"
+      ],
+      "blockedBy": [],
+      "wave": 3,
+      "zone": [
+        "opencart/extension/cmteh/catalog/view/assets/storefront.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/responsive-ux.css",
+        "opencart/extension/cmteh/catalog/view/assets/request.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/request-import.mjs",
+        "opencart/extension/cmteh/catalog/view/template/storefront/layout.twig",
+        "opencart/tests/browser/storefront.mjs"
+      ],
+      "review": "нет",
+      "model": "обычная",
+      "status": "done",
+      "startedAt": "2026-11-10T20:10:01+03:00",
+      "finishedAt": "2026-11-10T20:21:32+03:00",
+      "retries": 0,
+      "repairs": 0,
+      "tests": {
+        "passed": 8,
+        "failed": 0
+      },
+      "commit": "f5a61e9"
     }
   ],
   "tests": {
-    "passed": 103,
+    "passed": 104,
     "failed": 0
   },
   "debt": {
@@ -168,7 +203,7 @@ window.STATE =
     "fixed": 4,
     "deferred": 0,
     "items": [
-      "Уточнены две равные кнопки, SVG и бело-жёлтая адаптация reference; backend intent/совместимость/проверки объяснены как обязательные границы, не новые пользовательские функции"
+      "Reference now specifies two equal white/yellow actions with SVG icons. Intent, compatibility and checks are implementation safeguards under existing requirements."
     ]
   },
   "concerns": [],
@@ -206,9 +241,24 @@ window.STATE =
     "2026-11-10T19:51:01+03:00",
     "2026-11-10T19:54:17+03:00",
     "2026-11-10T20:01:16+03:00",
-    "2026-11-10T20:01:17+03:00"
+    "2026-11-10T20:01:17+03:00",
+    "2026-11-10T20:03:49+03:00",
+    "2026-11-10T20:03:50+03:00",
+    "2026-11-10T20:10:00+03:00",
+    "2026-11-10T20:10:01+03:00",
+    "2026-11-10T20:13:01+03:00",
+    "2026-11-10T20:18:10+03:00",
+    "2026-11-10T20:18:11+03:00",
+    "2026-11-10T20:21:30+03:00",
+    "2026-11-10T20:21:31+03:00",
+    "2026-11-10T20:21:32+03:00",
+    "2026-11-10T20:21:33+03:00",
+    "2026-11-10T20:21:34+03:00",
+    "2026-11-10T20:21:43+03:00",
+    "2026-11-10T20:21:44+03:00",
+    "2026-11-10T20:23:43+03:00"
   ],
-  "rev": 36,
+  "rev": 52,
   "waiting": null,
   "waits": [
     {
@@ -449,6 +499,115 @@ window.STATE =
       "ok": true,
       "checked": 6,
       "matched": 6
+    },
+    {
+      "t": "2026-11-10T20:03:49+03:00",
+      "k": "gate",
+      "g": "G2",
+      "ok": true,
+      "found": 4,
+      "fixed": 4,
+      "deferred": 0
+    },
+    {
+      "t": "2026-11-10T20:03:50+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T20:10:00+03:00",
+      "k": "tickets",
+      "n": 3
+    },
+    {
+      "t": "2026-11-10T20:10:01+03:00",
+      "k": "ticket",
+      "ids": [
+        "F2"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T20:13:01+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done"
+    },
+    {
+      "t": "2026-11-10T20:18:10+03:00",
+      "k": "ticket",
+      "ids": [
+        "F2"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 8,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T20:18:11+03:00",
+      "k": "tests",
+      "passed": 104,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-10T20:21:30+03:00",
+      "k": "tickets",
+      "n": 3
+    },
+    {
+      "t": "2026-11-10T20:21:31+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done"
+    },
+    {
+      "t": "2026-11-10T20:21:32+03:00",
+      "k": "ticket",
+      "ids": [
+        "F2"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 8,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T20:21:33+03:00",
+      "k": "tests",
+      "passed": 104,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-10T20:21:34+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": false,
+      "problems": 1
+    },
+    {
+      "t": "2026-11-10T20:21:43+03:00",
+      "k": "tickets",
+      "n": 3
+    },
+    {
+      "t": "2026-11-10T20:21:44+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T20:23:43+03:00",
+      "k": "finish",
+      "result": "Мобильная витрина обновлена на test.cmteh.ru:16 требований,104 local PASS,43 host PASS; фото целиком,компактные категории,короткий запрос и Наверх"
     }
   ],
   "reqList": [
@@ -495,8 +654,7 @@ window.STATE =
     {
       "id": "R09",
       "text": "«Внизу можно сделать как на моем втором сайте, позвонить»",
-      "status": "placeholder",
-      "why": "Номер только из настроек CMS; заглушку не выдавать за реальный"
+      "status": "done"
     },
     {
       "id": "R10",
@@ -521,8 +679,7 @@ window.STATE =
     {
       "id": "R14i",
       "text": "(подразумевается) удобство подтверждается проверкой реальных действий",
-      "status": "placeholder",
-      "why": "Standing owner instruction: тестировать на хостинге; учитывать кеш/MIME"
+      "status": "done"
     },
     {
       "id": "G01",
@@ -532,8 +689,7 @@ window.STATE =
     {
       "id": "G02",
       "text": "«Да, использовать +7 911 921-22-14»",
-      "status": "placeholder",
-      "why": "Телефон в test CMS, не в source"
+      "status": "done"
     }
   ],
   "gates": {
@@ -545,14 +701,14 @@ window.STATE =
     },
     "G2": {
       "ok": true,
-      "at": "2026-11-10T19:16:59+03:00",
+      "at": "2026-11-10T20:03:49+03:00",
       "found": 4,
       "fixed": 4,
       "deferred": 0
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T19:46:35+03:00",
+      "at": "2026-11-10T20:21:44+03:00",
       "problems": 0
     },
     "G4": {
@@ -562,11 +718,12 @@ window.STATE =
       "matched": 6
     }
   },
-  "result": null,
+  "result": "Мобильная витрина обновлена на test.cmteh.ru:16 требований,104 local PASS,43 host PASS; фото целиком,компактные категории,короткий запрос и Наверх",
   "report": [
     "Один дополнительный визуальный corrective pass объявлен пользователю: прежний fit уменьшал фото до миниатюры; после closure косметических повторов не будет",
     "Локальная реализация принята; реальный телефон R09/G02 и host acceptance R14i честно помечены pending до после-merge операции. Это действия lead, не отсутствие данных от владельца.",
     "Независимое whole-branch review нашло2подтверждённых UIсбоя; F1 исправлен3c41855, узкий closure обоих воспроизведений PASS, новых дефектов нет. Второе whole-review не запускалось.",
-    "Первый full gate оборван обвязкой stdout cp1251 на Unicode стрелке; это ошибка журнала lead, не PASS. Процесс завершён, его собственный runtime остановлен; неизменённый3c41855 проверяется повторно в fresh r2 с UTF-8 и redaction логов."
+    "Первый full gate оборван обвязкой stdout cp1251 на Unicode стрелке; это ошибка журнала lead, не PASS. Процесс завершён, его собственный runtime остановлен; неизменённый3c41855 проверяется повторно в fresh r2 с UTF-8 и redaction логов.",
+    "Readable record for earlier Windows-encoded notes: D01 corrected the thumbnail-size photo; F1 fixed two review findings and passed narrow closure; the first full run failed only in the outer cp1251 log writer and the fresh UTF-8 r2 completed 103/0; phone and host acceptance remain pending until the post-merge operation. Details: local-acceptance.md."
   ]
 }
