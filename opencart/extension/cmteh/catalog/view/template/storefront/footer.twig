@@ -25,6 +25,9 @@
       <div class="footer-note">{% if site.footer_brand_label|default('') %}<span>{{ site.footer_brand_label }}</span>{% endif %}{% if site.footer_disclaimer|default('') %}<p>{{ site.footer_disclaimer }}</p>{% endif %}</div>
     {% endif %}
   </div>
+  {% if site.social_links|default([]) %}<nav class="shell footer-social-links" aria-label="Социальные сети">
+    {% for link in site.social_links %}{% set socialUrl = ui.href(link.url|default('')) %}{% if socialUrl and link.label|default('') %}<a href="{{ socialUrl }}" rel="noopener noreferrer">{{ link.label }}</a>{% endif %}{% endfor %}
+  </nav>{% endif %}
   {% if site.sections|default([]) %}<div class="shell">{% include templates ~ 'sections.twig' with {sections: site.sections} %}</div>{% endif %}
   <div class="shell footer-bottom">
     {% if site.footer_copyright|default('') %}<span>{{ site.footer_copyright }}</span>{% elseif company %}<span>В© {{ 'now'|date('Y') }} {{ company }}</span>{% endif %}

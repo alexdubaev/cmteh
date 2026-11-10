@@ -96,6 +96,11 @@ final class StorefrontPages
 
         switch ($page) {
             case 'home':
+                $model['home_brands'] = $this->homeItems($model['brands'], $home['brands_mode'] ?? 'auto', $home['brand_slugs'] ?? []);
+                $model['home_categories'] = $this->homeItems($model['categories'], $home['categories_mode'] ?? 'auto_roots', $home['category_slugs'] ?? []);
+                $categoryLimit = (int) ($home['categories_limit'] ?? 8);
+                if ($categoryLimit > 0) $model['home_categories'] = array_slice($model['home_categories'], 0, $categoryLimit);
+                $model['home_blocks'] = $this->homeBlocks($home['home_blocks'] ?? []);
                 $model += $this->catalog->products(['limit' => 6]);
                 $model['entries'] = array_map(self::htmlFields(...), $this->catalog->content('articles')['items']);
                 $meta['title'] = $meta['title'] ?: ($record['hero_title'] ?? '');
@@ -207,6 +212,30 @@ final class StorefrontPages
         }
 
         return compact('page', 'params', 'model', 'site', 'navigation', 'meta', 'jsonLd') + ['status' => 200];
+    }
+
+    private function homeItems(array $items, string $mode, array $slugs): array
+    {
+        if ($mode === 'selected') {
+            $bySlug = array_column($items, null, 'slug');
+            $selected = [];
+            foreach ($slugs as $slug) if (isset($bySlug[$slug])) $selected[] = $bySlug[$slug];
+            return $selected;
+        }
+        return $mode === 'auto_roots'
+            ? array_values(array_filter($items, static fn(array $item): bool => empty($item['parent_slug']))) : $items;
+    }
+
+    private function homeBlocks(array $settings): array
+    {
+        $blocks = [];
+        foreach (['hero', 'brands', 'categories', 'products', 'order', 'articles', 'sections'] as $order => $key) {
+            $blocks[$key] = ['key' => $key, 'enabled' => true, 'sort_order' => $order * 10];
+        }
+        foreach ($settings as $block) if (isset($blocks[$block['key'] ?? ''])) $blocks[$block['key']] = $block;
+        $blocks = array_values(array_filter($blocks, static fn(array $block): bool => $block['enabled']));
+        usort($blocks, static fn(array $a, array $b): int => $a['sort_order'] <=> $b['sort_order']);
+        return $blocks;
     }
 
     private function paginate(string $path, int $requested, array $listing, array &$meta): bool

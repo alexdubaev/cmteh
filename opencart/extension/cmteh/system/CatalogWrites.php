@@ -64,9 +64,12 @@ trait CatalogWrites
             return $this->validateProduct($row);
         }
         if ($type === 'brand') {
-            return array_replace(array_intersect_key($row, array_flip(['id', 'slug', 'status', 'is_indexable', 'sort_order', 'published_at'])), [
+            return array_replace(array_intersect_key($row, array_flip(['id', 'slug', 'status', 'is_indexable', 'sort_order', 'published_at', 'seo_title', 'seo_description', 'canonical_url', 'image_path'])), [
                 'name' => CatalogInput::text($row['name'] ?? null, 64, 'name', true),
                 'description' => CatalogInput::text($row['description'] ?? null, 2000, 'description'),
+                'seo_title' => CatalogInput::text($row['seo_title'] ?? null, 255, 'seo_title'),
+                'seo_description' => CatalogInput::text($row['seo_description'] ?? null, 255, 'seo_description'),
+                'canonical_url' => CatalogInput::url($row['canonical_url'] ?? null),
                 'accent' => is_string($row['accent'] ?? null) && preg_match('/^#[a-f0-9]{6}$/iD', $row['accent']) ? $row['accent'] : '#f7c400',
             ]);
         }
@@ -87,6 +90,13 @@ trait CatalogWrites
         if ($type === 'category') {
             $row['seo_title'] = CatalogInput::text($row['seo_title'] ?? null, 255, 'seo_title');
             $row['seo_description'] = CatalogInput::text($row['seo_description'] ?? null, 255, 'seo_description');
+        }
+        if ($type === 'home') { $row = $this->validateHome($row); }
+        if ($type === 'site' && isset($row['social_links'])) {
+            foreach ($this->objectList($row['social_links'], 30, 'social_links') as $link) {
+                CatalogInput::text($link['label'] ?? null, 80, 'label', true);
+                if (CatalogInput::url($link['url'] ?? null) === null) throw new InvalidArgumentException('Соцссылка: небезопасный URL');
+            }
         }
         return $this->sanitizeContent($row);
     }
@@ -226,28 +236,7 @@ trait CatalogWrites
         }
     }
 
-    public function editRows(string $type, int $page = 1): array
-    {
-        $offset = (max(1, min(4000, $page)) - 1) * 25;
-        if ($type === 'product') {
-            $sql = 'SELECT x.source_id AS id, x.slug, d.name AS title, p.status FROM ' . $this->table('cmteh_product') . ' x
-                JOIN ' . $this->table('product') . ' p USING (product_id)
-                JOIN ' . $this->table('product_description') . " d ON d.product_id = p.product_id AND d.language_id = ?
-                ORDER BY p.product_id LIMIT 25 OFFSET $offset";
-            return $this->run($sql, [$this->languageId])->fetchAll(PDO::FETCH_ASSOC);
-        }
-        if (in_array($type, ['category', 'brand'], true)) {
-            return $this->run('SELECT source_id AS id, slug FROM ' . $this->table('cmteh_' . $type) .
-                " ORDER BY source_id LIMIT 25 OFFSET $offset")->fetchAll(PDO::FETCH_ASSOC);
-        }
-        if (in_array($type, self::CONTENT_TYPES, true)) {
-            return $this->run('SELECT source_id AS id, slug, status FROM ' . $this->table('cmteh_content') .
-                " WHERE type = ? ORDER BY sort_order, source_id LIMIT 25 OFFSET $offset", [$type])->fetchAll(PDO::FETCH_ASSOC);
-        }
-        return [];
-    }
-
-    public function editRecord(string $type, string $id): ?array
+    private function storedEditRecord(string $type, string $id): ?array
     {
         if ($type === 'product') {
             $row = $this->run('SELECT x.*, p.status, p.price, p.sort_order, d.name, d.description, d.meta_title, d.meta_description,
@@ -332,7 +321,7 @@ trait CatalogWrites
             ], $this->objectList($row[$field] ?? [], 50, $field));
         }
         $row['specification_items'] = array_map(static fn(array $item): array => [
-            'group_name' => CatalogInput::text($item['group_name'] ?? null, 64, 'group_name') ?: 'Основные',
+            'group_name' => CatalogInput::text($item['group_name'] ?? $item['group'] ?? null, 64, 'group_name') ?: 'Основные',
             'name' => CatalogInput::text($item['name'] ?? null, 64, 'name', true),
             'value' => CatalogInput::text($item['value'] ?? null, 1000, 'value', true),
             'unit' => CatalogInput::text($item['unit'] ?? null, 40, 'unit') ?: null,
@@ -482,6 +471,9 @@ trait CatalogWrites
             'short_description', 'canonical_url', 'delivery_status', 'codes', 'images', 'documents', 'specification_items', 'relations',
             'confirm_zero_price',
         ]));
+        $oldDetails = $previous === false ? [] : self::decode((string) $this->run('SELECT data FROM ' . $this->table('cmteh_product') . ' WHERE product_id = ?', [$id])->fetchColumn());
+        $details = array_replace($oldDetails, $details);
+        $details['status'] = $row['status'];
         $details['specifications'] = array_column($row['specification_items'], 'value', 'name');
         $meta = [
             $row['slug'], $row['sku'], $row['mpn'], CatalogInput::normalize($row['sku']), CatalogInput::normalize($row['mpn'] ?? ''),
@@ -500,6 +492,7 @@ trait CatalogWrites
                 manufacturer_id = ?, category_id = ?, published_at = ?, indexable = ?, price_status = ?, currency = ?,
                 availability = ?, part_type = ?, main_image = ?, data = ? WHERE product_id = ?", [...$meta, $id]);
         }
+        $this->writeAdminNativeFields('product', $id, $row);
         return $previous === false ? 'added' : 'updated';
     }
 
@@ -527,6 +520,7 @@ trait CatalogWrites
         } else {
             $this->run("UPDATE $map SET slug = ?, published_at = ?, data = ? WHERE category_id = ?", [$row['slug'], CatalogInput::date($row['published_at']), self::encode($row), $id]);
         }
+        $this->writeAdminNativeFields('category', $id, $row);
         return $previous === false ? 'added' : 'updated';
     }
 
@@ -550,9 +544,10 @@ trait CatalogWrites
             $this->run("INSERT INTO $map (manufacturer_id, source_id, slug, status, published_at, data) VALUES (?, ?, ?, ?, ?, ?)",
                 [$id, $row['id'], $row['slug'], $status, CatalogInput::date($row['published_at']), self::encode($row)]);
         } else {
-            $this->run("UPDATE $map SET slug = ?, status = ?, data = ? WHERE manufacturer_id = ?",
-                [$row['slug'], $status, self::encode($row), $id]);
+            $this->run("UPDATE $map SET slug = ?, status = ?, data = ?, published_at = ? WHERE manufacturer_id = ?",
+                [$row['slug'], $status, self::encode($row), CatalogInput::date($row['published_at']), $id]);
         }
+        $this->writeAdminNativeFields('brand', $id, $row);
         return $previous === false ? 'added' : 'updated';
     }
 
@@ -565,6 +560,17 @@ trait CatalogWrites
         foreach ($items as $sort => $item) {
             $key = hash('sha256', $item['group_name'] . "\0" . $item['name'] . "\0" . ($item['unit'] ?? ''));
             $id = $this->run("SELECT attribute_id FROM $attributes WHERE field_key = ?", [$key])->fetchColumn();
+            if ($id === false) {
+                // Reuse an existing native attribute by its language/group/name identity.
+                $id = $this->run('SELECT a.attribute_id FROM ' . $this->table('attribute') . ' a
+                    JOIN ' . $this->table('attribute_description') . ' d ON d.attribute_id=a.attribute_id AND d.language_id=?
+                    JOIN ' . $this->table('attribute_group_description') . ' g ON g.attribute_group_id=a.attribute_group_id AND g.language_id=d.language_id
+                    WHERE d.name=? AND g.name=? ORDER BY a.attribute_id LIMIT 1',
+                    [$this->languageId, $item['name'], $item['group_name']])->fetchColumn();
+                if ($id !== false) {
+                    $this->run("INSERT INTO $attributes (attribute_id,field_key,group_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE field_key=field_key", [$id,$key,$item['group_name']]);
+                }
+            }
             if ($id === false) {
                 $group = $this->run('SELECT attribute_group_id FROM ' . $this->table('attribute_group_description') .
                     ' WHERE language_id = ? AND name = ? ORDER BY attribute_group_id LIMIT 1', [$this->languageId, $item['group_name']])->fetchColumn();

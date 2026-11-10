@@ -1,0 +1,27 @@
+{% if heroPhoto or home.hero_title|default('') or home.hero_text|default('') %}
+<section class="hero{{ heroPhoto and not mobilePhoto ? ' hero-cms-image' : '' }}">
+  {% if heroPhoto %}
+  <picture class="hero-background"{% if not home.hero_image_alt|default('') %} aria-hidden="true"{% endif %}>
+    {% if mobilePhoto %}<source media="(max-width: 820px)" srcset="{{ mobilePhoto }}">{% endif %}
+    <img src="{{ heroPhoto }}" alt="{{ home.hero_image_alt|default('') }}" width="2172" height="724" fetchpriority="high">
+  </picture>
+  {% endif %}
+  <div class="shell hero-grid"><div class="hero-copy">
+    {% if home.hero_title|default('') %}<h1>{% for line in home.hero_title|split(' ', 3) %}<span>{{ line }}</span>{% if not loop.last %} {% endif %}{% endfor %}</h1>{% endif %}
+    {% if home.hero_text|default('') %}<p>{{ home.hero_text }}</p>{% endif %}
+    {% if primary and home.hero_primary_button_text|default('') or secondary and home.hero_secondary_button_text|default('') %}
+      <div class="hero-cms-actions">
+        {% if primary and home.hero_primary_button_text|default('') %}<a class="button primary" href="{{ primary }}">{{ home.hero_primary_button_text }}</a>{% endif %}
+        {% if secondary and home.hero_secondary_button_text|default('') %}<a class="button secondary" href="{{ secondary }}">{{ home.hero_secondary_button_text }}</a>{% endif %}
+      </div>
+    {% endif %}
+  </div></div>
+  {% if home.hero_article_link_text|default('') or home.hero_brand_link_text|default('') %}
+    <div class="shell hero-quicklinks" aria-label="Быстрый поиск">
+      {% if home.hero_quick_title|default('') %}<strong>{{ home.hero_quick_title }}</strong>{% endif %}
+      {% if home.hero_article_link_text|default('') %}<a href="#article-search" data-focus-search><span aria-hidden="true">⌕</span>{{ home.hero_article_link_text }} <b aria-hidden="true">→</b></a>{% endif %}
+      {% if home.hero_brand_link_text|default('') and brands %}<a href="#brands"><span aria-hidden="true">⚙</span>{{ home.hero_brand_link_text }} <b aria-hidden="true">→</b></a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endif %}

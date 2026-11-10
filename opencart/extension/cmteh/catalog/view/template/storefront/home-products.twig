@@ -1,0 +1,11 @@
+<section class="section shell home-products">
+  <div class="section-heading">
+    {% if home.products_title|default('') %}<div><h2>{{ home.products_title }}</h2></div>{% endif %}
+    {% if home.products_link_text|default('') %}<a href="/catalog">{{ home.products_link_text }} →</a>{% endif %}
+  </div>
+  {% if model.products|default([]) %}
+    <div class="product-grid home-product-grid">{% for product in model.products|slice(0, 6) %}{{ ui.card(product) }}{% endfor %}</div>
+  {% else %}
+    <div class="panel empty-state"><p>Каталог временно недоступен или пока не содержит опубликованных товаров.</p><a class="button primary" href="/request?import=1">Отправить список</a></div>
+  {% endif %}
+</section>

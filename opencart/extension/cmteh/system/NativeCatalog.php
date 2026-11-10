@@ -44,6 +44,9 @@ final class NativeCatalog
             $previous = $this->run("SELECT * FROM $table WHERE $key = ? FOR UPDATE", [$id])->fetch(PDO::FETCH_ASSOC);
 
             if ($deleted) {
+                if ($previous && !$this->run('SELECT 1 FROM ' . $this->table($native) . " WHERE $key = ?", [$id])->fetchColumn()) {
+                    $this->retireDeleted($type, $id, $previous);
+                }
                 $this->run("DELETE FROM $table WHERE $key = ? AND NOT EXISTS (SELECT 1 FROM " . $this->table($native) .
                     " WHERE $key = ?)", [$id, $id]);
             } else {
@@ -64,6 +67,36 @@ final class NativeCatalog
         } catch (Throwable $error) {
             $this->pdo->rollBack();
             throw $error;
+        }
+    }
+
+    private function retireDeleted(string $type, int $id, array $previous): void
+    {
+        $path = '/' . $type . '/' . $previous['slug'];
+        $routes = $this->table('cmteh_route');
+        $this->run("UPDATE $routes SET status=410, target=NULL WHERE target=?", [$path]);
+        $this->run("INSERT INTO $routes (path,status,target) VALUES (?,410,NULL) ON DUPLICATE KEY UPDATE status=410,target=NULL", [$path]);
+        $this->run('DELETE FROM ' . $this->table('cmteh_media_link') . ' WHERE owner_type=? AND owner_id=?', [$type,$previous['source_id']]);
+        if ($type === 'brand') {
+            $this->run('UPDATE ' . $this->table('cmteh_product') . " SET brand_norm='', manufacturer_id=0 WHERE manufacturer_id=?", [$id]);
+        }
+        if ($type === 'product') {
+            $table = $this->table('cmteh_product');
+            foreach ($this->run("SELECT product_id,data FROM $table WHERE product_id<>? FOR UPDATE", [$id])->fetchAll(PDO::FETCH_ASSOC) as $record) {
+                $data=json_decode($record['data'],true,32,JSON_THROW_ON_ERROR);
+                $data['relations']=array_values(array_filter($data['relations']??[],static fn(array $r):bool=>($r['source_id']??null)!==$previous['source_id']));
+                $data['native_related']=array_values(array_filter($data['native_related']??[],static fn($v):bool=>(int)$v!==$id));
+                $this->run("UPDATE $table SET data=? WHERE product_id=?", [self::encode($data),$record['product_id']]);
+            }
+        }
+        $content=$this->table('cmteh_content');
+        foreach ($this->run("SELECT type,source_id,status,data FROM $content FOR UPDATE", [])->fetchAll(PDO::FETCH_ASSOC) as $record) {
+            $data=json_decode($record['data'],true,32,JSON_THROW_ON_ERROR);
+            $status=(int)$record['status'];
+            if ($record['type']==='navigation' && ($data['url']??null)===$path) {$status=0;$data['status']='draft';}
+            $field=match($type){'brand'=>'brand_slugs','category'=>'category_slugs',default=>null};
+            if ($field && isset($data[$field])) $data[$field]=array_values(array_filter($data[$field],static fn($slug):bool=>$slug!==$previous['slug']));
+            $this->run("UPDATE $content SET data=?,status=? WHERE type=? AND source_id=?",[self::encode($data),$status,$record['type'],$record['source_id']]);
         }
     }
 

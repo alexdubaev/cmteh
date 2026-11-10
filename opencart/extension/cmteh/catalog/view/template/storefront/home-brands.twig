@@ -1,0 +1,10 @@
+{% if brands %}<section class="brand-strip" id="brands"><div class="shell">
+  <div class="brand-strip-heading">
+    {% if home.brands_title|default('') %}<strong>{{ home.brands_title }}</strong>{% endif %}
+    {% if home.brands_link_text|default('') %}<a class="all-brands" href="/brands">{{ home.brands_link_text }} →</a>{% endif %}
+  </div>
+  <div class="brand-list" tabindex="0" role="region" aria-label="Бренды">
+    {% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}
+  </div>
+  {% if home.brands_scroll_hint|default('') %}<p class="brand-scroll-hint">{{ home.brands_scroll_hint }} →</p>{% endif %}
+</div></section>{% endif %}
