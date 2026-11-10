@@ -1,17 +1,20 @@
 {% autoescape 'html' %}
 {% set rfq = leadType == 'request' %}
+{% set compact = compact|default(false) %}
 <form class="lead-form panel" action="/api/lead" method="post" data-lead="{{ leadType }}" aria-busy="false">
-  <h2>{{ rfq ? 'Данные для ответа' : 'Написать нам' }}</h2>
+  <h2{% if compact %} id="quick-dialog-title"{% endif %}>{{ compact ? 'Короткое обращение' : (rfq ? 'Данные для ответа' : 'Написать нам') }}</h2>
+  {% if compact %}<p class="form-hint">Оставьте имя и телефон, а комментарий добавьте при необходимости. Для заявки с выбранными товарами откройте <a href="/request">корзину</a>.</p>{% endif %}
   <p class="form-hint">* Обязательные поля{% if rfq and site.request_form_hint|default('') %}. {{ site.request_form_hint }}{% endif %}</p>
-  <label>Компания<input name="company" autocomplete="organization" maxlength="255" placeholder="ООО «Пример»"></label>
+  <label{% if compact %} hidden{% endif %}>Компания<input name="company" autocomplete="organization" maxlength="255" placeholder="ООО «Пример»"></label>
   <label>Контактное лицо *<input name="name" autocomplete="name" required minlength="2" maxlength="100" placeholder="Имя" aria-describedby="{{ leadType }}-name-error"><span id="{{ leadType }}-name-error" class="field-error" hidden></span></label>
   <div class="form-row">
     <label>Телефон *<input name="phone" type="tel" autocomplete="tel" required minlength="7" maxlength="40" placeholder="+7 …" aria-describedby="{{ leadType }}-phone-error"><span id="{{ leadType }}-phone-error" class="field-error" hidden></span></label>
-    <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="mail@company.ru" aria-describedby="{{ leadType }}-email-error"><span id="{{ leadType }}-email-error" class="field-error" hidden></span></label>
+    <label{% if compact %} hidden{% endif %}>Email<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="mail@company.ru" aria-describedby="{{ leadType }}-email-error"><span id="{{ leadType }}-email-error" class="field-error" hidden></span></label>
   </div>
-  <label>{{ rfq ? 'Комментарий' : 'Сообщение' }}<textarea name="message" rows="4" maxlength="3000" placeholder="{{ rfq ? 'Сроки, доставка, аналоги, реквизиты…' : 'Чем можем помочь?' }}"></textarea></label>
+  <label>{{ compact or rfq ? 'Комментарий' : 'Сообщение' }}<textarea name="message" rows="{{ compact ? 3 : 4 }}" maxlength="3000" placeholder="{{ rfq ? 'Сроки, доставка, аналоги, реквизиты…' : 'Чем можем помочь?' }}"></textarea></label>
   <input name="website" type="hidden" value="" autocomplete="off" aria-hidden="true" tabindex="-1">
-  <button class="button primary wide" type="submit" disabled>Отправить заявку</button>
+  {% if compact %}<p class="form-hint" role="status" data-lead-preparing>Форма подготавливается. Если отправка недоступна, свяжитесь с нами через страницу контактов.</p>{% endif %}
+  <button class="button primary wide" type="submit" disabled>{{ compact ? 'Отправить запрос' : 'Отправить заявку' }}</button>
   <p class="form-hint" role="status" data-lead-loading hidden>Отправляем заявку…</p>
   {% if rfq %}<p class="form-hint" data-cart-required>Добавьте позиции в корзину, чтобы отправить заявку.</p>{% endif %}
   <p class="form-message" data-lead-result hidden></p>

@@ -272,7 +272,7 @@ final class CmtehCatalog extends Controller
         $relationOptions = ['source_id' => ['' => 'Выберите товар'], 'relation_type' => ['analog'=>'Аналог', 'oem_cross'=>'OEM-замена', 'compatible'=>'Совместимый', 'superseded_by'=>'Заменён товаром']];
         foreach ($choices['product'] as $choice) if ($choice['id'] !== ($record['id'] ?? '')) $relationOptions['source_id'][$choice['id']] = $choice['title'];
         $blocks = [];
-        foreach (['hero'=>'Обложка', 'brands'=>'Бренды', 'categories'=>'Категории', 'products'=>'Товары', 'order'=>'Порядок заказа', 'articles'=>'Статьи', 'sections'=>'Разделы'] as $key=>$label) {
+        foreach (['hero'=>'Обложка', 'categories'=>'Категории', 'products'=>'Товары', 'brands'=>'Бренды', 'order'=>'Порядок заказа', 'articles'=>'Статьи', 'sections'=>'Разделы'] as $key=>$label) {
             $value = ['key'=>$key, 'enabled'=>true, 'sort_order'=>count($blocks)*10, 'label'=>$label];
             foreach ($record['home_blocks'] ?? [] as $block) if (($block['key'] ?? '') === $key) $value = array_replace($value, $block);
             $blocks[] = $value;

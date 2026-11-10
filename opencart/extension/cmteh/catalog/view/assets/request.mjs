@@ -1,5 +1,5 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-3";
-import { setupImport } from "./request-import.mjs?v=20261110-3";
+import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-4";
+import { setupImport } from "./request-import.mjs?v=20261110-4";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
@@ -271,6 +271,7 @@ function setupLead(form) {
     const payload = rfq
       ? { name, phone, email, company, message, request_items, page_url }
       : { company, name, phone, email, message, request_items, page_url };
+    if (type === "quick") payload.intent = "quick";
     const website = form.elements.namedItem("website").value;
     const savedDraft = readSession(draftKey);
     sending = true;
@@ -306,18 +307,20 @@ function setupLead(form) {
       if (rfq) acknowledgeCart(items);
       if (names.every((name) => form.elements.namedItem(name).value === original[name])) form.reset();
       clearSession(draftKey, savedDraft);
-      show((rfq ? "Заявка принята. Номер: " : "Заявка принята: ") + id + ". Следующий шаг: менеджер уточнит наличие и стоимость.", false);
+      show((rfq ? "Заявка принята. Номер: " : type === "quick" ? "Запрос принят: " : "Заявка принята: ") + id + ". Следующий шаг: менеджер свяжется с вами.", false);
     } catch {
       show("Не удалось получить подтверждение. Попробуйте отправить заявку ещё раз.", true);
     } finally {
       sending = false;
       sync();
-      submit.textContent = "Отправить заявку";
+      submit.textContent = type === "quick" ? "Отправить запрос" : "Отправить заявку";
       form.setAttribute("aria-busy", "false");
       progress.hidden = true;
       for (const field of names) form.elements.namedItem(field).readOnly = false;
     }
   });
+  const preparing = form.querySelector("[data-lead-preparing]");
+  if (preparing) preparing.hidden = true;
 }
 
 const cart = document.querySelector("[data-cart]");

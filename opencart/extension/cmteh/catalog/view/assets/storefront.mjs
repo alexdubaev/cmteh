@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-3";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-4";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
@@ -132,6 +132,47 @@ for (const button of document.querySelectorAll("[data-copy]")) {
   });
 }
 document.querySelector("[data-reload]")?.addEventListener("click", () => location.reload());
+
+const quickDialog = document.querySelector("[data-quick-dialog]");
+let quickTrigger;
+for (const trigger of document.querySelectorAll("[data-open-quick]")) {
+  trigger.addEventListener("click", (event) => {
+    if (!quickDialog?.showModal) return;
+    event.preventDefault();
+    quickTrigger = trigger;
+    quickDialog.showModal();
+    quickDialog.querySelector('[name="name"]')?.focus({ preventScroll: true });
+  });
+}
+document.querySelector("[data-close-quick]")?.addEventListener("click", () => quickDialog?.close());
+quickDialog?.addEventListener("click", (event) => {
+  if (event.target === quickDialog) quickDialog.close();
+});
+quickDialog?.addEventListener("close", () => quickTrigger?.focus({ preventScroll: true }));
+
+const backToTop = document.querySelector("[data-back-to-top]");
+if (backToTop) {
+  const visibleSubmits = new Set();
+  const updateBackToTop = () => { backToTop.hidden = window.scrollY < 360 || visibleSubmits.size > 0; };
+  window.addEventListener("scroll", updateBackToTop, { passive: true });
+  updateBackToTop();
+  if ("IntersectionObserver" in window) {
+    const submitObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visibleSubmits.add(entry.target);
+        else visibleSubmits.delete(entry.target);
+      }
+      updateBackToTop();
+    }, { threshold: 0.1 });
+    for (const submit of document.querySelectorAll(".lead-form button[type=submit]")) submitObserver.observe(submit);
+  }
+  backToTop.addEventListener("click", (event) => {
+    event.preventDefault();
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+    document.querySelector("#site-header")?.focus({ preventScroll: true });
+  });
+}
 
 const HISTORY_KEY = "smtechno-search-history";
 function historyItems() {

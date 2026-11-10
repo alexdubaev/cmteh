@@ -72,7 +72,14 @@ final class LeadInput
             $pageUrl = Database::siteUrl();
         }
         $items = self::items($body);
-        if ($items === [] && rtrim((string) parse_url($pageUrl ?? '', PHP_URL_PATH), '/') === '/request') {
+        $intent = property_exists($body, 'intent') ? self::field($body, 'intent', 16) : null;
+        if (property_exists($body, 'intent') && $intent !== 'quick') {
+            throw new InvalidArgumentException('Проверьте тип обращения.');
+        }
+        if ($intent === 'quick' && $items !== []) {
+            throw new InvalidArgumentException('Короткое обращение не может содержать позиции корзины.');
+        }
+        if ($intent !== 'quick' && $items === [] && rtrim((string) parse_url($pageUrl ?? '', PHP_URL_PATH), '/') === '/request') {
             throw new InvalidArgumentException('Добавьте позиции в корзину перед отправкой заявки.');
         }
 
@@ -81,7 +88,7 @@ final class LeadInput
             throw new InvalidArgumentException('Проверьте идентификатор заявки.');
         }
 
-        return [
+        $data = [
             $key === null ? self::uuid() : strtolower($key),
             [
                 'name' => $name,
@@ -93,6 +100,11 @@ final class LeadInput
                 'items' => $items,
             ],
         ];
+        if ($intent === 'quick') {
+            $data[1]['intent'] = 'quick';
+        }
+
+        return $data;
     }
 
     public static function uuid(): string
