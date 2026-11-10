@@ -1,6 +1,9 @@
 """Acceptance checks for a disposable, loopback-only OpenCart runtime."""
 
 import hashlib
+import base64
+from email import policy
+from email.parser import BytesParser
 import html
 import json
 import os
@@ -13,6 +16,7 @@ import sys
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import Request
 from uuid import uuid4
+from zipfile import ZipFile
 
 from runtime import LocalOpenCart
 
@@ -125,6 +129,137 @@ def lead_visible(manager, lead_id):
     code, page = manager.request(manager.action(LEADS, id=lead_id))
     require(code == 200 and lead_id in page and "0000550380" in page and "В очереди" in page,
             "The manager could not read the accepted lead, its items and notification status.")
+
+
+def quote_acceptance(runtime, package):
+    try:
+        _quote_acceptance(runtime, package)
+    except (ValueError, OSError) as exc:
+        # Native URLs contain session tokens: never propagate transport URLs to logs.
+        raise RuntimeError("Quote acceptance transport failed (" + type(exc).__name__ + ").") from None
+
+
+def _quote_acceptance(runtime, package):
+    """Real native ACL, immutable MIME and the CLI bytes extracted from the candidate."""
+    original = b"%PDF-1.4\n% Synthetic private quote\n1 0 obj\n<<>>\nendobj\n%%EOF\n"
+    filename = "Потребность № 01.pdf"
+    payload = {"request_key": str(uuid4()), "name": "<Quote> Example", "email": "quote@example.test",
+               "message": "Первая строка\nВторая строка", "input_kind": "file",
+               "file": {"filename": filename, "data_base64": base64.b64encode(original).decode("ascii")}}
+    code, body = runtime.request("/api/quote", json.dumps(payload).encode(), "application/json")
+    result = json.loads(body)
+    require(code == 200 and result.get("replayed") is False and set(result) == {"id", "replayed"},
+            "Public quote API did not persist a private original.")
+    quote_id = result["id"]
+    code, body = runtime.request("/api/quote", json.dumps(payload).encode(), "application/json")
+    require(code == 200 and json.loads(body) == {"id": quote_id, "replayed": True}, "HTTP quote replay changed identity.")
+    text = {"request_key": str(uuid4()), "name": "Quote text", "phone": "+70000000000",
+            "input_kind": "text", "list_text": "001A;2\n002;3"}
+    require(runtime.request("/api/quote", json.dumps(text).encode(), "application/json")[0] == 200,
+            "HTTP text quote was not accepted.")
+    require(runtime.request("/api/quote")[0] == 405
+            and runtime.request("/api/quote", b"x", "text/plain")[0] == 415
+            and runtime.request("/api/quote", b" " * 8388609, "application/json")[0] == 413,
+            "Quote method/type/encoded limits failed.")
+    request = Request(runtime.origin + "/api/quote", json.dumps(text).encode(),
+                      {"Content-Type": "application/json", "Origin": "https://other.example.test"})
+    try:
+        runtime.http.open(request, timeout=15)
+        raise RuntimeError("Cross-origin quote was accepted.")
+    except __import__("urllib.error", fromlist=["HTTPError"]).HTTPError as exc:
+        require(exc.code == 403, "Cross-origin quote did not return 403.")
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+    sessions = []
+    try:
+        reader = create_role(runtime, "Quote reader", [LEADS], [])
+        editor = create_role(runtime, "Quote manager", [LEADS], [LEADS])
+        outsider = create_role(runtime, "Quote outsider", [CATALOG], [])
+        sessions += [reader, editor, outsider]
+        def action(session, verb="", **fields):
+            return session.action(LEADS, type="quote", id=quote_id, action=verb, **fields)
+        anonymous = LocalOpenCart(runtime.directory, runtime.port)
+        code, body = anonymous.request("/admin/index.php?" + urlencode({"route": LEADS, "type": "quote", "id": quote_id, "action": "download"}))
+        require(code in (200, 401, 403) and "Synthetic private quote" not in body and filename not in body,
+                "Anonymous visitor received private quote bytes.")
+        code, body = outsider.request(action(outsider, "download"))
+        require(code in (401, 403) and "Synthetic private quote" not in body, "Unprivileged role received private quote bytes.")
+        code, page = reader.request(action(reader))
+        require(code == 200 and "&lt;Quote&gt; Example" in page and "<Quote> Example" not in page
+                and filename in page and "В очереди" in page, "Native quote detail failed or leaked unescaped contact input.")
+        with reader.http.open(runtime.origin + html.unescape(action(reader, "download")), timeout=15) as response:
+            require(response.read() == original and response.headers.get_content_type() == "application/pdf"
+                    and "no-store" in response.headers.get("Cache-Control", "")
+                    and response.headers.get("X-Content-Type-Options") == "nosniff"
+                    and response.headers.get("Content-Disposition", "").startswith("attachment;"),
+                    "Native download changed bytes or omitted private attachment headers.")
+        require(reader.request(action(reader, "deleteAttachment"), b"", FORM)[0] == 403,
+                "Read-only quote role could delete an original.")
+        require(reader.request(action(reader, "retry"), b"", FORM)[0] == 403,
+                "Read-only quote role could retry a job.")
+        for token in (None, uuid4().hex):
+            fields = {"route": LEADS, "type": "quote", "id": quote_id, "action": "download"}
+            if token is not None:
+                fields["user_token"] = token
+            code, denied = reader.request("/admin/index.php?" + urlencode(fields))
+            require("Synthetic private quote" not in denied and filename not in denied,
+                    "Missing or invalid native token exposed an original.")
+        require(editor.request(action(editor, "deleteAttachment"), b"", FORM)[0] == 409,
+                "Pending original could be deleted.")
+        require(editor.request(action(editor, "retry"), b"", FORM)[0] == 409,
+                "Pending job could be retried manually.")
+        set_failed = ("require '/var/www/html/config.php';require DIR_EXTENSION.'cmteh/system/Database.php';"
+                      "$p=\\Cmteh\\Database::connectFromOpenCart();"
+                      "$s=$p->prepare('UPDATE '.DB_PREFIX.'cmteh_quote_outbox o JOIN '.DB_PREFIX."
+                      "'cmteh_quote q ON q.quote_id=o.quote_id SET o.status=\\'failed\\',o.attempts=3 WHERE q.public_id=?');"
+                      "$s->execute(['" + quote_id + "']);")
+        runtime.docker("exec", "-T", "web", "php", "-r", set_failed, capture=True)
+        code, retried = editor.request(action(editor, "retry"), b"", FORM)
+        require(code == 200 and "Ожидает повторной отправки" in retried,
+                "Authorized failed-job retry did not preserve the original and restore the queue.")
+        with ZipFile(package) as archive:
+            cli = archive.read("cli/send-quotes.php")
+        require(cli == (ROOT / "bin/send-quotes.php").read_bytes(), "Candidate quote CLI differs from verified source.")
+        (runtime.directory / "verified-send-quotes.php").write_bytes(cli)
+        captured = "http-quote-" + uuid4().hex[:12] + ".eml"
+        counts = json.loads(runtime.docker("exec", "-T", "web", "php", "/runtime/verified-send-quotes.php",
+                                          "--config=" + CONFIG, "--capture=" + captured, "--limit=10", capture=True).stdout)
+        require(counts.get("sent", 0) >= 2, "Packaged CLI did not process the saved text and file quote.")
+        # Capture each saved quote independently through its immutable service DTO, no external transport.
+        script = ("require '/var/www/html/config.php';require DIR_EXTENSION.'cmteh/system/Quote.php';"
+                  "require DIR_EXTENSION.'cmteh/system/QuoteMail.php';"
+                  "$q=new \\Cmteh\\Quote(\\Cmteh\\Database::connectFromOpenCart(),DB_PREFIX);"
+                  "$v=$q->find('" + quote_id + "');$v['attachment']=$q->attachment('" + quote_id + "');"
+                  "echo \\Cmteh\\QuoteMail::message($v,['from'=>'info@cmteh.ru','to'=>'info@cmteh.ru','from_name'=>'СМТЕХНО']);")
+        raw = runtime.docker("exec", "-T", "web", "php", "-r", script, capture=True).stdout.encode()
+        message = BytesParser(policy=policy.default).parsebytes(raw)
+        files = list(message.iter_attachments())
+        require(len(files) == 1 and files[0].get_filename() == filename and files[0].get_payload(decode=True) == original
+                and message["From"].addresses[0].addr_spec == "info@cmteh.ru"
+                and message["To"].addresses[0].addr_spec == "info@cmteh.ru"
+                and message["Reply-To"].addresses[0].addr_spec == "quote@example.test"
+                and "Первая строка\nВторая строка" in message.get_body(preferencelist=("plain",)).get_content(),
+                "Independent MIME parser did not recover original UTF-8 name, bytes, contacts and multiline comment.")
+        require(reader.request(action(reader, "deleteAttachment"), b"", FORM)[0] == 403,
+                "Read-only role could delete an accepted file.")
+        old_opener = reader.http
+        old_download = runtime.origin + html.unescape(action(reader, "download"))
+        reader.logout()
+        with old_opener.open(old_download, timeout=15) as response:
+            revoked_body = response.read()
+            require(original not in revoked_body and b'form-login' in revoked_body,
+                    "Logged-out cookie and token still authorized a quote download.")
+        require(editor.request(action(editor, "deleteAttachment"))[0] == 405,
+                "GET could mutate an accepted attachment.")
+        code, page = editor.request(action(editor, "deleteAttachment"), b"", FORM)
+        require(code == 200 and "Вложение удалено сотрудником" in page,
+                "Authorized explicit deletion did not preserve quote history.")
+        require(editor.request(action(editor, "download"))[0] == 404,
+                "Deleted original remained downloadable.")
+        print("PASS: public quote HTTP, native access/modify privacy, parsed original MIME and packaged CLI capture", flush=True)
+    finally:
+        for session in sessions:
+            session.logout()
+        runtime.logout()
 
 
 def admin_roles(runtime, lead_id):

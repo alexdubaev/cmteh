@@ -214,5 +214,9 @@ final class Cmteh extends Controller
             require_once $system . 'Lead.php';
             (new Lead($pdo, DB_PREFIX))->migrate();
         }
+        if (is_file($system . 'Quote.php')) {
+            require_once $system . 'Quote.php';
+            (new \Cmteh\Quote($pdo, DB_PREFIX))->migrate();
+        }
     }
 }

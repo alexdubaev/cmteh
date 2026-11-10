@@ -1,0 +1,29 @@
+{{ header }}{{ column_left }}
+<div id="content"><div class="page-header"><div class="container-fluid"><h1>Расценка списков</h1><a href="{{ leads }}">Корзинные заявки</a></div></div>
+<div class="container-fluid">
+{% if quote %}
+<p><a href="{{ back }}">Все расценки</a></p>
+<div class="card"><div class="card-header">Расценка {{ quote.public_id|e }}</div><div class="card-body">
+<dl>
+<dt>Получена, UTC</dt><dd>{{ quote.created_at|e }}</dd>
+<dt>Имя</dt><dd>{{ quote.name|e }}</dd><dt>Телефон</dt><dd>{{ quote.phone|default('—')|e }}</dd>
+<dt>Email</dt><dd>{{ quote.email|default('—')|e }}</dd><dt>Страница</dt><dd>{{ quote.page_url|default('—')|e }}</dd>
+<dt>Комментарий</dt><dd class="text-break">{{ quote.message|default('—')|e|nl2br }}</dd>
+<dt>Передача почтовому серверу</dt><dd>{{ status_labels[quote.status]|e }}, попыток: {{ quote.attempts|e }}</dd>
+{% if quote.sent_at %}<dt>Передано, UTC</dt><dd>{{ quote.sent_at|e }}</dd>{% endif %}
+</dl><p>Статус передачи не подтверждает доставку во Входящие или прочтение.</p>
+{% if quote.input_kind == 'text' %}<h2>Исходный список</h2><pre class="text-break" style="white-space:pre-wrap">{{ quote.list_text|e }}</pre>
+{% else %}<h2>Исходный файл</h2><p>{{ quote.filename|e }} · {{ quote.mime|e }} · {{ quote.file_size|e }} байт</p><p class="text-break">SHA-256: {{ quote.file_hash|e }}</p>
+{% if quote.attachment_deleted_at %}<p>Вложение удалено сотрудником {{ quote.attachment_deleted_at|e }} UTC. История расценки сохранена.</p>
+{% else %}<p><a class="btn btn-primary" href="{{ download }}">Скачать оригинал</a></p>
+{% if can_modify and quote.status == 'sent' %}<form method="post" action="{{ deleteAttachment }}" onsubmit="return confirm('Удалить исходный файл без возможности восстановления из админки? История расценки сохранится.')"><button class="btn btn-outline-danger" type="submit">Удалить переданное вложение</button></form>{% endif %}
+{% endif %}{% endif %}
+{% if can_modify and quote.status == 'failed' and not quote.attachment_deleted_at %}<form method="post" action="{{ retry }}"><button class="btn btn-warning" type="submit">Повторить отправку</button></form>{% endif %}
+</div></div>
+{% else %}
+<div class="card"><div class="card-body"><p>Расценок всего: {{ total|e }}. Страница {{ page|e }} из {{ pages|e }}.</p>
+<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>Номер</th><th>Получена, UTC</th><th>Контакты</th><th>Источник</th><th>Почта</th></tr></thead><tbody>
+{% for row in rows %}<tr><td><a href="{{ row.href }}">{{ row.public_id|e }}</a></td><td>{{ row.created_at|e }}</td><td>{{ row.name|e }}<br>{{ row.phone|default('—')|e }}<br>{{ row.email|default('—')|e }}</td><td>{{ row.input_kind == 'file' ? 'Файл' : 'Текст' }} {{ row.filename|default('')|e }}</td><td>{{ status_labels[row.status]|e }}</td></tr>{% else %}<tr><td colspan="5">Расценок пока нет.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if previous %}<a class="btn btn-outline-secondary" href="{{ previous }}">Назад</a>{% endif %} {% if next %}<a class="btn btn-outline-secondary" href="{{ next }}">Далее</a>{% endif %}
+</div></div>{% endif %}</div></div>{{ footer }}
