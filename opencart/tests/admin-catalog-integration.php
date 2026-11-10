@@ -14,7 +14,9 @@ $pdo = Database::connectFromOpenCart();
 $prefix = 'atest_' . bin2hex(random_bytes(6)) . '_';
 $native = ['product','product_code','product_description','product_to_store','product_to_category','product_attribute','product_image','product_related','category','category_description','category_to_store','category_path','manufacturer','manufacturer_to_store','attribute','attribute_description','attribute_group','attribute_group_description','seo_url'];
 $managed = array_map(fn($s) => 'cmteh_' . $s, ['schema','product','category','brand','attribute','content','route','media','media_link','import']);
-$c = new Catalog($pdo,$prefix,1,0);
+$private = sys_get_temp_dir() . '/' . $prefix;
+mkdir($private,0700); mkdir($private . '/media',0700);
+$c = new Catalog($pdo,$prefix,1,0,$private);
 function check(bool $ok,string $message): void { if (!$ok) throw new RuntimeException($message); echo "PASS $message\n"; }
 function rejects(callable $fn,string $message): void { try { $fn(); } catch (InvalidArgumentException $e) { check(true,$message); return; } throw new RuntimeException($message); }
 try {
@@ -23,6 +25,17 @@ try {
  $c->saveFromAdmin('brand',['id'=>'brand-a','slug'=>'brand-a','name'=>'Synthetic A','status'=>'published','seo_title'=>'SEO A','seo_description'=>'Brand meta','canonical_url'=>'/brand/brand-a','image_path'=>'catalog/test.png']);
  check($c->editRecord('brand','brand-a')['seo_title']==='SEO A','Brand SEO and named image survive save');
  $c->saveFromAdmin('category',['id'=>'root','slug'=>'root','title'=>'Root','status'=>'published']);
+ $legacyImage='00000000-0000-4000-8000-000000000001';
+ file_put_contents($private . '/media/legacy.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jMskAAAAASUVORK5CYII='));
+ $c->save('category',array_replace($c->editRecord('category','root'),['image'=>$legacyImage,'description'=>'Preserve legacy description']));
+ $c->save('media',['uuid'=>$legacyImage,'path'=>'legacy.png','filename'=>'legacy.png','mime'=>'image/png','status'=>'published','owners'=>[['type'=>'category','id'=>'root']]]);
+ check(($c->categories()[0]['image']??null)===$legacyImage,'Fixture legacy category image is approved for its owner');
+ $c->saveFromAdmin('category',['id'=>'root','image'=>null]);
+ $cleared=$c->editRecord('category','root');
+ check(array_key_exists('image',$cleared) && $cleared['image']===null && $cleared['description']==='Preserve legacy description','Explicit category image clear removes legacy fallback and preserves unrelated fields');
+ $c->saveFromAdmin('category',['id'=>'root','image'=>$legacyImage]);
+ check($c->editRecord('category','root')['image']===null,'Clear-only category image input cannot assign a UUID attachment');
+
  $c->saveFromAdmin('category',['id'=>'child','slug'=>'child','title'=>'Child','parent_slug'=>'root','status'=>'published']);
  $c->saveFromAdmin('category',['id'=>'other','slug'=>'other','title'=>'Other','status'=>'draft']);
  rejects(fn()=> $c->saveFromAdmin('category',['id'=>'root','parent_slug'=>'child']), 'Category cycle rejected atomically');
@@ -71,4 +84,6 @@ try {
 } finally {
  if ($pdo->inTransaction()) $pdo->rollBack();
  foreach ([...$managed,...$native] as $t) $pdo->exec("DROP TABLE IF EXISTS `$prefix$t`");
+ if (is_file($private . '/media/legacy.png')) unlink($private . '/media/legacy.png');
+ rmdir($private . '/media'); rmdir($private);
 }
