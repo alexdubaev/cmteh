@@ -26,7 +26,27 @@ async function fill(page, name) {
   await form.getByLabel("Контактное лицо").fill(name);
   await form.getByLabel("Телефон").fill(phone);
 }
+async function fullyInView(page, locator, label) {
+  const bounds = await locator.boundingBox();
+  const bottom = await page.locator('.mobile-actions').evaluate((node) => getComputedStyle(node).display === 'none' ? innerHeight : node.getBoundingClientRect().top);
+  assert.ok(bounds && bounds.y >= 0 && bounds.y + bounds.height <= bottom, label + ' must be visible above fixed actions: ' + JSON.stringify({ bounds, bottom }));
+}
 try {
+  await scenario("Телефон: ввод и проверка сразу → реальное предложение без поиска ниже", async (page) => {
+    await page.setViewportSize({ width: 390, height: 664 });
+    await page.goto('/parts-list');
+    const input = page.getByLabel('Артикул и количество, по одной позиции в строке');
+    await page.locator('[data-check-list]:enabled').waitFor();
+    await fullyInView(page, input, 'List input');
+    await fullyInView(page, page.locator('[data-check-list]'), 'Check action');
+    await input.fill(sku + ';2');
+    await page.locator('[data-check-list]').click();
+    await page.locator('[data-result-row]').first().waitFor();
+    await fullyInView(page, page.locator('#list-results-title'), 'Result heading');
+    await fullyInView(page, page.locator('[data-result-row]').first().getByRole('button', { name: 'В корзину' }), 'First offer action');
+    assert.deepEqual(await storage(page), []);
+    assert.equal(await input.inputValue(), sku + ';2');
+  });
   await scenario("Список 1000 строк → одна пакетная проверка → явный выбор товара", async (page) => {
     const calls = [];
     await page.route("**/api/list-check", async (route) => { calls.push(route.request().postDataJSON()); await route.continue(); });
@@ -67,6 +87,7 @@ try {
     });
     await page.goto('/parts-list');
     await page.getByLabel('Артикул и количество, по одной позиции в строке').fill('0000550380;2\nUNKNOWN;3');
+    await page.locator('#quote-details > summary').click();
     const form = page.locator('[data-quote-form]');
     await form.getByLabel('Контактное лицо').fill('Тест Расценки');
     await form.getByLabel('Email').fill('quote@example.invalid');
@@ -117,6 +138,7 @@ try {
     });
     await page.goto('/parts-list');
     await page.getByLabel('Артикул и количество, по одной позиции в строке').fill('RE568158;7');
+    await page.locator('#quote-details > summary').click();
     const form = page.locator('[data-quote-form]');
     await form.getByLabel('Контактное лицо').fill('Read-only Расценка');
     await form.getByLabel('Email').fill('readonly@example.invalid');
@@ -133,7 +155,7 @@ try {
   await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
     let first = true;
     await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
-      assert.equal(new URL(route.request().url()).search, '?v=20261110-6');
+      assert.equal(new URL(route.request().url()).search, '?v=20261110-7');
       if (first) { first = false; await route.abort(); } else await route.continue();
     });
     await page.goto('/parts-list');
@@ -164,7 +186,7 @@ try {
   await scenario("Canonical identity separates offers and preserves fresh additions during acknowledgement", async (page) => {
     await page.goto('/request');
     const result = await page.evaluate(async () => {
-      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-6');
+      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-7');
       const legacy = { article: 'SAME', brand: 'Brand', title: 'Legacy', quantity: 2 };
       writeCart([legacy]);
       mergeCart([{ ...legacy, productId: 'offer-a', quantity: 3 }, { ...legacy, productId: 'offer-b', quantity: 4 }]);

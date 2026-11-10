@@ -17,12 +17,14 @@
       <section class="panel contact-card">
         {% if tel %}<div><small>Телефон</small><a href="{{ tel }}">{{ site.phone }}</a></div>{% endif %}
         {% if site.email|default('') %}<div><small>Email</small><a href="mailto:{{ site.email }}">{{ site.email }}</a></div>{% endif %}
+        <details class="contact-more"><summary>Адрес, режим работы и реквизиты</summary>
         {% if site.working_hours|default('') %}<div><small>Режим работы</small><strong>{{ site.working_hours }}</strong></div>{% endif %}
         {% if site.city|default('') or site.address|default('') %}<div><small>Адрес</small><strong>{{ [site.city|default(''), site.address|default('')]|filter(value => value)|join(', ') }}</strong></div>{% endif %}
         {% if site.inn|default('') or site.kpp|default('') or site.ogrn|default('') %}<div><small>Реквизиты</small><strong>{{ [site.inn|default('') ? 'ИНН ' ~ site.inn : '', site.kpp|default('') ? 'КПП ' ~ site.kpp : '', site.ogrn|default('') ? 'ОГРН ' ~ site.ogrn : '']|filter(value => value)|join(' · ') }}</strong></div>{% endif %}
         {% if site.city|default('') or site.address|default('') %}
           <div class="contact-map"><span>КОНТАКТЫ</span><strong>{{ site.city|default(company) }}</strong>{% if site.address|default('') %}<small>{{ site.address }}</small>{% endif %}</div>
         {% endif %}
+        </details>
       </section>
       {% include templates ~ 'lead-form.twig' with {leadType: 'contact'} %}
     </div>

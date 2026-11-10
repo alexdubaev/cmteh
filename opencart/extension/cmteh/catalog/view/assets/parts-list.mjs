@@ -1,5 +1,5 @@
-import { mergeCart } from "./cart.mjs?v=20261110-6";
-import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261110-6";
+import { mergeCart } from "./cart.mjs?v=20261110-7";
+import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261110-7";
 
 const root = document.querySelector('[data-parts-list]');
 if (root) setup(root);
@@ -50,6 +50,21 @@ function setup(root) {
     if (draft.filename) root.querySelector('[data-file-note]').textContent = 'Выберите файл «' + draft.filename + '» заново: файлы не сохраняются в браузере.';
   }
   syncMode();
+  const quoteDetails = root.querySelector('#quote-details');
+  if (fields.some((field) => form.elements.namedItem(field).value)) quoteDetails.open = true;
+  for (const link of root.querySelectorAll('[data-open-quote]')) link.addEventListener('click', (event) => {
+    event.preventDefault();
+    quoteDetails.open = true;
+    form.elements.namedItem('name').focus();
+  });
+  root.querySelector('[data-edit-list]').addEventListener('click', (event) => {
+    event.preventDefault();
+    (mode() === 'file' ? upload : text).focus();
+  });
+  function revealResults() {
+    root.querySelector('#list-results-title').focus({ preventScroll: true });
+    results.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
   function changed() { revision++; results.hidden = true; saveDraft(); }
   text.addEventListener('input', changed);
   for (const radio of modes) radio.addEventListener('change', () => { syncMode(); changed(); });
@@ -68,10 +83,11 @@ function setup(root) {
   check.addEventListener('click', async () => {
     if (checking || busy) return;
     checking = true; check.disabled = true; check.textContent = 'Проверяем…';
+    results.setAttribute('aria-busy', 'true');
     const currentRevision = revision;
     const diagnostics = root.querySelector('[data-list-diagnostics]');
     diagnostics.hidden = true;
-    message('[data-list-message]', '');
+    message('[data-list-message]', 'Проверяем список…');
     try {
       const parsed = mode() === 'file' ? await inspectFile(sourceFile()) : inspectText(text.value);
       if (parsed.truncated || parsed.items.length > 1000) throw new Error('Для одной проверки нужно не более 1000 позиций. Исходный файл можно отправить на расценку.');
@@ -86,9 +102,12 @@ function setup(root) {
       if (currentRevision !== revision) { message('[data-list-message]', 'Список изменился во время проверки. Проверьте обновлённый список.', true); return; }
       rows = data.rows; page = 0; render(); results.hidden = false;
       root.querySelector('[data-result-count]').textContent = 'Проверено строк: ' + rows.length;
-      message('[data-list-message]', data.partial ? 'Показана часть предложений. Для строк с ограниченной выдачей наличие уточняется у менеджера.' : 'Проверка завершена. Выберите нужные товары в результатах.');
+      const found = rows.filter((row) => row.products.length).length;
+      root.querySelector('[data-result-summary]').textContent = 'С предложениями: ' + found + ' · Без предложений: ' + (rows.length - found) + (data.partial ? '. Показана часть предложений; остальные уточните у менеджера.' : '');
+      revealResults();
+      message('[data-list-message]', '');
     } catch (error) { message('[data-list-message]', error.message || 'Не удалось проверить список. Повторите попытку.', true); }
-    finally { checking = false; check.disabled = busy; check.textContent = 'Проверить наличие'; }
+    finally { checking = false; check.disabled = busy; check.textContent = 'Проверить наличие'; results.setAttribute('aria-busy', 'false'); }
   });
   function render() {
     root.querySelector('[data-result-rows]').replaceChildren(...rows.slice(page * 50, (page + 1) * 50).map((row) => {
@@ -119,7 +138,7 @@ function setup(root) {
     root.querySelector('[data-results-prev]').disabled = page === 0;
     root.querySelector('[data-results-next]').disabled = (page + 1) * 50 >= rows.length;
   }
-  for (const [selector, delta] of [['[data-results-prev]', -1], ['[data-results-next]', 1]]) root.querySelector(selector).addEventListener('click', () => { page += delta; render(); results.scrollIntoView({ block: 'start' }); });
+  for (const [selector, delta] of [['[data-results-prev]', -1], ['[data-results-next]', 1]]) root.querySelector(selector).addEventListener('click', () => { page += delta; render(); revealResults(); });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (busy) return;

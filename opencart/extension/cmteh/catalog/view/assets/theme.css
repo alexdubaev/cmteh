@@ -196,6 +196,13 @@
   --surface-cart-hover: #e3b800;
   --text-brand-mark: #222;
 
+  /* Content-first spacing: one rhythm across public templates. */
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+
   /* Layout */
   --shell: 1320px;
 }

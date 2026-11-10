@@ -1,4 +1,4 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-6";
+import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-7";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
