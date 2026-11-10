@@ -22,3 +22,6 @@ Affectedbrowser invocation derive documented testfile/header help: node opencart
 ## Acceptance seams
 
 No publicsignature/HTTP/datachanges. data-parts-list/data-list-results/data-result-rows/render/setup stayfunctional; addsemantic presentationtoggle/resultheading/summary selectors ifneeded. Fielddraft/upload/500pendingkeys preserved. MinimalUIvisibilityregression computes actualviewportbounds anddoesrealclick/newrender (not sourceassert). No tests ofarbitraryCSSvalues. Root sees contract/evidence/screenshots, not rawproductdiff perAutopilot. Versionassets everywhere20261110-7 includingimports, no mixedgraph.
+
+## Построено T01
+Source5c6728c,17presentation/browser/designfiles,281insert/103delete. Results DOM перед раскрываемой quoteform; focuslist-results-title/scrollstaticheadernear16; query/data/storage/submissionunchanged. Native detailsдляsecondarycontent, activefilterscountvisible, media compact. Graph20261110-7. Real browser14PASS after14baseline(13previous+1newvisibility). Actualcommand: CMTEH_BROWSER_BASE=http://127.0.0.1:3179 CMTEH_BROWSER_TOOLING=D:/codex/cmteh node opencart/tests/browser/storefront.mjs. Rootstrict3180 running; R12i/R13i placeholdersuntilacceptance. Cleancloneblindtrial overlapread-onlyreview to shortentime, no sourcechanges; anyconfirmedfixgetsboundedclosureagainstactualnewsource.
