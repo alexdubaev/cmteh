@@ -91,7 +91,9 @@ final class QuoteInput
             && (mb_check_encoding($bytes, 'UTF-8') || mb_check_encoding($bytes, 'Windows-1251'))
             && !preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $bytes)
             && !preg_match('/<\?(?:php|=)|<svg\b|<script\b/i', $bytes)
-            && in_array($mime, ['text/plain', 'text/csv', 'application/csv'], true)) {
+            // Some libmagic versions report large valid text as an ambiguous binary stream.
+            // Permit that result only after the byte/encoding guards; known non-text MIME still fails.
+            && in_array($mime, ['text/plain', 'text/csv', 'application/csv', 'application/octet-stream'], true)) {
             return $ext === 'csv' ? 'text/csv' : 'text/plain';
         }
         if (in_array($ext, ['heic', 'heif'], true) && substr($bytes, 4, 4) === 'ftyp'

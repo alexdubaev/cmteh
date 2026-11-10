@@ -88,6 +88,8 @@ try {
         ['filename'=>'huge.txt','data_base64'=>base64_encode(str_repeat('A',5242881))],
         ['filename'=>'nul.csv','data_base64'=>base64_encode($cp1251."\0")],
         ['filename'=>'control.txt','data_base64'=>base64_encode($cp1251."\x01")],
+        ['filename'=>'masked.csv','data_base64'=>base64_encode($bytes)],
+        ['filename'=>'masked.txt','data_base64'=>base64_encode($bytes)],
         ['filename'=>'binary.csv','data_base64'=>base64_encode("PK\x03\x04\0\0\xFF\xFE")]] as $bad) {
         $invalid=$file; $invalid['request_key']=LeadInput::uuid(); $invalid['file']=$bad;
         check(submit($q,$invalid)['status']===400,'Invalid filename/type/content/decoded size rejected');
@@ -99,6 +101,17 @@ try {
     $large['request_key']=LeadInput::uuid(); $large['list_text'].='X'; check(submit($q,$large)['status']===400,'Text over one MiB rejected');
     $large=$file; $large['request_key']=LeadInput::uuid(); $large['file']=['filename'=>'full.txt','data_base64'=>base64_encode(str_repeat('A',5242880))];
     $largeResult=submit($q,$large); check($largeResult['status']===200 && strlen($q->attachment($largeResult['body']['id'])['bytes'])===5242880,'Five MiB original survives real PDO BLOB');
+    $multiline = substr(str_repeat("001A;2\r\n", (int) ceil(QuoteInput::FILE_BYTES / 8)), 0, QuoteInput::FILE_BYTES);
+    foreach (['csv'=>'text/csv', 'txt'=>'text/plain'] as $extension=>$expectedMime) {
+        $large['request_key']=LeadInput::uuid();
+        $large['file']=['filename'=>'full-multiline.'.$extension,'data_base64'=>base64_encode($multiline)];
+        $largeResult=submit($q,$large);
+        $largeAttachment=$largeResult['status']===200 ? $q->attachment($largeResult['body']['id']) : null;
+        check($largeResult['status']===200 && $largeAttachment['bytes']===$multiline
+            && $largeAttachment['file_hash']===hash('sha256',$multiline)
+            && $largeAttachment['file_size']===QuoteInput::FILE_BYTES && $largeAttachment['mime']===$expectedMime,
+            'Five MiB multiline '.strtoupper($extension).' preserves original PDO bytes, hash and server text MIME');
+    }
     check($q->submit(str_repeat(' ',8388609),'192.0.2.1',['content-type'=>'application/json'])['status']===413,'Eight MiB encoded guard applies independently');
 
     $before=(int)$pdo->query("SELECT used_bytes FROM {$t}_quota")->fetchColumn();
