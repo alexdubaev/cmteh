@@ -1,6 +1,6 @@
 # 01 — Удобная мобильная витрина и короткий запрос
 
-**Требования:** R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12i, R13i, R14i, G01, G02
+**Требования:** R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12i, R13i, R14i, G01, G02, D01
 **Зависит от:** —
 **Зона:** `opencart/extension/cmteh/catalog/view/` · `opencart/extension/cmteh/system/StorefrontPages.php` · `opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php` · `opencart/extension/cmteh/system/LeadInput.php` · `opencart/tests/lead-integration.php` · `opencart/tests/browser/storefront.mjs` · `opencart/README.md` · `opencart/admin-guide.md` · `DESIGN.md`
 **Волна:** 1
