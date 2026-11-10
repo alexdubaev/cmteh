@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey, mergeCart } from "./cart.mjs";
+import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey, mergeCart } from "./cart.mjs?v=20261110-2";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 32 * 1024 * 1024;
@@ -139,7 +139,9 @@ function loadExcelReader() {
   if (!library) {
     library = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = new URL("./vendor/read-excel-file.min.js", import.meta.url).href;
+      const source = new URL("./vendor/read-excel-file.min.js", import.meta.url);
+      source.search = import.meta.url.search;
+      script.src = source.href;
       script.onload = () => {
         if (typeof window.readXlsxFile === "function") resolve(window.readXlsxFile);
         else reject(new Error("XLSX reader unavailable"));
@@ -250,4 +252,7 @@ export function setupImport() {
     details.open = true;
     manual.focus();
   });
+  button.disabled = false;
+  upload.disabled = false;
+  details.querySelector("[data-import-unavailable]").hidden = true;
 }
