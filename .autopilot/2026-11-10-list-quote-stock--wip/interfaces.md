@@ -3,7 +3,7 @@
 ## Не пересматривать
 Изcarried: OpenCart4.1.0.4, бело-жёлтый бренд, данные nativeCMS, explicit home_blocks сильнееfallback, текущий header/cart/quickdialog/backtotop. Толькоtest.cmteh.ru; production/cmteh.ru/StoreLand/DNS/engine исключены. AGENTS владельца не менять. Пользователь явно меняет business list/cart flow: это разрешённое исключение из design-only contract.
 
-Существующие Lead::submit/List/find, LeadInput, LeadMail/LeadOutbox/send-leads и RFQ/quick payload/fingerprint остаются неизменными. Никакого silentdelete legacy smtechno-request. OptionalproductId — source_id string, старые rows безнего остаются. Новые add из опубликованных product DTO; raw list parser не вызываетmergeCart.
+Существующие Lead::submit/List/find сигнатуры, LeadMail/LeadOutbox/send-leads и legacy RFQ/quick payload/fingerprint сохраняются. D01 разрешает исполнителю02 добавить optional product_id путь и immutable catalog snapshot вновые RFQ items безизменения sanitized legacyshape/fingerprint. Никакого silentdelete legacy smtechno-request. OptionalproductId — source_id string, старые rows безнего остаются. Новые add из опубликованных product DTO; raw list parser не вызываетmergeCart.
 
 ## Границы, решённые в спецификации
 
@@ -20,7 +20,22 @@
 T01 backend: Quote/QuoteInput/QuoteOutbox/QuoteMail, Storefront.php routes/guards, install/upgrade migration/bootstrap, send-quotes CLI, native cmteh_leads/newquote views, quote integration/MIME/admin privacy checks, verifier invocation and backend README/admin guide. Не Catalog.php/StorefrontPages/frontend.
 T02 послеT01: Catalog.php checkList/catalog integration, StorefrontPages partsList, shared UI/templates/assets/newpage/browser and DESIGN.md. Не Quote persistence/admin/mail/Storefront.php.
 
+D01 расширяет зону02: LeadInput.php/Lead.php/lead-integration.php и nativecmteh_leads snapshotрендеринг. Новый item{article,quantity,product_id?}; pid строковыйsource_id. Только дляновых pid rows сервер одним boundedbatch подтверждает published/store/exactarticle и сохраняет id/SKU/brand/title snapshot. Legacyitemsбезpid имеютстрогопрежнийparsedshape/keyorder/fingerprint. Snapshot не входитвfingerprint: mutablecatalogназвания/статус не должныломать replay; существующий request_key+sameimmutablepayload возвращаетстарыйID даже послеrename/hide. Проверятьcatalogтолькоприпервойновойвставке и rollbackparent/job приошибке. Новыеколонки additive/nullable, oldrecords не переписываются; historyчитаетsnapshotпоследующегопереименования/удаления. Тестыlegacybyteexact/replayconflict/newwrongid/hiddenid/mismatchedSKU/двебрендовыеодинаковыеSKU+snapshot/replayafterrename обязательны. Quote код/queue untouched.
+
+Новыеcartrows сproductId используютего дляlineidentity; дваcanonicaloffer с одинаковымиSKU/brandне должныслиться. Старыеrowsбезidостаютсяlegacyи несмешиваютсяавтоматомсnewcanonicalrows. Необновлятьихмолча: acknowledgementстарогоinflightзапроса не долженудалитьсвежеедобавление. Ackпередаётsubmittedsnapshotи вычитаеттолькозаявленноеqty, сохраняяновыедобавления.
+
 Lead owns .autopilot/git/ops/acceptance. Workers не трогаютчужиефайлы, некоммитят; root commitallowlistedпослеcontract. Нетnewdeps/paidservices/authchanges. Model default; counters testsнецель, толькоunique meaningfulboundaries.
 
 ## Проверки и окружение
+
+## Уточнённый API-контракт исполнителя01 (ещё не сдача)
+POST/api/quote JSON: request_keyUUIDv4,name2..100,phoneилиemail,message<=3000,page_urlhttp(s),input_kindtext+list_text<=1MiB ИЛИ input_kindfile+file{filename<=180,data_base64canonical}. Неактивныйисточникопускать. Success200{id:UUID,replayed:boolean}; error{error:Russiantext} statuses400/409/413/415/429/503, безPII/URL. /api/list-check {rows:[{article,quantity}]}→Catalog::checkList(array), raw1MiB. /parts-list→StorefrontPages::partsList() встандартномfullviewshapeдляlayout. Это согласованныеинтерфейсы, окончательные тестовые evidence/commit ещё ожидаются.
+
+## Построено и проверено
+
+T01f6945fe: root50realPDOquoteassertions+1publicHTTP/nativeACL/MIMEparsed/extractedshippingCLIaggregate PASS. QuoteMail::hosting/capture/message; worker --config=CONFIG (--hosting|--capture=NAME.eml) --limit1..10. Privatequote-mail.jsonfrom/toinfo@cmteh.ru/from_name. Nativecmteh_leads uses type=quote&id=UUID&action=download/retry/deleteAttachment, mutationsPOST+modify. D02CSV/TXTUTF8/CP1251originalbytefidelity проверен. EarlylocaltestURLtokenincident полностьюотозван,negative reuse/PDOsessionbindingproof PASS; diagnosticredactionдоstdout.
+
+T02 8e7dcd3: rootcatalog20/Lead31/browser11 PASS. Catalog::checkList(array) max1000/oneindexedbatch/fiveoffersperrow/{rows:[index,article,quantity,status,products,more_matches],partial}. ProductDTOidstring/slug/sku/title/brand/availability_status; selectedProducts(ids) mappingid→canonicalDTO. StorefrontPages::partsList fullview. Lead schema2nullable product_id/product_sku/product_brand/product_title, snapshotsimmutable, legacyfingerprints/replaystrictold, replayafterhide/rename tested. inspectText/inspectFile/labels exportизrequest-import, newparts-list.mjs UI. Canonicalcartidentity vslegacy+acknewadds covered. Graphv20261110-6.
+
+Независимое whole review и strictfinal+blind+host ещё выполняются; sourcefrozen8e7dcd3. ТолькоR12iоперационнаяприёмкаplaceholder, неготово17из17 дофактическогоhostproof.
 RootподниметизолированныйreadycachedOpenCart runtime3176 новыйruntime-dir D:/codex/temp/cmteh-list-quote-dev-20261110, ownPDOdata/prefix; lockedPlaywrightD:/codex/cmteh. OfficialZIP D:/codex/temp/cmteh-admin-final-runtime-20261110-r4/opencart-4.1.0.4.zip. Beforecode meaningfulRED на новыхкритическихграницах; неtextsource/markupmirror tests. Full strict opencart/bin/verify-local послеинтеграции, неослаблять. Нетsecondwholecleanreview. ExacttestedZIPпослеmerge, freshprivatebackup, rollbackoldcodewithoutDBrollback, hostMySQL5.7+actualmail1000row+originalfileprivacyacceptance. Доставкувmailbox невыдаватьзаMTAaccepted; владелецуже подтвердилтолькораннийprobe, неготовуюфичу.

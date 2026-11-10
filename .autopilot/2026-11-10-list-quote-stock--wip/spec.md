@@ -35,13 +35,15 @@
 
 Оригинал до5MiB, quote JSON до8MiB и строгая decoded проверка; текст до1MiB. Отдельный endpoint не меняет прежний512000bytes guard Lead. Base64 позволяет не менять неизвестный web upload_max_filesize. Проверка списка: максимум1000строк,1MiBJSON, bounded indexedbatchquery/ответ. Отдельная корзина сохраняет свой прежний лимит100 товаров; это не лимит списка для расценки.
 
+D02: оригинальные CSV/TXT допускают безопасный UTF-8 илиWindows-1251 с отклонением бинарных/NUL/controlbytes, без перекодирования. Проверка таблицы в браузере поддерживает оба варианта; originalbytehash при quote не меняется.
+
 Сервер валидирует фактический тип, имя/bytes/hash; XLSX не извлекается в publicкаталог. Никаких PHP mail адресов из клиента. Quote quota256MiB суммарного сохранённогоpayload и отдельный rate limit защищают публичный приём: квота атомарна, replay не расходует повторно. При заполнении ясный отказ с сохранением клиентского ввода; сотрудник может явно удалить уже переданное вложение в native admin. Автоудаления/срока хранения нет. Старые данные не очищаются установкой.
 
 Native admin использует существующий cmteh_leads ACL, вкладку «Расценка списков», список/деталь/скачивание; modify необходим для ручного retry failed или удаления уже переданного вложения. Новых ролей/учётных записей/раздачи прав нет. Загруженные файлы — attachment, no-store/nosniff, не inline. Удаление запрещено для pending/sending, чтобы не потерять отправку.
 
 Native MTA адаптер и собственный `send-quotes.php` cron только для quotejobs; старые pendingleadjobs не активируются. Отметка в админке «Передано почтовому серверу» означает MTA acceptance, не гарантированное чтение. Стабильный Message-ID при retry, один applicationjob; внешнее exactly-once email не обещается. Настройка почты в private quote-mail.json, без секретов в Git. Отдельные raw control+originalfile acceptance на адрес владельца входят в разрешённый scope.
 
-Сохраняется smtechno-request и существующая корзина/legacy rows без разрушительной миграции. Optional string productId сохраняет canonical source_id новых catalog/resultдобавлений; RFQ request_items/fingerprint остаются прежними. Старые выбранные позиции не удаляются молча. UI запрещает новые freeform add; импорт отделён от корзины. Route/deeplink `/request#import` остаётся рабочим переходом к новому процессу; текущая CTA «Отправить список» направляется в `/parts-list`, уникальные CMS URL не переписываются.
+Сохраняется smtechno-request и существующая корзина/legacy rows без разрушительной миграции. Optional string productId сохраняет canonical source_id новых catalog/resultдобавлений. Legacy RFQ payload/fingerprint остаются байт-в-байт прежними. Новые RFQ items могут передавать optional product_id: сервер проверяет опубликованное предложение и сохраняет снимок id/SKU/бренда/названия. Старые выбранные позиции не удаляются молча. UI запрещает новые freeform add; импорт отделён от корзины. Route/deeplink `/request#import` остаётся рабочим переходом к новому процессу; текущая CTA «Отправить список» направляется в `/parts-list`, уникальные CMS URL не переписываются.
 
 ## Границы и швы
 См.interfaces.md. Ready/retry/error states обязательны; не повторить прежний silent-click/cache/MIME дефект. Один coherent assetgraph version20261110-6. Header/bottomquick/«Наверх» и последние исправленияF1/F2 сохраняются.
@@ -51,3 +53,6 @@ Native MTA адаптер и собственный `send-quotes.php` cron то�
 
 ## Открытые места
 Нет продуктовых развилок. Контрольное письмо воВходящих подтверждено. Фактическая отправка новых quote text+originalfile и native/host acceptance остаются обязательной завершающей проверкой, не placeholders по умолчанию.
+
+## D01 — сохранение выбранного предложения для менеджеров
+Разработка подтвердила: прежний LeadInput::items и Lead::saveItems сохраняют толькоarticle/quantity. После выбора бренда из новых неоднозначных результатов менеджер потерял бы этот выбор. Для R02/R09/G05 исполнитель02 расширяет только новый optional product_id путь и additive snapshots в itemтаблице; legacy sanitized shape/fingerprint/request_key replay не меняются. Native history показывает snapshot, даже если товар позже скрыт/переименован. При отправке новых items неизвестный/скрытыйid или несовпадающийартикул отклоняется; безопасное старое поведение безid сохраняется для имеющихся draft/requests.

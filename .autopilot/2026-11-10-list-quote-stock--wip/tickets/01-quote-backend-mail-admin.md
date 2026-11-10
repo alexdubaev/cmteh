@@ -1,8 +1,8 @@
 # 01 — Расценка сохраняется, передаётся почте и видна в админке
 
-**Требования:** R04, R05, R06, R10i, R11i, R12i, G01, G02, G04, G05
+**Требования:** R04, R05, R06, R10i, R11i, R12i, G01, G02, G04, G05, D02
 **Зависит от:** —
-**Зона:** `opencart/extension/cmteh/system/Quote.php` · `opencart/extension/cmteh/system/QuoteInput.php` · `opencart/extension/cmteh/system/QuoteOutbox.php` · `opencart/extension/cmteh/system/QuoteMail.php` · `opencart/extension/cmteh/system/Storefront.php` · `opencart/extension/cmteh/admin/controller/module/` · `opencart/extension/cmteh/admin/model/module/cmteh_leads.php` · `opencart/extension/cmteh/admin/view/template/module/` · `opencart/bin/send-quotes.php` · `opencart/bin/verify-local` · `opencart/tests/quote-integration.php` · `opencart/tests/quote-*` · `opencart/dev/release_checks.py` · `opencart/admin-guide.md` · `opencart/README.md`
+**Зона:** `opencart/extension/cmteh/system/Quote.php` · `opencart/extension/cmteh/system/QuoteInput.php` · `opencart/extension/cmteh/system/QuoteOutbox.php` · `opencart/extension/cmteh/system/QuoteMail.php` · `opencart/extension/cmteh/system/Storefront.php` · `opencart/extension/cmteh/admin/controller/module/` · `opencart/extension/cmteh/admin/model/module/cmteh_leads.php` · `opencart/extension/cmteh/admin/view/template/module/` · `opencart/bin/send-quotes.php` · `opencart/bin/verify-local` · `opencart/tests/quote-integration.php` · `opencart/tests/quote-*` · `opencart/dev/release_checks.py` · `opencart/packaging/build.py` · `opencart/admin-guide.md` · `opencart/README.md`
 **Волна:** 1
 **Ревью:** нет
 **Модель:** сильная
