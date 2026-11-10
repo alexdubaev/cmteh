@@ -26,6 +26,25 @@ async function fill(page, name) {
   await page.getByLabel("Телефон").fill(phone);
 }
 try {
+  await scenario("Список неизвестных артикулов → три позиции по 1 шт. → reload", async (page) => {
+    const response = await page.goto("/request?import=1");
+    assert.equal(response.status(), 200);
+    const articles = ["R267987", "Dz100599", "H280976"];
+    const input = page.getByLabel("Артикул и количество, по одной позиции в строке");
+    await input.fill(articles.join("\n"));
+    await page.getByRole("button", { name: "Добавить список", exact: true }).click();
+    await page.locator("[data-import-message]").getByText(/добавлено 3/).waitFor();
+    assert.equal(await input.inputValue(), "");
+    assert.deepEqual((await storage(page)).map(({ article, quantity }) => ({ article, quantity })),
+      articles.map((article) => ({ article, quantity: 1 })));
+    assert.equal(await page.locator(".request-line").count(), 3);
+    await page.reload();
+    await page.getByRole("button", { name: "Увеличить количество H280976" }).waitFor();
+    assert.equal(await page.locator(".request-line").count(), 3);
+    assert.deepEqual((await storage(page)).map(({ article, quantity }) => ({ article, quantity })),
+      articles.map((article) => ({ article, quantity: 1 })));
+  });
+
   await scenario("Поиск → карточка → корзина → заявка", async (page) => {
     const response = await page.goto("/");
     assert.equal(response.status(), 200);

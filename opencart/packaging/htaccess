@@ -4,6 +4,9 @@ DirectorySlash Off
 RewriteEngine On
 RewriteOptions AllowNoSlash
 
+# Shared hosts may have no default MIME mapping for JavaScript modules.
+AddType application/javascript .mjs
+
 RewriteRule (?:^|/)(?:\.|config(?:-dist)?\.php$) - [R=404,END,NC]
 RewriteRule ^admin/?$ admin/index.php [END]
 RewriteRule ^admin/index\.php$ - [END]

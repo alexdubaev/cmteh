@@ -77,6 +77,12 @@ def main():
     assert metadata(tracked_home, "canonical") == base + "/"
     print("PASS Twig homepage and Organization")
 
+    for module in ("storefront.mjs", "request.mjs", "request-import.mjs", "cart.mjs"):
+        body, headers = request("/extension/cmteh/catalog/view/assets/" + module)
+        assert headers.get_content_type() in {"text/javascript", "application/javascript"}, module
+        assert body, module
+    print("PASS browser JavaScript modules have executable MIME types")
+
     static_paths = (
         SYSTEM | {f"/brand/{slug}" for slug in BRANDS.split()}
         | {f"/category/{slug}" for slug in CATEGORIES.split()} | {"/articles/zayavka-po-spisku-artikulov"}
