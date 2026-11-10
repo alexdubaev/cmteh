@@ -1,0 +1,6 @@
+{
+  "php_cli": "8.2.35",
+  "source_files": 34,
+  "failed": [],
+  "scope": "stdin syntax only; no deployment/data changes"
+}

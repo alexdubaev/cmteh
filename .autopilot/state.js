@@ -13,7 +13,7 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "9cf360f",
   "startedAt": "2026-11-10T16:04:55+03:00",
-  "updatedAt": "2026-11-10T16:42:18+03:00",
+  "updatedAt": "2026-11-10T17:28:17+03:00",
   "finishedAt": null,
   "stages": [
     {
@@ -48,16 +48,20 @@ window.STATE =
     },
     {
       "id": "build",
-      "status": "active",
-      "startedAt": "2026-11-10T16:15:39+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T16:15:39+03:00",
+      "finishedAt": "2026-11-10T16:42:21+03:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-10T16:42:21+03:00",
+      "finishedAt": "2026-11-10T16:56:55+03:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-11-10T16:56:55+03:00"
     }
   ],
   "requirements": {
@@ -129,17 +133,17 @@ window.STATE =
       "model": "сильная",
       "status": "done",
       "startedAt": "2026-11-10T16:15:40+03:00",
+      "finishedAt": "2026-11-10T16:39:46+03:00",
       "retries": 0,
       "repairs": 1,
-      "finishedAt": "2026-11-10T16:39:46+03:00",
+      "repairFindings": [
+        "Явное удаление прежнего изображения категории должно сохранять null, не восстанавливать старое metadata"
+      ],
       "tests": {
         "passed": 23,
         "failed": 0
       },
-      "commit": "ffd953b",
-      "repairFindings": [
-        "Явное удаление прежнего изображения категории должно сохранять null, не восстанавливать старое metadata"
-      ]
+      "commit": "ffd953b"
     },
     {
       "id": "02",
@@ -203,10 +207,10 @@ window.STATE =
       "review": "нет — один независимый обзор всей ветки по политике владельца",
       "model": "сильная",
       "status": "done",
-      "retries": 0,
-      "repairs": 0,
       "startedAt": "2026-11-10T16:24:00+03:00",
       "finishedAt": "2026-11-10T16:42:17+03:00",
+      "retries": 0,
+      "repairs": 0,
       "tests": {
         "passed": 6,
         "failed": 0
@@ -278,19 +282,102 @@ window.STATE =
       "review": "нет — один независимый обзор всей ветки по политике владельца",
       "model": "сильная",
       "status": "done",
-      "retries": 0,
-      "repairs": 0,
       "startedAt": "2026-11-10T16:19:09+03:00",
       "finishedAt": "2026-11-10T16:42:18+03:00",
+      "retries": 0,
+      "repairs": 0,
       "tests": {
         "passed": 2,
         "failed": 0
       },
       "commit": "67acda3"
+    },
+    {
+      "id": "F1",
+      "title": "Исправления независимого обзора",
+      "requirements": [
+        "R12",
+        "R23",
+        "R26",
+        "R27",
+        "R28",
+        "R39",
+        "R44",
+        "R46",
+        "R66",
+        "R67",
+        "R69"
+      ],
+      "blockedBy": [],
+      "wave": 3,
+      "zone": [
+        "opencart/extension/cmteh/system/CatalogAdmin.php",
+        "opencart/extension/cmteh/system/CatalogWrites.php",
+        "opencart/extension/cmteh/admin/controller/module/cmteh.php",
+        "opencart/extension/cmteh/admin/controller/event/cmteh_catalog.php",
+        "opencart/extension/cmteh/catalog/view/template/storefront/footer.twig",
+        "opencart/tests/admin-catalog-integration.php",
+        "opencart/dev/release_checks.py",
+        "opencart/tests/browser/admin-cms.mjs",
+        "opencart/tests/http-fixture.php",
+        "opencart/dev/README.md"
+      ],
+      "review": "нет — один обзор уже выполнен; подтверждённые исправления закрываются узкими проверками по политике владельца",
+      "model": "сильная",
+      "status": "done",
+      "startedAt": "2026-11-10T16:46:57+03:00",
+      "finishedAt": "2026-11-10T17:10:28+03:00",
+      "retries": 0,
+      "repairs": 1,
+      "repairFindings": [
+        "Полный gate воспроизвёл таймаут внешнего Google font CSS; изолировать только декоративные fonts в Chromium, сохранив все проверки"
+      ],
+      "tests": {
+        "passed": 16,
+        "failed": 0
+      },
+      "commit": "68898a1"
+    },
+    {
+      "id": "F2",
+      "title": "Полный и безопасный вывод блоков главной",
+      "requirements": [
+        "R04",
+        "R06",
+        "R12",
+        "R23",
+        "R31",
+        "R34",
+        "R35",
+        "R39",
+        "R51",
+        "R56",
+        "R64",
+        "R69",
+        "R76"
+      ],
+      "blockedBy": [],
+      "wave": 4,
+      "zone": [
+        "opencart/extension/cmteh/catalog/view/template/storefront/home-*.twig",
+        "opencart/tests/browser/admin-cms.mjs"
+      ],
+      "review": "нет — прицельная приёмка после единственного обзора, закрывается реальными браузерными регрессиями",
+      "model": "сильная",
+      "status": "done",
+      "retries": 0,
+      "repairs": 0,
+      "startedAt": "2026-11-10T17:19:12+03:00",
+      "finishedAt": "2026-11-10T17:23:54+03:00",
+      "tests": {
+        "passed": 8,
+        "failed": 0
+      },
+      "commit": "cb93cc8"
     }
   ],
   "tests": {
-    "passed": 2,
+    "passed": 94,
     "failed": 0
   },
   "debt": {
@@ -306,7 +393,11 @@ window.STATE =
     "items": []
   },
   "concerns": [],
-  "blind": null,
+  "blind": {
+    "checked": 41,
+    "matched": 41,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-10T16:04:55+03:00",
     "2026-11-10T16:05:25+03:00",
@@ -332,9 +423,21 @@ window.STATE =
     "2026-11-10T16:38:33+03:00",
     "2026-11-10T16:39:46+03:00",
     "2026-11-10T16:42:17+03:00",
-    "2026-11-10T16:42:18+03:00"
+    "2026-11-10T16:42:18+03:00",
+    "2026-11-10T16:42:21+03:00",
+    "2026-11-10T16:46:56+03:00",
+    "2026-11-10T16:46:57+03:00",
+    "2026-11-10T16:56:15+03:00",
+    "2026-11-10T16:56:55+03:00",
+    "2026-11-10T17:00:25+03:00",
+    "2026-11-10T17:10:28+03:00",
+    "2026-11-10T17:19:11+03:00",
+    "2026-11-10T17:19:12+03:00",
+    "2026-11-10T17:23:54+03:00",
+    "2026-11-10T17:28:16+03:00",
+    "2026-11-10T17:28:17+03:00"
   ],
-  "rev": 28,
+  "rev": 43,
   "waiting": null,
   "waits": [
     {
@@ -545,6 +648,123 @@ window.STATE =
         "passed": 2,
         "failed": 0
       }
+    },
+    {
+      "t": "2026-11-10T16:42:21+03:00",
+      "k": "stage",
+      "id": "review",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T16:46:56+03:00",
+      "k": "tickets",
+      "n": 4
+    },
+    {
+      "t": "2026-11-10T16:46:56+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T16:46:57+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T16:56:15+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 31,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T16:56:55+03:00",
+      "k": "stage",
+      "id": "final",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T17:00:25+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "repair",
+      "note": "Полный gate воспроизвёл таймаут внешнего Google font CSS; изолировать только декоративные fonts в Chromium, сохранив все проверки"
+    },
+    {
+      "t": "2026-11-10T17:10:28+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T17:19:11+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-10T17:19:12+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T17:19:12+03:00",
+      "k": "ticket",
+      "ids": [
+        "F2"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T17:23:54+03:00",
+      "k": "ticket",
+      "ids": [
+        "F2"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 8,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T17:28:16+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 41,
+      "matched": 41
+    },
+    {
+      "t": "2026-11-10T17:28:17+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T17:28:17+03:00",
+      "k": "tests",
+      "passed": 94,
+      "failed": 0
     }
   ],
   "reqList": [
@@ -945,12 +1165,19 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T16:19:08+03:00",
+      "at": "2026-11-10T17:19:12+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-10T17:28:16+03:00",
+      "checked": 41,
+      "matched": 41
     }
   },
   "result": null,
   "report": [
-    "Одноразовый токен локальной диагностической сессии попал в вывод; сессия закрыта, проверено 0 активных совпадений. Пароли и REG.RU не затронуты."
+    "Одноразовый токен локальной диагностической сессии попал в вывод; сессия закрыта, проверено 0 активных совпадений. Пароли и REG.RU не затронуты.",
+    "Независимая матрица44:41локальный пунктпринят;3операционныхпункта(REG.RU,Gitpublication,финальныйhandoff) отмеченыpartial в отчёте, выполняются/обсуждаются lead отдельно."
   ]
 }

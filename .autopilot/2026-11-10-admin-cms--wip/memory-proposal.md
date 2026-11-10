@@ -12,3 +12,5 @@
 ## История git
 
 История требования ищется по трейлеру `Requirements:`; номер таска имеет смысл только вместе с `Autopilot-Run:`. Ветки, проверки и публикация подчиняются текущим прямым правилам владельца.
+
+- OpenCart Twig adapter работает с autoescape=false. Каждый included storefront template сам объявляет html autoescape; ui macros импортируются в каждом потребителе. Parent block/import не наследуется include. Проверять фактические карточки и текстовые/атрибутные CMS values в браузере.

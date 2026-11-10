@@ -37,3 +37,6 @@ Events: admin/view/common/column_left/before→cmteh_admin.menu; admin/language/
 
 ## Фактически построено — 02
 Named scalar/collection POST; internal_target/external_url; confirm_slug_change; action=delete+confirm_delete. sections_revision сохранён. Произвольный details отклоняется, metadata и ID приватных вложений берутся с сервера; обычные подписи/удаление доступны, новое private attachment — только прежний одобренный import. Новое public фото — main filemanager/native gallery. Черновик предпросматривается только в авторизованном sandbox. Ошибки422 сохраняют введённые title/image path. Browser admin-cms —6групп с reload/реальной витриной и очисткой только собственных тестовых записей.
+
+## Исправления единственного обзора — F1
+Сохранение category.h1/article.excerpt и независимого native model подтверждено регрессиями; native category.delete до первой мутации проверяет весь выбранный пакет на дочерние категории/товары и возвращает статический русский JSONerror при отказе. APIevent guardCategoryDelete(&$route,&$args)/rejectCategoryDelete; штатные ACL/token сохраняются, события управляются прежним реестром. Социальная подпись валиднаUTF8. Generic collect_browser явно устанавливает scenario=full; наследованный узкий режим не сокращает выпускной gate. Проверено26DBassertions и native/brower closure.
