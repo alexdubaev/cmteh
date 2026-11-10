@@ -11,9 +11,9 @@ window.STATE =
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": null,
+  "baseCommit": "e3f6023",
   "startedAt": "2026-11-10T19:04:14+03:00",
-  "updatedAt": "2026-11-10T19:17:22+03:00",
+  "updatedAt": "2026-11-10T20:01:17+03:00",
   "finishedAt": null,
   "stages": [
     {
@@ -42,28 +42,34 @@ window.STATE =
     },
     {
       "id": "plan",
-      "status": "active",
-      "startedAt": "2026-11-10T19:17:00+03:00"
+      "status": "done",
+      "startedAt": "2026-11-10T19:17:00+03:00",
+      "finishedAt": "2026-11-10T19:17:41+03:00"
     },
     {
       "id": "build",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-10T19:17:41+03:00",
+      "finishedAt": "2026-11-10T19:42:46+03:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-10T19:42:46+03:00",
+      "finishedAt": "2026-11-10T19:51:01+03:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-11-10T19:51:01+03:00"
     }
   ],
   "requirements": {
     "total": 16,
-    "done": 0,
-    "inTicket": 16,
+    "done": 13,
+    "inTicket": 0,
     "inSpec": 0,
-    "placeholder": 0,
+    "placeholder": 3,
     "deferred": 0,
     "dropped": 0
   },
@@ -104,12 +110,53 @@ window.STATE =
       ],
       "review": "нет",
       "model": "обычная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-10T19:17:42+03:00",
+      "finishedAt": "2026-11-10T19:43:46+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 1,
+      "repairFindings": [
+        "R02/R08 формально выполнены миниатюрой240px: естественный mobile heading, без hero quicklinks, фото≥85%ширины390 при сохранении fit"
+      ],
+      "tests": {
+        "passed": 26,
+        "failed": 0
+      },
+      "commit": "3828b38"
+    },
+    {
+      "id": "F1",
+      "title": "Два подтверждённых исправления по код-ревью",
+      "requirements": [
+        "R07",
+        "G01"
+      ],
+      "blockedBy": [],
+      "wave": 2,
+      "zone": [
+        "opencart/extension/cmteh/catalog/view/template/storefront/lead-form.twig",
+        "opencart/extension/cmteh/catalog/view/assets/request.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/storefront.mjs",
+        "opencart/tests/browser/storefront.mjs"
+      ],
+      "review": "да — ремонт ветки",
+      "model": "сильная",
+      "status": "done",
+      "retries": 0,
+      "repairs": 0,
+      "startedAt": "2026-11-10T19:46:36+03:00",
+      "finishedAt": "2026-11-10T19:49:44+03:00",
+      "tests": {
+        "passed": 7,
+        "failed": 0
+      },
+      "commit": "3c41855"
     }
   ],
-  "tests": null,
+  "tests": {
+    "passed": 103,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [],
     "assumptions": [],
@@ -125,7 +172,11 @@ window.STATE =
     ]
   },
   "concerns": [],
-  "blind": null,
+  "blind": {
+    "checked": 6,
+    "matched": 6,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-10T19:04:14+03:00",
     "2026-11-10T19:04:34+03:00",
@@ -139,9 +190,25 @@ window.STATE =
     "2026-11-10T19:17:01+03:00",
     "2026-11-10T19:17:02+03:00",
     "2026-11-10T19:17:21+03:00",
-    "2026-11-10T19:17:22+03:00"
+    "2026-11-10T19:17:22+03:00",
+    "2026-11-10T19:17:25+03:00",
+    "2026-11-10T19:17:41+03:00",
+    "2026-11-10T19:17:42+03:00",
+    "2026-11-10T19:37:12+03:00",
+    "2026-11-10T19:42:46+03:00",
+    "2026-11-10T19:43:25+03:00",
+    "2026-11-10T19:43:26+03:00",
+    "2026-11-10T19:43:46+03:00",
+    "2026-11-10T19:46:34+03:00",
+    "2026-11-10T19:46:35+03:00",
+    "2026-11-10T19:46:36+03:00",
+    "2026-11-10T19:49:44+03:00",
+    "2026-11-10T19:51:01+03:00",
+    "2026-11-10T19:54:17+03:00",
+    "2026-11-10T20:01:16+03:00",
+    "2026-11-10T20:01:17+03:00"
   ],
-  "rev": 16,
+  "rev": 36,
   "waiting": null,
   "waits": [
     {
@@ -241,88 +308,232 @@ window.STATE =
       "g": "G3",
       "ok": true,
       "problems": 0
+    },
+    {
+      "t": "2026-11-10T19:17:41+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T19:17:42+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T19:37:12+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "repair",
+      "note": "R02/R08 формально выполнены миниатюрой240px: естественный mobile heading, без hero quicklinks, фото≥85%ширины390 при сохранении fit"
+    },
+    {
+      "t": "2026-11-10T19:37:12+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T19:42:46+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 26,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T19:42:46+03:00",
+      "k": "stage",
+      "id": "review",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T19:43:25+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 26,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T19:43:26+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T19:43:46+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 26,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T19:46:34+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-10T19:46:35+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-10T19:46:36+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T19:49:44+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-10T19:51:01+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T19:51:01+03:00",
+      "k": "stage",
+      "id": "final",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-10T19:54:17+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-10T20:01:16+03:00",
+      "k": "tests",
+      "passed": 103,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-10T20:01:17+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 6,
+      "matched": 6
     }
   ],
   "reqList": [
     {
       "id": "R01",
       "text": "«продумал навигацию и удобство»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R02",
       "text": "«по загрузке странице картинка была полностью  экране телефона»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R03",
       "text": "«в хеадере убрать типа стрелочку вниз на кнопке каталог»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R04",
       "text": "«очень долго листать до товаров»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R05",
       "text": "«посмотри примеры и предложи как это делают профессионалы»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R06",
       "text": "«Как это правильно с точки зрения ua/uix»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R07",
       "text": "«добавить кнопку наверх чтоб быстро к меню вернуться можно было»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R08",
       "text": "«как много у нас дублирующих моментов на одной странице»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R09",
       "text": "«Внизу можно сделать как на моем втором сайте, позвонить»",
-      "status": "in-ticket"
+      "status": "placeholder",
+      "why": "Номер только из настроек CMS; заглушку не выдавать за реальный"
     },
     {
       "id": "R10",
       "text": "«и запрос»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R11",
       "text": "«в целом сайт надо сделать более удобным для посетителя»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R12i",
       "text": "(подразумевается) существующие поиск, каталог и заявка продолжают работать",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R13i",
       "text": "(подразумевается) адаптация сохраняет работоспособность desktop/tablet",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R14i",
       "text": "(подразумевается) удобство подтверждается проверкой реальных действий",
-      "status": "in-ticket"
+      "status": "placeholder",
+      "why": "Standing owner instruction: тестировать на хостинге; учитывать кеш/MIME"
     },
     {
       "id": "G01",
       "text": "««Запрос» должен открывать отдельную короткую форму»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G02",
       "text": "«Да, использовать +7 911 921-22-14»",
-      "status": "in-ticket"
+      "status": "placeholder",
+      "why": "Телефон в test CMS, не в source"
     }
   ],
   "gates": {
@@ -341,9 +552,21 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-10T19:17:22+03:00",
+      "at": "2026-11-10T19:46:35+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-10T20:01:17+03:00",
+      "checked": 6,
+      "matched": 6
     }
   },
-  "result": null
+  "result": null,
+  "report": [
+    "Один дополнительный визуальный corrective pass объявлен пользователю: прежний fit уменьшал фото до миниатюры; после closure косметических повторов не будет",
+    "Локальная реализация принята; реальный телефон R09/G02 и host acceptance R14i честно помечены pending до после-merge операции. Это действия lead, не отсутствие данных от владельца.",
+    "Независимое whole-branch review нашло2подтверждённых UIсбоя; F1 исправлен3c41855, узкий closure обоих воспроизведений PASS, новых дефектов нет. Второе whole-review не запускалось.",
+    "Первый full gate оборван обвязкой stdout cp1251 на Unicode стрелке; это ошибка журнала lead, не PASS. Процесс завершён, его собственный runtime остановлен; неизменённый3c41855 проверяется повторно в fresh r2 с UTF-8 и redaction логов."
+  ]
 }

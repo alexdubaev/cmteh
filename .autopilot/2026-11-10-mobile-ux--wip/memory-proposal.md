@@ -1,0 +1,9 @@
+# Proposed short additions to `AGENTS.md`
+
+Paste these as operational pointers; keep task-specific scope and progress in `.autopilot/<task>/interfaces.md` and acceptance evidence in its report. Record the task branch, base SHA, accepted/final source SHA, and current progress pointer there so a resumed agent can identify the exact source and remaining gate without reopening tickets.
+
+- **Windows CLI output:** Before launching Python verification from PowerShell, set `$env:PYTHONIOENCODING='utf-8'`; the outer Python process can otherwise fail writing Unicode output even when the checks themselves are sound.
+- **Browser tooling:** Use the canonical locked cache via `CMTEH_BROWSER_TOOLING=D:/codex/cmteh`; do not install or alter project dependencies to obtain Playwright.
+- **Runtime freshness:** For an isolated runtime, refresh the installed extension/source after source changes; the running site's installed copy does not automatically track the mounted checkout. The verified task flow used `start --upstream ... --refresh`.
+- **Full strict gate (verified):** `python opencart/bin/verify-local --upstream D:/codex/temp/cmteh-admin-final-runtime-20261110-r4/opencart-4.1.0.4.zip --runtime-dir D:/codex/temp/cmteh-mobile-ux-final-runtime-20261110-r2 --reference-dir D:/codex/temp/cmteh-admin-final-runtime-20261110-r4/evidence --port 3177 --browser-tooling D:/codex/cmteh`. Run from repository root; keep the strict verifier and its guards intact. The accepted source was `3c41855`; result: 103 PASS, 0 FAIL.
+- **Acceptance/progress:** Read the whole corrected `.autopilot/2026-11-10-mobile-ux--wip/blind-acceptance.md` for final mobile/desktop runtime findings; it records the one partial item as awaiting the owner-applied phone value. Don't treat the synthetic fixture placeholder as customer acceptance.
