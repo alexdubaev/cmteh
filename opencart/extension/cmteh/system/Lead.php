@@ -15,7 +15,7 @@ require_once __DIR__ . '/Catalog.php';
 
 final class Lead
 {
-    private const SCHEMA_VERSION = 2;
+    private const SCHEMA_VERSION = 3;
     private const GLOBAL_LIMIT = 240;
     private const CLIENT_LIMIT = 12;
 
@@ -80,14 +80,18 @@ final class Lead
             PRIMARY KEY (window_minute, scope_key)
         ) $options");
         $columns = $this->pdo->query("SHOW COLUMNS FROM {$table}_item")->fetchAll(PDO::FETCH_COLUMN);
-        foreach (['product_id' => 'VARCHAR(128)', 'product_sku' => 'VARCHAR(128)',
+        foreach (['product_id' => 'VARCHAR(160)', 'product_sku' => 'VARCHAR(128)',
             'product_brand' => 'VARCHAR(255)', 'product_title' => 'VARCHAR(255)'] as $column => $type) {
             if (!in_array($column, $columns, true)) {
                 $this->pdo->exec("ALTER TABLE {$table}_item ADD COLUMN $column $type NULL");
             }
         }
-        $this->pdo->exec("INSERT INTO {$table}_schema (id, version) VALUES (1, 2)
-            ON DUPLICATE KEY UPDATE version = 2");
+        $identityColumn = $this->pdo->query("SHOW COLUMNS FROM {$table}_item LIKE 'product_id'")->fetch(PDO::FETCH_ASSOC);
+        if (preg_match('/^varchar\((\d+)\)$/iD', $identityColumn['Type'], $length) && (int) $length[1] < 160) {
+            $this->pdo->exec("ALTER TABLE {$table}_item MODIFY COLUMN product_id VARCHAR(160) NULL");
+        }
+        $this->pdo->exec("INSERT INTO {$table}_schema (id, version) VALUES (1, 3)
+            ON DUPLICATE KEY UPDATE version = 3");
     }
 
     /**

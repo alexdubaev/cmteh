@@ -19,8 +19,13 @@ function setup(root) {
   let rows = [];
   let page = 0;
   let revision = 0;
-  const get = (key) => { try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch { return {}; } };
-  const put = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* Works without storage. */ } };
+  const fallback = new Map();
+  const get = (key) => { try { return JSON.parse((fallback.has(key) ? fallback.get(key) : sessionStorage.getItem(key)) || '{}'); } catch { return {}; } };
+  const put = (key, value) => {
+    const serialized = JSON.stringify(value);
+    fallback.set(key, serialized);
+    try { sessionStorage.setItem(key, serialized); } catch { /* This tab's copy remains authoritative. */ }
+  };
   const mode = () => modes.find((radio) => radio.checked).value;
   const readFields = () => Object.fromEntries(fields.map((name) => [name, form.elements.namedItem(name).value]));
   function message(selector, value, error = false) {

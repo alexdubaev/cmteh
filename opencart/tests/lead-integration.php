@@ -352,6 +352,34 @@ try {
         'Changing canonical identity with the same key conflicts');
     check($lead->find($id)['items'][0]['product_id'] === null,
         'Existing legacy rows remain readable without a canonical identity');
+
+    // Simulate an already-installed schema v2 with real legacy and snapshot history.
+    $historyBefore = $pdo->query("SELECT * FROM {$table}_item ORDER BY lead_id, position")->fetchAll(PDO::FETCH_ASSOC);
+    $fingerprintsBefore = $pdo->query("SELECT request_key, fingerprint FROM $table ORDER BY lead_id")->fetchAll(PDO::FETCH_ASSOC);
+    $pdo->exec("ALTER TABLE {$table}_item MODIFY COLUMN product_id VARCHAR(128) NULL");
+    $pdo->exec("UPDATE {$table}_schema SET version = 2 WHERE id = 1");
+    $lead->migrate();
+    foreach ([str_repeat('x', 160), str_repeat('Я', 156) . "\t\r\nЯ"] as $position => $longId) {
+        $catalog->save('product', array_replace($other, ['id' => $longId, 'slug' => 'long-canonical-' . $position]));
+        $longPayload = array_replace($chosen, ['request_key' => \Cmteh\LeadInput::uuid(), 'request_items' => [
+            ['article' => 'RE568158', 'quantity' => 1, 'product_id' => $longId],
+        ]]);
+        $longResult = submit($lead, $longPayload, '192.0.2.112');
+        check($longResult['status'] === 200
+            && $lead->find($longResult['body']['id'])['items'][0]['product_id'] === $longId,
+            'A legal 160-character canonical ID preserves catalog character semantics through submission and private history (HTTP ' . $longResult['status'] . ')');
+    }
+    $historyAfter = $pdo->query("SELECT * FROM {$table}_item ORDER BY lead_id, position LIMIT " . count($historyBefore))->fetchAll(PDO::FETCH_ASSOC);
+    $fingerprintsAfter = $pdo->query("SELECT request_key, fingerprint FROM $table ORDER BY lead_id LIMIT " . count($fingerprintsBefore))->fetchAll(PDO::FETCH_ASSOC);
+    check($historyAfter === $historyBefore && $fingerprintsAfter === $fingerprintsBefore
+        && submit($lead, $payload, '192.0.2.113')['body'] === ['id' => $id, 'replayed' => true]
+        && submit($lead, $chosen, '192.0.2.113')['body'] === ['id' => $snapshotId, 'replayed' => true],
+        'Widening installed canonical IDs preserves existing rows, fingerprints and legacy/snapshot replay');
+    $tooLong = array_replace($chosen, ['request_key' => \Cmteh\LeadInput::uuid(), 'request_items' => [
+        ['article' => 'RE568158', 'quantity' => 1, 'product_id' => str_repeat('Я', 161)],
+    ]]);
+    check(submit($lead, $tooLong, '192.0.2.113')['status'] === 400,
+        'A 161-character canonical ID remains invalid');
 } finally {
     foreach (['outbox_unavailable', 'outbox', 'item', 'rate', 'schema'] as $suffix) {
         $pdo->exec("DROP TABLE IF EXISTS {$table}_{$suffix}");

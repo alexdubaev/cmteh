@@ -92,6 +92,44 @@ try {
     assert.ok(!(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).includes(bytes.toString('base64')));
   });
 
+  await scenario("Denied session writes and stale readable pending data keep one quote after a lost acknowledgement", async (page) => {
+    const payloads = [];
+    const replies = [];
+    await page.addInitScript(() => {
+      sessionStorage.setItem('smtechno-quote-pending', JSON.stringify({ fingerprint: 'stale', key: 'be884ad8-8dfe-4c79-b759-39ea816e1076' }));
+      const set = Storage.prototype.setItem;
+      const remove = Storage.prototype.removeItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (this === sessionStorage) throw new DOMException('Read-only storage', 'QuotaExceededError');
+        return set.call(this, key, value);
+      };
+      Storage.prototype.removeItem = function (key) {
+        if (this === sessionStorage) throw new DOMException('Read-only storage', 'SecurityError');
+        return remove.call(this, key);
+      };
+    });
+    await page.route('**/api/quote', async (route) => {
+      payloads.push(route.request().postDataJSON());
+      const response = await route.fetch();
+      replies.push({ status: response.status(), ...await response.json() });
+      if (payloads.length === 1) await route.abort();
+      else await route.fulfill({ response });
+    });
+    await page.goto('/parts-list');
+    await page.getByLabel('Артикул и количество, по одной позиции в строке').fill('RE568158;7');
+    const form = page.locator('[data-quote-form]');
+    await form.getByLabel('Контактное лицо').fill('Read-only Расценка');
+    await form.getByLabel('Email').fill('readonly@example.invalid');
+    await form.getByRole('button', { name: 'Отправить на расценку' }).click();
+    await page.locator('[data-quote-message][role=alert]').waitFor();
+    await form.getByRole('button', { name: 'Отправить на расценку' }).click();
+    await page.locator('[data-quote-message]').getByText(/Расценка принята/).waitFor();
+    assert.deepEqual(payloads[1], payloads[0], 'Same-tab retry must retain its UUID when writes fail');
+    assert.deepEqual(replies.map(({ status, id, replayed }) => [status, id, replayed]),
+      [[200, replies[0].id, false], [200, replies[0].id, true]]);
+    assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('smtechno-quote-pending')).fingerprint), 'stale');
+  });
+
   await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
     let first = true;
     await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
@@ -137,6 +175,42 @@ try {
     });
     assert.deepEqual(result.selected.map(({ productId, quantity }) => [productId || null, quantity]), [[null, 2], ['offer-a', 3], ['offer-b', 4]]);
     assert.deepEqual(result.remaining.map(({ productId, quantity }) => [productId, quantity]), [['offer-a', 1], ['offer-b', 4]]);
+  });
+
+  await scenario("Storage replacement of a canonical offer reloads its price and submits the new ID", async (page) => {
+    const offers = ['offer-a', 'offer-b'].map((id, index) => ({
+      id, sku: 'SAME-SKU', brand: 'Same Brand', title: 'Offer ' + id,
+      price_status: 'fixed', price: 111 + 111 * index, currency: 'RUB',
+    }));
+    let searches = 0;
+    let submitted;
+    await page.route('**/api/search?*', async (route) => {
+      searches++;
+      await route.fulfill({ json: { data: offers, meta: { total: 2, partial: false } } });
+    });
+    await page.route('**/api/lead', async (route) => {
+      submitted = route.request().postDataJSON();
+      await route.fulfill({ json: { id: '462e243b-de01-4ca5-bb0a-cfe1134aa130', replayed: false } });
+    });
+    await page.goto('/request');
+    const sibling = await page.context().newPage();
+    await sibling.goto('/contacts');
+    const replace = (id) => sibling.evaluate((productId) => {
+      localStorage.setItem('smtechno-request', JSON.stringify([
+        { article: 'SAME-SKU', brand: 'Same Brand', title: 'Selected offer', quantity: 2, productId },
+      ]));
+    }, id);
+    await replace('offer-a');
+    await page.locator('.cart-price-label').getByText(/111/).waitFor();
+    const refreshed = page.waitForRequest('**/api/search?*', { timeout: 3000 });
+    await replace('offer-b');
+    await refreshed;
+    await page.locator('.cart-price-label').getByText(/222.*444/).waitFor();
+    assert.equal(searches, 2);
+    await fill(page, 'Canonical Price');
+    await page.locator('form[data-lead="request"]').getByRole('button', { name: 'Отправить заявку' }).click();
+    await page.getByText(/Заявка принята/).waitFor();
+    assert.deepEqual(submitted.request_items, [{ article: 'SAME-SKU', quantity: 2, product_id: 'offer-b' }]);
   });
 
   await scenario("Недоступный модуль заявки → объяснение в короткой форме и контакты", async (page) => {

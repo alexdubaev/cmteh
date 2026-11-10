@@ -143,7 +143,7 @@ function setupCart(cart) {
 
   function update(retry = false) {
     const items = readCart();
-    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand]));
+    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand, item.productId || null]));
     if (retry || nextIdentity !== identity) {
       identity = nextIdentity;
       controller?.abort();
