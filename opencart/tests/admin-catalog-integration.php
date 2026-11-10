@@ -25,6 +25,11 @@ try {
  $c->saveFromAdmin('brand',['id'=>'brand-a','slug'=>'brand-a','name'=>'Synthetic A','status'=>'published','seo_title'=>'SEO A','seo_description'=>'Brand meta','canonical_url'=>'/brand/brand-a','image_path'=>'catalog/test.png']);
  check($c->editRecord('brand','brand-a')['seo_title']==='SEO A','Brand SEO and named image survive save');
  $c->saveFromAdmin('category',['id'=>'root','slug'=>'root','title'=>'Root','status'=>'published']);
+ $c->saveFromAdmin('category',['id'=>'root','h1'=>'Synthetic category heading']);
+ check(($c->editRecord('category','root')['h1']??null)==='Synthetic category heading' && ($c->categories()[0]['h1']??null)==='Synthetic category heading','Category H1 survives admin reload and public catalog read');
+ $c->saveFromAdmin('article',['id'=>'article-a','slug'=>'article-a','title'=>'Synthetic article','status'=>'published']);
+ $c->saveFromAdmin('article',['id'=>'article-a','excerpt'=>'Synthetic article summary']);
+ check(($c->editRecord('article','article-a')['excerpt']??null)==='Synthetic article summary' && ($c->content('article','article-a')['excerpt']??null)==='Synthetic article summary','Article excerpt survives admin reload and public content read');
  $legacyImage='00000000-0000-4000-8000-000000000001';
  file_put_contents($private . '/media/legacy.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jMskAAAAASUVORK5CYII='));
  $c->save('category',array_replace($c->editRecord('category','root'),['image'=>$legacyImage,'description'=>'Preserve legacy description']));
@@ -44,7 +49,7 @@ try {
  $p=$c->editRecord('product','product-a'); $pid=$p['native_id'];
  $pdo->prepare("INSERT INTO `{$prefix}product_description` (product_id,language_id,name,description,tag,meta_title,meta_description,meta_keyword) VALUES (?,2,'Other language','','','','','')")->execute([$pid]);
  $pdo->prepare("UPDATE `{$prefix}product_description` SET name='Native changed' WHERE product_id=? AND language_id=1")->execute([$pid]);
- $pdo->prepare("UPDATE `{$prefix}product` SET location='Keep location' WHERE product_id=?")->execute([$pid]);
+ $pdo->prepare("UPDATE `{$prefix}product` SET location='Keep location', model='Native model independent of SKU' WHERE product_id=?")->execute([$pid]);
  (new Cmteh\NativeCatalog($pdo,$prefix,1,0,'RUB'))->synchronize('product',$pid);
  $pdo->exec("INSERT INTO `{$prefix}attribute_group` (sort_order) VALUES (0)"); $group=(int)$pdo->lastInsertId();
  $pdo->exec("INSERT INTO `{$prefix}attribute_group_description` (attribute_group_id,language_id,name) VALUES ($group,1,'Native group')");
@@ -52,6 +57,7 @@ try {
  $pdo->exec("INSERT INTO `{$prefix}attribute_description` (attribute_id,language_id,name) VALUES ($attribute,1,'Native dimension')");
  $pdo->exec("INSERT INTO `{$prefix}product_attribute` (product_id,attribute_id,language_id,text) VALUES ($pid,$attribute,1,'Native value')");
  $c->saveFromAdmin('product',['id'=>'product-a','short_description'=>'Changed']);
+ check($pdo->query("SELECT model FROM `{$prefix}product` WHERE product_id=$pid")->fetchColumn()==='Native model independent of SKU' && $c->editRecord('product','product-a')['sku']==='000001','Unrelated admin save preserves native model independently of SKU after native edits');
  check((int)$pdo->query("SELECT COUNT(*) FROM `{$prefix}product_attribute` WHERE product_id=$pid")->fetchColumn()===2,'Editing existing native specification does not duplicate attributes');
  $p=$c->editRecord('product','product-a');
  check($p['title']==='Native changed' && $p['sku']==='000001' && count($p['category_slugs'])===2 && $p['main_image_path']==='catalog/test.png' && $p['specification_items'][0]['value']==='42','Native edits, multiple categories, image and specs survive partial admin save');

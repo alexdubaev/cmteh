@@ -158,8 +158,10 @@ final class Cmteh extends Controller
 
     private function nativeCatalogEvents(): array
     {
-        $events = [];
         $handler = 'extension/cmteh/event/cmteh_catalog';
+        $events = ['cmteh_native_guard_category_delete' => [
+            'admin/controller/catalog/category.delete/before', $handler . '.guardCategoryDelete',
+        ]];
         foreach (self::NATIVE_CATALOG_ACTIONS as $model => $methods) {
             foreach ($methods as $method) {
                 $events['cmteh_native_' . $method] = ["admin/model/catalog/$model.$method/after", $handler . '.synchronize'];

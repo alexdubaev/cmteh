@@ -443,9 +443,9 @@ trait CatalogWrites
             $id = (int) $this->pdo->lastInsertId();
         } else {
             $id = (int) $previous;
-            $this->run('UPDATE ' . $this->table('product') . ' SET model = ?, manufacturer_id = ?, price = ?,
+            $this->run('UPDATE ' . $this->table('product') . ' SET manufacturer_id = ?, price = ?,
                 date_available = ?, sort_order = ?, status = ?, date_modified = UTC_TIMESTAMP() WHERE product_id = ?',
-                [...$native, $id]);
+                [...array_slice($native, 1), $id]);
         }
         $this->run('INSERT INTO ' . $this->table('product_description') . '
             (product_id, language_id, name, description, tag, meta_title, meta_description, meta_keyword)

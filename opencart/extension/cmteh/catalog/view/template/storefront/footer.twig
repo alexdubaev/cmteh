@@ -25,7 +25,7 @@
       <div class="footer-note">{% if site.footer_brand_label|default('') %}<span>{{ site.footer_brand_label }}</span>{% endif %}{% if site.footer_disclaimer|default('') %}<p>{{ site.footer_disclaimer }}</p>{% endif %}</div>
     {% endif %}
   </div>
-  {% if site.social_links|default([]) %}<nav class="shell footer-social-links" aria-label="Ñîöèàëüíûå ñåòè">
+  {% if site.social_links|default([]) %}<nav class="shell footer-social-links" aria-label="Ð¡Ð¾Ñ†Ð¸Ð°Ð»ÑŒÐ½Ñ‹Ðµ ÑÐµÑ‚Ð¸">
     {% for link in site.social_links %}{% set socialUrl = ui.href(link.url|default('')) %}{% if socialUrl and link.label|default('') %}<a href="{{ socialUrl }}" rel="noopener noreferrer">{{ link.label }}</a>{% endif %}{% endfor %}
   </nav>{% endif %}
   {% if site.sections|default([]) %}<div class="shell">{% include templates ~ 'sections.twig' with {sections: site.sections} %}</div>{% endif %}

@@ -341,12 +341,45 @@ def native_catalog_editor(runtime):
         require(result.get("success"), "Native OpenCart product editor rejected a valid record.")
         return product_id or int(result["product_id"])
 
+    def catalog_snapshot():
+        # Compare real native IDs, hierarchy, products, links and public projections without logging data.
+        script = r'''require '/var/www/html/config.php';
+require '/workspace/extension/cmteh/system/Database.php';
+$pdo=\Cmteh\Database::connectFromOpenCart(); $state=[];
+foreach (['category','category_description','category_path','category_to_store','product',
+          'product_description','product_to_category','cmteh_category','cmteh_product','cmteh_route'] as $table) {
+    $state[$table]=$pdo->query('SELECT * FROM `'.DB_PREFIX.$table.'` ORDER BY 1,2')->fetchAll(PDO::FETCH_ASSOC);
+}
+echo hash('sha256',json_encode($state,JSON_THROW_ON_ERROR));'''
+        return runtime.docker("exec", "-T", "web", "php", "-r", script, capture=True).stdout.strip()
+
     try:
         nonce = uuid4().hex[:8]
         parent_slug, child_slug, product_slug = ("test-" + prefix + "-" + nonce for prefix in ("parent", "child", "product"))
         parent = save_category(parent_slug, "Штатный каталог " + nonce)
         child = save_category(child_slug, "Штатный подраздел " + nonce, parent_id=parent)
         product = save_product(product_slug, "Штатный товар " + nonce, "OLD-" + nonce, child)
+        empty_slug = "test-unlinked-" + nonce
+        empty = save_category(empty_slug, "Несвязанная тестовая категория " + nonce)
+        before_delete = catalog_snapshot()
+        for protected in (parent, child):
+            status, body = runtime.request(runtime.action("catalog/category.delete"),
+                                           urlencode({"selected[]": [empty, protected]}, doseq=True).encode("ascii"), FORM)
+            require(status == 200, "Native category dependency refusal did not return its JSON response.")
+            denied = json.loads(body)
+            require(isinstance(denied.get("error"), str) and "Категор" in denied["error"] and not denied.get("success"),
+                    "Native deletion did not clearly reject the complete dependent category batch.")
+            require(catalog_snapshot() == before_delete,
+                    "Denied native deletion changed category IDs, paths, products, links or public projections.")
+            require(runtime.request("/category/" + empty_slug)[0] == 200
+                    and runtime.request("/category/" + child_slug)[0] == 200
+                    and runtime.request("/product/" + product_slug)[0] == 200,
+                    "Denied category deletion changed an existing public URL.")
+        require(admin_post(runtime, "catalog/category.delete", {"selected[]": [empty]}).get("success"),
+                "Native deletion rejected an unlinked synthetic category.")
+        require(runtime.request("/category/" + empty_slug)[0] == 410,
+                "Native deletion of an unlinked category did not retire its URL.")
+        print("PASS: native category deletion denies whole dependent batches without mutations; unlinked deletion returns URL410", flush=True)
         code, body = runtime.request("/category/" + parent_slug)
         require(code == 200 and "Штатный подраздел " + nonce in body and "Штатный товар " + nonce in body,
                 "Native category tree did not appear or roll up its descendant's product.")
@@ -469,6 +502,7 @@ def collect_browser(runtime, tooling, reference, evidence):
     browser_editor.logout()
     env = os.environ | {"CMTEH_BROWSER_BASE": runtime.origin, "CMTEH_BROWSER_TOOLING": str(tooling),
                         "CMTEH_BROWSER_EVIDENCE": str(evidence),
+                        "CMTEH_ADMIN_CMS_SCENARIO": "full",
                         "CMTEH_ADMIN_USERNAME": username,
                         "CMTEH_ADMIN_PASSWORD_FILE": str(password_file)}
     for name in ("storefront.mjs", "admin-cms.mjs", "capture.mjs"):

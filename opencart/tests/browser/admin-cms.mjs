@@ -94,6 +94,36 @@ const openFirst = async type => {
   await page.goto(editor(type));
   await page.locator('tbody a[href*="cmteh_catalog"]').first().click();
 };
+const reviewClosure = async () => {
+  const category=await create('category',{title:'Категория проверки '+suffix,h1:'Заголовок категории '+suffix,status:'published'});
+  await page.reload(); assert.equal(await field('h1').inputValue(),'Заголовок категории '+suffix);
+  await shop.goto('/category/'+category.slug); assert.equal(await shop.locator('main h1').textContent(),'Заголовок категории '+suffix);
+  console.log('PASS review category H1: reload and public heading');
+  const article=await create('article',{title:'Статья проверки '+suffix,excerpt:'Анонс проверки '+suffix,status:'published'});
+  await page.reload(); assert.equal(await field('excerpt').inputValue(),'Анонс проверки '+suffix);
+  await shop.goto('/articles/'+article.slug); assert.equal(await shop.locator('.article-intro').textContent(),'Анонс проверки '+suffix);
+  console.log('PASS review article excerpt: reload and public intro');
+  const brand=await create('brand',{name:'Бренд проверки '+suffix,status:'published'});
+  const product=await create('product',{title:'Товар проверки '+suffix,seo_title:'Товар проверки '+suffix,sku:'00000042',brand_slug:brand.slug,price_status:'on_request',status:'published'});
+  const nativeLink=await page.getByText('Открыть штатную форму OpenCart',{exact:true}).getAttribute('href');
+  await page.goto(nativeLink); await page.locator('a[href="#tab-data"]').click(); await page.locator('[name=model]').fill('Independent-'+suffix);
+  await page.locator('a[href="#tab-seo"]').click();
+  for (const input of await page.locator('[name^="product_seo_url["]').all()) await input.fill(product.slug);
+  const saved=page.waitForResponse(response=>response.request().method()==='POST' && response.url().includes('catalog/product.save'));
+  await page.locator('button[form="form-product"][type=submit]').click();
+  assert.ok((await (await saved).json()).success,'Native model change must save');
+  await edit('product',product.id); await field('short_description').fill('Изменение описания '+suffix); await save(); await page.reload();
+  assert.equal(await field('sku').inputValue(),'00000042');
+  await page.goto(nativeLink); assert.equal(await page.locator('[name=model]').inputValue(),'Independent-'+suffix,'CMS save preserves independent native model');
+  await openFirst('site'); siteRestore={id:await field('id').inputValue(),phone:await field('phone').inputValue(),socialCount:await page.locator('[data-collection=social_links] [data-collection-row]').count()};
+  await page.locator('[data-collection=social_links] [data-collection-add]').click();
+  const social=page.locator('[data-collection=social_links] [data-collection-row]').last();
+  await social.locator('[data-column=label]').fill('Проверка соцссылки'); await social.locator('[data-column=url]').fill('https://example.org/review-'+suffix); await save();
+  await shop.goto('/'); assert.equal(await shop.locator('.footer-social-links').getAttribute('aria-label'),'Социальные сети');
+  await restoreSite();
+  for (const record of [product,brand,article,category]) { await remove(record); own.splice(own.indexOf(record),1); }
+  console.log('PASS review closure: category H1 and article excerpt reach storefront after reload; native model survives CMS save; social navigation label is Russian');
+};
 try {
   await page.goto('/admin/');
   await page.locator('[name=username]').fill(process.env.CMTEH_ADMIN_USERNAME || 'cmteh-admin');
@@ -101,6 +131,8 @@ try {
   await page.locator('#form-login button[type=submit]').click();
   await page.waitForURL(/user_token=/);
   token = new URL(page.url()).searchParams.get('user_token');
+  await reviewClosure();
+  if (process.env.CMTEH_ADMIN_CMS_SCENARIO !== 'review-closure') {
   await page.goto(editor('product','&new=1'));
   assert.equal(await page.locator('select[name=brand_slug]').count(),1,'Brand must be chosen from catalog records');
   assert.equal(await page.locator('[name=details]').count(),0,'No JSON editor');
@@ -213,6 +245,7 @@ try {
   console.log('PASS home order/modes/selected order, nested inclusion, unlimited categories and shared contacts/social links');
   for (const record of [...own].reverse()) { await remove(record); own.splice(own.indexOf(record),1); if (record.type !== 'navigation') assert.equal((await publicContext.request.get((record.type==='page'?'/':('/'+record.type+'/'))+record.slug)).status(),410); }
   console.log('PASS explicit deletion of isolated browser records and old URL410; existing content restored');
+  }
 } catch (error) {
   let message=String(error?.message || error).replaceAll(password,'[REDACTED]').replace(/user_token=[^&\s"'<>]+/g,'user_token=[REDACTED]');
   if (token) message=message.replaceAll(token,'[REDACTED]');
