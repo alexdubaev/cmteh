@@ -37,8 +37,17 @@ try {
     try{$b->contacts(['from'=>'2026-02-30']);throw new RuntimeException('Invalid date accepted');}catch(InvalidArgumentException){}
     check(image($pdo,$prefix)===$before,'All business reads leave snapshots, outboxes, originals, native customers/orders unchanged');
     check($lead->submit(json_encode($p),'192.0.2.40',['content-type'=>'application/json'])['body']['replayed']===true && $quote->attachment($q['body']['id'])['bytes']==='001A;5','Read model preserves replay and private original bytes');
+    // Stored URLs are byte identities, even under the tables' case-insensitive collation.
+    $p['request_key']=LeadInput::uuid(); $p['page_url']='https://example.test/A';
+    $upper=$lead->submit(json_encode($p),'192.0.2.42',['content-type'=>'application/json']);
+    $p['request_key']=LeadInput::uuid(); $p['page_url']='https://example.test/a';
+    $lower=$lead->submit(json_encode($p),'192.0.2.43',['content-type'=>'application/json']);
+    $caseSources=$b->sources(['type'=>'lead']); $counts=[];
+    $firstSource=$b->sources(['type'=>'lead'],1,1); $secondSource=$b->sources(['type'=>'lead'],2,1);
+    foreach($caseSources['rows'] as $row)$counts[$row['source']]=(int)$row['requests'];
+    check($upper['status']===200 && $lower['status']===200 && ($counts['https://example.test/A']??0)===1 && ($counts['https://example.test/a']??0)===1 && $caseSources['total']===3 && $firstSource['pages']===3 && $firstSource['rows'][0]['source']==='https://example.test/A' && $secondSource['rows'][0]['source']==='https://example.test/a','Stored URL byte identities retain separate A/a groups and counts');
     $pdo->exec("DROP TABLE {$prefix}cmteh_quote_outbox"); $b=new AdminBusiness($pdo,$prefix);
-    check($b->dashboard()['total']===1 && $b->dashboard()['unavailable']===['quote'],'Partially missing source does not hide available requests or invent zero');
+    check($b->dashboard()['total']===3 && $b->dashboard()['unavailable']===['quote'],'Partially missing source does not hide available requests or invent zero');
 }finally {
     foreach(['cmteh_quote_attachment','cmteh_quote_outbox','cmteh_quote_quota','cmteh_quote_rate','cmteh_quote','cmteh_lead_item','cmteh_lead_outbox','cmteh_lead_rate','cmteh_lead','cmteh_lead_schema'] as $t)$pdo->exec("DROP TABLE IF EXISTS {$prefix}{$t}");
 }

@@ -121,6 +121,6 @@ final class AdminBusiness
     public function sources(array $filters = [], int $page = 1, int $size = 50): array
     {
         $f=self::filters($filters); [$sql,$p]=$this->projection($f);
-        return $this->page("SELECT source,type,COUNT(*) requests FROM ($sql) filtered GROUP BY source,type",$p,$f,$page,$size,'requests DESC,source,type');
+        return $this->page("SELECT BINARY source source,type,COUNT(*) requests FROM ($sql) filtered GROUP BY BINARY source,type",$p,$f,$page,$size,'requests DESC,source,type');
     }
 }
