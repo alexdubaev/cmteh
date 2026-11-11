@@ -304,6 +304,7 @@ final class CmtehCatalog extends Controller
             'public_href' => ($record['status'] ?? '') === 'published' && $publicPath !== '' ? rtrim(HTTP_CATALOG, '/') . $publicPath : '',
             'preview_html' => $previewHtml, 'search' => $search, 'filter_status' => $status,
             'filter_action' => $link(['type' => $type]), 'user_token' => $token,
+            'inventory_href' => $this->url->link(self::ROUTE . '.inventory', ['user_token'=>$token], true),
             'deleted' => ($this->request->get['deleted'] ?? '') === '1',
             'action' => $link(['type' => $type, 'id' => $id, 'page' => $page, 'search' => $search, 'status' => $status]),
             'new_record' => $link(['type' => $type, 'new' => 1, 'page' => $page]),
@@ -575,5 +576,128 @@ final class CmtehCatalog extends Controller
             throw new InvalidArgumentException('Некорректное поле формы');
         }
         return $value;
+    }
+
+    public function inventory(): void
+    {
+        $route = self::ROUTE;
+        $token = $this->session->data['user_token'] ?? null;
+        $suppliedToken = $this->request->get['user_token'] ?? null;
+        if (!$this->user->isLogged() || !$this->user->hasPermission('access', $route)
+            || !is_string($token) || !is_string($suppliedToken) || $token === '' || !hash_equals($token, $suppliedToken)) {
+            http_response_code(403); $this->response->setOutput('Недостаточно прав'); return;
+        }
+        $canWrite = $this->user->hasPermission('modify', $route);
+        $isPost = ($this->request->server['REQUEST_METHOD'] ?? '') === 'POST';
+        if ($isPost && !$canWrite) { http_response_code(403); $this->response->setOutput('Недостаточно прав для изменения складов'); return; }
+
+        require_once DIR_EXTENSION . 'cmteh/system/Database.php';
+        require_once DIR_EXTENSION . 'cmteh/system/InventoryException.php';
+        require_once DIR_EXTENSION . 'cmteh/system/InventoryInput.php';
+        require_once DIR_EXTENSION . 'cmteh/system/Inventory.php';
+        require_once DIR_EXTENSION . 'cmteh/system/InventoryImport.php';
+        $pdo = Database::connectFromOpenCart();
+        $inventory = new \Cmteh\Inventory($pdo, DB_PREFIX);
+        $importer = new \Cmteh\InventoryImport($pdo, DB_PREFIX, $inventory);
+        $actor = ['id'=>(int)$this->user->getId(), 'label'=>(string)$this->user->getUserName()];
+        $error = null; $notice = null; $preview = null; $receipt = null;
+        $page = max(1,min(100000,(int)$this->request->get('page','int')));
+        $search = is_string($this->request->get['search']??null) ? mb_substr($this->request->get['search'],0,128) : '';
+        $filterWarehouse = (int)$this->request->get('warehouse_id','int');
+        $filterProduct = (int)$this->request->get('product_id','int');
+        $importPage = max(1,min(1000,(int)$this->request->get('import_page','int')));
+        $action = $isPost && is_string($this->request->post['inventory_action']??null) ? $this->request->post['inventory_action'] : '';
+        $form = $isPost ? $this->request->post : [];
+        if(!$isPost&&is_string($this->request->get['import_preview_id']??null)&&is_string($this->request->get['import_digest']??null)) {
+            $preview=$importer->storedPreview($this->request->get['import_preview_id'],$this->request->get['import_digest'],$actor,$importPage);
+        }
+        if ($isPost) {
+            try {
+                $key = is_string($form['request_key']??null) ? $form['request_key'] : '';
+                if ($action === 'preview') {
+                    $file = $this->request->files['import_file'] ?? null;
+                    $rows = [];
+                    if (is_array($file) && (int)($file['error']??UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                        if ((int)($file['size']??0)>5*1024*1024 || !is_uploaded_file((string)($file['tmp_name']??''))) throw new \Cmteh\InventoryException('invalid_input','Файл должен быть до 5 МБ.');
+                        $extension = strtolower(pathinfo((string)$file['name'],PATHINFO_EXTENSION));
+                        if ($extension==='csv') $rows=\Cmteh\InventoryImport::parseCsv((string)file_get_contents((string)$file['tmp_name']));
+                        elseif ($extension==='xlsx') {
+                            $encoded=$form['xlsx_rows']??'';
+                            if(!is_string($encoded)||$encoded==='') throw new \Cmteh\InventoryException('invalid_input','Не удалось безопасно прочитать лист XLSX.');
+                            // OpenCart Request::clean applies htmlspecialchars(ENT_COMPAT) to POST strings.
+                            $decoded=json_decode(htmlspecialchars_decode($encoded,ENT_COMPAT),true,32,JSON_THROW_ON_ERROR);
+                            if(!is_array($decoded)||!array_is_list($decoded)) throw new \Cmteh\InventoryException('invalid_input','Структура XLSX preview неверна.');
+                            $rows=$decoded;
+                            \Cmteh\InventoryImport::validateXlsxFile((string)$file['tmp_name'],isset($rows[0]['source_id']));
+                        } else throw new \Cmteh\InventoryException('invalid_input','Поддерживаются только CSV и XLSX.');
+                    } else {
+                        throw new \Cmteh\InventoryException('invalid_input','Выберите CSV или XLSX файл.');
+                    }
+                    $publish=($form['publish_offers']??'')==='1';
+                    $confirm=($form['confirm_cutover']??'')==='1';
+                    $reason=is_string($form['cutover_reason']??null)?$form['cutover_reason']:'';
+                    foreach($rows as &$row) if(is_array($row)) { $row['_publish']=$publish; $row['confirm_cutover']=$confirm; $row['cutover_reason']=$reason; } unset($row);
+                    $preview=$importer->preview($rows,$actor);
+                } elseif ($action === 'apply_import') {
+                    $previewId=$this->formString($form,'preview_id'); $digest=$this->formString($form,'digest');
+                    if($key==='') throw new \Cmteh\InventoryException('invalid_input','Обновите страницу и повторите подтверждение.');
+                    $receipt=$importer->apply($previewId,$digest,$actor,$key); $notice='Импорт применён полностью.';
+                } elseif (str_starts_with($action,'inventory.')) {
+                    if($key==='') throw new \Cmteh\InventoryException('invalid_input','Идентификатор команды отсутствует.');
+                    $kind=substr($action,10); $input=[];
+                    foreach(['warehouse_id','product_id','expected_warehouse_version','expected_product_version','expected_balance_version','expected_legacy_quantity','expected_reservation_version','expected_to_balance_version','expected_to_warehouse_version','to_warehouse_id','quantity','reservation_id'] as $field) if(array_key_exists($field,$form)) $input[$field]=$form[$field];
+                    foreach(['code','name','city','delivery_term','address','note','reason','reference','price'] as $field) if(array_key_exists($field,$form)) $input[$field]=$form[$field];
+                    foreach(['published','confirmed','arrival_confirmed'] as $field) $input[$field]=($form[$field]??'')==='1';
+                    if(isset($form['expected_legacy_revision'])&&is_string($form['expected_legacy_revision'])) $input['expected_legacy_revision']=$form['expected_legacy_revision'];
+                    $result=$inventory->command($kind,$input,$actor,$key); $notice='Изменение сохранено.';
+                } else throw new \Cmteh\InventoryException('invalid_input','Неизвестное действие.');
+            } catch (\Cmteh\InventoryException | InvalidArgumentException | JsonException $exception) {
+                http_response_code($exception instanceof \Cmteh\InventoryException ? $exception->status : 422); $error=$exception->getMessage();
+                if($action==='apply_import'&&is_string($form['preview_id']??null)&&is_string($form['digest']??null)) $preview=$importer->storedPreview($form['preview_id'],$form['digest'],$actor,(int)($form['import_page']??1),false);
+            } catch (Throwable $exception) {
+                $this->log->write('СМ ТЕХНО: ошибка складской операции (' . get_class($exception) . ')');
+                http_response_code(500); $error='Не удалось выполнить складскую операцию. Введённые данные сохранены.';
+                if($action==='apply_import'&&is_string($form['preview_id']??null)&&is_string($form['digest']??null)) $preview=$importer->storedPreview($form['preview_id'],$form['digest'],$actor,(int)($form['import_page']??1),false);
+            }
+        }
+        $warehouses=$inventory->warehouses();
+        $balances=$inventory->balances(['page'=>$page,'limit'=>50,'search'=>$search,'warehouse_id'=>$filterWarehouse?:null,'product_id'=>$filterProduct?:null]);
+        $history=$inventory->history(['page'=>$page,'limit'=>20,'warehouse_id'=>$filterWarehouse?:null,'product_id'=>$filterProduct?:null]);
+        $reservations=$inventory->reservations(['page'=>$page,'limit'=>20,'warehouse_id'=>$filterWarehouse?:null,'product_id'=>$filterProduct?:null]);
+        $balanceVersions=[];
+        foreach($balances['rows'] as &$balance) {
+            $balance['state']=$inventory->productState((int)$balance['product_id']);
+            if(!isset($balanceVersions[$balance['product_id']])) {
+                $all=$inventory->balances(['product_id'=>(int)$balance['product_id'],'page'=>1,'limit'=>100]);
+                $balanceVersions[$balance['product_id']]=[];
+                foreach($all['rows'] as $item) $balanceVersions[$balance['product_id']][(int)$item['warehouse_id']]=(int)$item['version'];
+            }
+            $balance['targets']=[];
+            foreach($warehouses['rows'] as $target) if((int)$target['active']&& (int)$target['warehouse_id']!==(int)$balance['warehouse_id']) $balance['targets'][]=[
+                'id'=>(int)$target['warehouse_id'],'code'=>(string)$target['code'],'version'=>(int)$target['version'],
+                'balance_version'=>$balanceVersions[$balance['product_id']][(int)$target['warehouse_id']]??0
+            ];
+        } unset($balance);
+        $warehouseVersions=[]; foreach($warehouses['rows'] as $warehouse) $warehouseVersions[(int)$warehouse['warehouse_id']]=(int)$warehouse['version'];
+        foreach($reservations['rows'] as &$reservation) {
+            $reservation['state_snapshot']=$inventory->productState((int)$reservation['product_id']);
+            $pair=$inventory->balances(['product_id'=>(int)$reservation['product_id'],'warehouse_id'=>(int)$reservation['warehouse_id'],'limit'=>1]);
+            $reservation['balance_snapshot']=$pair['rows'][0]??['version'=>0];
+            $reservation['warehouse_version']=$warehouseVersions[(int)$reservation['warehouse_id']]??0;
+        } unset($reservation);
+        $link=fn(array $params=[]):string=>$this->url->link(self::ROUTE.'.inventory',['user_token'=>$token]+$params,true);
+        $previewPrevious=$preview&&$preview['page']>1?$link(['import_preview_id'=>$preview['preview_id'],'import_digest'=>$preview['digest'],'import_page'=>$preview['page']-1]):'';
+        $previewNext=$preview&&$preview['page']<$preview['pages']?$link(['import_preview_id'=>$preview['preview_id'],'import_digest'=>$preview['digest'],'import_page'=>$preview['page']+1]):'';
+        $this->document->setTitle('Склады и предложения');
+        $this->response->setOutput($this->load->view('extension/cmteh/inventory/admin',[
+            'header'=>$this->load->controller('common/header'),'column_left'=>$this->load->controller('common/column_left'),'footer'=>$this->load->controller('common/footer'),
+            'action'=>$link(),'user_token'=>$token,'can_write'=>$canWrite,'error'=>$error,'notice'=>$notice,'preview'=>$preview,'receipt'=>$receipt,
+            'warehouses'=>$warehouses['rows'],'balances'=>$balances,'history'=>$history['rows'],'reservations'=>$reservations['rows'],
+            'search'=>$search,'filter_warehouse'=>$filterWarehouse,'filter_product'=>$filterProduct,'form'=>$form,
+            'request_key'=>bin2hex(random_bytes(16)),'csrf_token'=>$token,'cutover_rows'=>[],
+            'previous'=>$page>1?$link(['page'=>$page-1,'search'=>$search,'warehouse_id'=>$filterWarehouse,'product_id'=>$filterProduct]):'',
+            'next'=>($page*50<$balances['total']||$page*20<$history['total']||$page*20<$reservations['total'])?$link(['page'=>$page+1,'search'=>$search,'warehouse_id'=>$filterWarehouse,'product_id'=>$filterProduct]):'',
+            'preview_previous'=>$previewPrevious,'preview_next'=>$previewNext
+        ]));
     }
 }
