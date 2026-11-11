@@ -22,3 +22,8 @@
 - Browser proves actual product A+B→reload/independent quantities/terms→server stale409/no orphan→explicit review→real commit/lost acknowledgement→same-key replay→fresh addition retained; also prior cached 2031f82 module, storage failure, BigInt bound, unsupported endpoint and 101 combined rows. Owned fixture records are cleaned.
 - Installed evidence: `D:/codex/temp/cmteh-warehouse-dev-20261111/evidence/warehouse-offers-targeted-installed.json` verifies Reflection paths and exact SHA256 for 12 installed class/trait files plus private test copy; product/cart 390px PNGs were visually inspected without horizontal overflow.
 - Limits: legacy full browser suite cannot run here because documented RE568158 fixture is absent (GET search total0); 05 must run it after final fixture seeding. Final immutable package/strict verifier/actual host PHP8.2/deployment are NOT claimed. No commit, host action, external mail, real customer/stock fixture or secret output.
+
+
+## T04 visual closure
+
+After sourcecommitc9dfe40, root390visual foundchoicebelowgenericmetadata andqty1duplicateprice. Sameauthor boundedfix only product.twig/request.mjs/storefront.css. Narrow realbrowser REDbefore→GREENafter: firstofferbutton y610–656 abovefixedactions776 atinitialscroll0; qty1oneunitprice/qty2exactsubtotal. FreshBODYfocus skiplinkhidden; noCSSfixneededforcaptureartifact. Rootviewedboth390repairedPNGs andaccepted. No backend/storagechange; previous18×2/compatchecksreused, nobroadrepeat. Newactualstaticartifacthashes finalcandidatewillinclude3files.

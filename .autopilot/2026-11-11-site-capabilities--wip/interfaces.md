@@ -268,3 +268,8 @@ Rootclosure02: installed form-only3PASS exit0, actualeventdata route/product/tok
 
 
 Rootclosure04: preservedtestreceipt verifiedcurrent12sourceclass hashes, all12Reflectionpathsunderinstalledsystem andprivate runnerSHA; reusecompleted18×2+browser7+existingcompatchecks perownerpolicy, no needlessrepeat. Legacyfullbrowsermissingfixture explicitlypending05, notPASS. Rootdidnotreadproductdiff.
+
+
+## T04 visual closure
+
+After sourcecommitc9dfe40, root390visual foundchoicebelowgenericmetadata andqty1duplicateprice. Sameauthor boundedfix only product.twig/request.mjs/storefront.css. Narrow realbrowser REDbefore→GREENafter: firstofferbutton y610–656 abovefixedactions776 atinitialscroll0; qty1oneunitprice/qty2exactsubtotal. FreshBODYfocus skiplinkhidden; noCSSfixneededforcaptureartifact. Rootviewedboth390repairedPNGs andaccepted. No backend/storagechange; previous18×2/compatchecksreused, nobroadrepeat. Newactualstaticartifacthashes finalcandidatewillinclude3files.

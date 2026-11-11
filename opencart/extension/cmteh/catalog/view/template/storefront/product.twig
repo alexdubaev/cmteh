@@ -24,11 +24,34 @@
       </div>
       <h1>{{ heading }}</h1>
       <div class="article-big"><span>Артикул <strong>{{ product.sku }}</strong></span>{{ ui.copy(product.sku) }}</div>
+      {% if product.inventory_managed|default(false) %}
+      <section id="warehouse-offers" class="warehouse-offers" aria-labelledby="warehouse-offers-title">
+        <h2 id="warehouse-offers-title">Выберите склад</h2>
+        <div class="warehouse-offer-grid">
+        {% for offer in product.offers %}
+          <article class="warehouse-offer">
+            <h3>{{ offer.warehouse.name }}</h3>{% if offer.warehouse.city %}<span>{{ offer.warehouse.city }}</span>{% endif %}
+            <strong>{{ offer.price is not null ? offer.price|replace({'.': ','}) ~ ' ₽ за шт.' : 'Цена по запросу' }}</strong>
+            <span>{{ ui.status(offer.availability_status) }}</span>
+            <span>Срок поставки: {{ offer.delivery_term ?: 'Уточнит менеджер' }}</span>
+            <button class="button secondary" type="button"{% if offer.availability_status != 'in_stock' %} disabled{% endif %}
+              data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}" data-product-id="{{ product.id }}"
+              data-offer-id="{{ offer.offer_id }}" data-offer-version="{{ offer.offer_version }}" data-warehouse-code="{{ offer.warehouse.code }}"
+              data-warehouse-name="{{ offer.warehouse.name }}" data-warehouse-city="{{ offer.warehouse.city }}" data-delivery-term="{{ offer.delivery_term }}" data-price="{{ offer.price }}"
+              aria-label="Добавить {{ product.sku }}, склад {{ offer.warehouse.name }}">В корзину</button><span class="request-announcement" role="status" aria-live="polite"></span>
+          </article>
+        {% else %}<p>Опубликованных предложений пока нет. Уточните поставку у менеджера.</p>{% endfor %}
+        </div>
+        {% if product.offers_partial %}<p>Показана часть складских предложений. Остальные условия уточните у менеджера.</p>{% endif %}
+        <p class="warehouse-offer-note">Заявка не резервирует товар; условия подтвердит менеджер.</p>
+        <div class="warehouse-offer-links"><a class="button secondary" href="/request">Открыть корзину</a><a class="text-link" href="/parts-list">Уточнить поставку или отправить список на расценку →</a></div>
+      </section>
+      {% endif %}
       {% if product.short_description|default(site.product_missing_description|default('')) %}<p>{{ product.short_description|default(site.product_missing_description) }}</p>{% endif %}
       {% if not product.inventory_managed|default(false) %}<div class="purchase-area"><div class="product-price">{{ ui.price(product) }}</div>{{ ui.add(product, true) }}<a class="button secondary wide" href="/request">Открыть корзину</a></div>{% endif %}
-      {% if site.product_delivery_title|default('') or site.product_documents_title|default('') %}
+      {% if (not product.inventory_managed|default(false) and site.product_delivery_title|default('')) or site.product_documents_title|default('') %}
         <div class="product-trust">
-          {% if site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
+          {% if not product.inventory_managed|default(false) and site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
           {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
         </div>
       {% endif %}
@@ -49,29 +72,6 @@
       {% endif %}
     </div>
   </section>
-  {% if product.inventory_managed|default(false) %}
-  <section id="warehouse-offers" class="panel warehouse-offers" aria-labelledby="warehouse-offers-title">
-    <h2 id="warehouse-offers-title">Предложения по складам</h2>
-    <p>Выберите склад для каждой позиции. Заявка не резервирует товар; условия подтвердит менеджер.</p>
-    <div class="warehouse-offer-grid">
-    {% for offer in product.offers %}
-      <article class="warehouse-offer">
-        <h3>{{ offer.warehouse.name }}</h3>{% if offer.warehouse.city %}<span>{{ offer.warehouse.city }}</span>{% endif %}
-        <strong>{{ offer.price is not null ? offer.price|replace({'.': ','}) ~ ' ₽ за шт.' : 'Цена по запросу' }}</strong>
-        <span>{{ ui.status(offer.availability_status) }}</span>
-        <span>Срок поставки: {{ offer.delivery_term ?: 'Уточнит менеджер' }}</span>
-        <button class="button secondary" type="button"{% if offer.availability_status != 'in_stock' %} disabled{% endif %}
-          data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}" data-product-id="{{ product.id }}"
-          data-offer-id="{{ offer.offer_id }}" data-offer-version="{{ offer.offer_version }}" data-warehouse-code="{{ offer.warehouse.code }}"
-          data-warehouse-name="{{ offer.warehouse.name }}" data-warehouse-city="{{ offer.warehouse.city }}" data-delivery-term="{{ offer.delivery_term }}" data-price="{{ offer.price }}"
-          aria-label="Добавить {{ product.sku }}, склад {{ offer.warehouse.name }}">В корзину</button><span class="request-announcement" role="status" aria-live="polite"></span>
-      </article>
-    {% else %}<p>Опубликованных предложений пока нет. Уточните поставку у менеджера.</p>{% endfor %}
-    </div>
-    {% if product.offers_partial %}<p>Показана часть складских предложений. Остальные условия уточните у менеджера.</p>{% endif %}
-    <div class="warehouse-offer-links"><a class="button secondary" href="/request">Открыть корзину</a><a class="text-link" href="/parts-list">Уточнить поставку или отправить список на расценку →</a></div>
-  </section>
-  {% endif %}
   <section class="product-details">
     <article class="panel"><h2>О товаре</h2>
       {# The catalog boundary supplies separately named, sanitized HTML when present. #}

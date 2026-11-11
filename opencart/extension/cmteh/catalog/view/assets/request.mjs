@@ -123,7 +123,7 @@ function setupCart(cart) {
       else if (unit) {
         const lineMinor = unit.minor * BigInt(item.quantity);
         totalsByCurrency.set(unit.currency, { ...unit, minor: (totalsByCurrency.get(unit.currency)?.minor ?? 0n) + lineMinor });
-        priceMessage = money(unit) + " за шт. · " + money(unit, lineMinor) + " за " + item.quantity + " шт.";
+        priceMessage = money(unit) + " за шт." + (item.quantity > 1 ? " · " + money(unit, lineMinor) + " за " + item.quantity + " шт." : "");
       } else unpriced++;
       body.append(element("small", priceMessage, "cart-price-label"));
       const qty = element("div", "", "qty");
