@@ -13,6 +13,7 @@ require_once __DIR__ . '/CatalogSchema.php';
 require_once __DIR__ . '/CatalogInput.php';
 require_once __DIR__ . '/CatalogWrites.php';
 require_once __DIR__ . '/CatalogAdmin.php';
+require_once __DIR__ . '/Inventory.php';
 
 final class Catalog
 {
@@ -28,6 +29,8 @@ final class Catalog
 
     /** @var array<string, PDOStatement> */
     private array $statements = [];
+    private ?bool $inventoryReady = null;
+    private array $offerProjection = [];
 
     public function __construct(
         private readonly PDO $pdo,
@@ -59,9 +62,10 @@ final class Catalog
 
         [$where, $params] = $this->productFilters($query, $needle);
         $rankParams = [];
+        $effectivePrice = $this->effectivePrice();
         $order = match ($query['sort'] ?? '') {
-            'price_asc' => "x.price_status <> 'fixed', p.price ASC",
-            'price_desc' => "x.price_status <> 'fixed', p.price DESC",
+            'price_asc' => "($effectivePrice) IS NULL, ($effectivePrice) ASC",
+            'price_desc' => "($effectivePrice) IS NULL, ($effectivePrice) DESC",
             'title' => 'd.name ASC',
             default => "public_image IS NULL AND p.image = '', p.sort_order ASC",
         };
@@ -79,7 +83,7 @@ final class Catalog
                 $this->productSelect() . $base . " ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
                 array_merge($params, $rankParams)
             )->fetchAll(PDO::FETCH_ASSOC);
-            $result['products'] = array_map($this->productDto(...), $rows);
+            $result['products'] = $this->productDtos($rows);
             return $result;
         });
     }
@@ -111,6 +115,13 @@ final class Catalog
         if ($cut) array_pop($hits);
         $last = $cut ? $hits[array_key_last($hits)]['sku_norm'] : null;
         $groups = [];
+        $projected = []; $perSku = [];
+        foreach ($hits as $hit) {
+            if (($perSku[$hit['sku_norm']] ?? 0) >= 5) continue;
+            $perSku[$hit['sku_norm']] = ($perSku[$hit['sku_norm']] ?? 0) + 1;
+            $projected[] = $hit['source_id'];
+        }
+        $this->offerProjection = $this->publicWarehouseOffers($projected);
         $counts = [];
         foreach ($hits as $hit) {
             $key = $hit['sku_norm'];
@@ -118,7 +129,7 @@ final class Catalog
             if (count($groups[$key] ?? []) >= 5) continue;
             $dto = $this->productDto($hit);
             $groups[$key][] = array_intersect_key($dto, array_flip([
-                'id', 'slug', 'sku', 'title', 'brand', 'availability_status',
+                'id', 'slug', 'sku', 'title', 'brand', 'availability_status', 'inventory_managed', 'offers', 'offers_partial',
             ]));
         }
         $result = [];
@@ -144,7 +155,7 @@ final class Catalog
         $rows = $this->run($this->productSelect() . $this->productFrom()
             . ' WHERE ' . $this->publicProduct() . " AND x.source_id IN ($placeholders) LIMIT 100", $ids)
             ->fetchAll(PDO::FETCH_ASSOC);
-        return array_column(array_map($this->productDto(...), $rows), null, 'id');
+        return array_column($this->productDtos($rows), null, 'id');
     }
 
     public function explain(array $query): array
@@ -164,6 +175,7 @@ final class Catalog
             return null;
         }
 
+        $this->offerProjection = $this->publicWarehouseOffers([$row['source_id']]);
         $product = $this->productDto($row);
         $details = self::decode($row['data']);
         $media = $this->approvedMedia('product', $row['source_id']);
@@ -302,7 +314,7 @@ final class Catalog
             $this->productSelect() . $this->productFrom() . ' WHERE ' . $this->publicProduct() .
             " AND x.indexable = 1 ORDER BY p.product_id LIMIT $limit OFFSET $offset"
         )->fetchAll(PDO::FETCH_ASSOC);
-        return array_map($this->productDto(...), $rows);
+        return $this->productDtos($rows);
     }
 
     public function indexableCount(): int
@@ -337,7 +349,7 @@ final class Catalog
     {
         $where = [$this->publicProduct()];
         $params = [];
-        foreach (['brand' => 'b.slug', 'availability' => 'x.availability', 'partType' => 'x.part_type'] as $key => $column) {
+        foreach (['brand' => 'b.slug', 'availability' => $this->effectiveAvailability(), 'partType' => 'x.part_type'] as $key => $column) {
             if (isset($query[$key]) && is_string($query[$key]) && $query[$key] !== '') {
                 $where[] = "$column = ?";
                 $params[] = $query[$key];
@@ -373,7 +385,7 @@ final class Catalog
         return 'SELECT x.*, p.price AS native_price, p.image AS native_image, p.date_modified, d.name, d.description,
             d.meta_title, d.meta_description, m.name AS brand_name, b.slug AS brand_slug, b.data AS brand_data,
             c.source_id AS category_source_id, c.slug AS category_slug, cd.name AS category_title,
-            image.uuid AS public_image ';
+            image.uuid AS public_image, ' . $this->effectiveAvailability() . ' AS effective_availability ';
     }
 
     private function productFrom(): string
@@ -425,7 +437,10 @@ final class Catalog
     {
         $data = self::decode($row['data']);
         $price = (float) $row['native_price'];
-        $priceStatus = $row['price_status'];
+        $projection = $this->offerProjection[$row['source_id']] ?? $this->publicWarehouseOffers([$row['source_id']])[$row['source_id']] ?? ['managed'=>false,'offers'=>[],'partial'=>false];
+        $managed = $projection['managed'];
+        $priceStatus = $managed ? 'warehouse' : $row['price_status'];
+        $availability = $row['effective_availability'];
         if ($priceStatus === 'fixed' && (!is_finite($price) || $price < 0
             || ($price == 0 && ($data['confirm_zero_price'] ?? false) !== true)
             || !preg_match('/^[A-Z]{3}$/D', $row['currency'] ?? ''))) {
@@ -439,7 +454,8 @@ final class Catalog
             'short_description' => $data['short_description'] ?? null, 'full_description' => null,
             'price' => $priceStatus === 'fixed' ? $price : null,
             'currency' => $row['currency'], 'price_status' => $priceStatus,
-            'availability_status' => $row['availability'], 'part_type' => $row['part_type'],
+            'inventory_managed' => $managed, 'offers' => $projection['offers'], 'offers_partial' => $projection['partial'],
+            'availability_status' => $availability, 'part_type' => $row['part_type'],
             'main_image' => $row['public_image'],
             'main_image_url' => self::publicImageUrl($row['native_image']),
             'category' => $row['category_slug'] !== null ? [
@@ -451,6 +467,56 @@ final class Catalog
             'canonical_url' => $data['canonical_url'] ?? null,
             'is_indexable' => (bool) $row['indexable'], 'date_updated' => str_replace(' ', 'T', $row['date_modified']) . 'Z',
         ];
+    }
+
+    /** Bounded public source IDs; Inventory owns the DTO allowlist and publication rules. */
+    public function publicWarehouseOffers(array $ids): array
+    {
+        if (!$ids || !$this->hasInventory()) return [];
+        $inventory = new Inventory($this->pdo, $this->prefix, $this->storeId, $this->languageId);
+        $result = []; $remaining = 10000;
+        foreach (array_chunk(array_values(array_unique($ids)), 1000) as $batch) {
+            foreach ($inventory->publicOffers($batch) as $id => $projection) {
+                if (count($projection['offers']) > $remaining) {
+                    $projection['offers'] = array_slice($projection['offers'], 0, $remaining);
+                    $projection['partial'] = true;
+                }
+                $remaining -= count($projection['offers']);
+                $result[$id] = $projection;
+            }
+        }
+        return $result;
+    }
+
+    private function productDtos(array $rows): array
+    {
+        $this->offerProjection = $this->publicWarehouseOffers(array_column($rows, 'source_id'));
+        return array_map($this->productDto(...), $rows);
+    }
+
+    private function hasInventory(): bool
+    {
+        if ($this->inventoryReady !== null) return $this->inventoryReady;
+        $query = $this->run('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=?', [$this->prefix . 'cmteh_inventory_product']);
+        return $this->inventoryReady = (int) $query->fetchColumn() === 1;
+    }
+
+    private function effectiveAvailability(): string
+    {
+        if (!$this->hasInventory()) return 'x.availability';
+        return "(CASE WHEN EXISTS (SELECT 1 FROM " . $this->table('cmteh_inventory_product') . " ip WHERE ip.product_id=p.product_id)
+            THEN CASE WHEN EXISTS (SELECT 1 FROM " . $this->table('cmteh_inventory_balance') . " ib JOIN " . $this->table('cmteh_warehouse') . " iw ON iw.warehouse_id=ib.warehouse_id
+                WHERE ib.product_id=p.product_id AND ib.published=1 AND iw.active=1 AND ib.on_hand>ib.reserved)
+                THEN 'in_stock' ELSE 'out_of_stock' END ELSE x.availability END)";
+    }
+
+    private function effectivePrice(): string
+    {
+        $legacy = "CASE WHEN x.price_status='fixed' THEN p.price ELSE NULL END";
+        if (!$this->hasInventory()) return $legacy;
+        return "CASE WHEN EXISTS (SELECT 1 FROM " . $this->table('cmteh_inventory_product') . " ip WHERE ip.product_id=p.product_id)
+            THEN (SELECT MIN(ib.price) FROM " . $this->table('cmteh_inventory_balance') . " ib JOIN " . $this->table('cmteh_warehouse') . " iw ON iw.warehouse_id=ib.warehouse_id
+                WHERE ib.product_id=p.product_id AND ib.published=1 AND iw.active=1) ELSE ($legacy) END";
     }
 
     private function mergeNativeSpecifications(int $productId, array $items): array

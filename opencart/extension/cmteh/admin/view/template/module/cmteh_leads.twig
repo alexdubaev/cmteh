@@ -39,7 +39,7 @@
                 <thead><tr><th scope="col">Артикул</th><th scope="col">Количество</th><th scope="col">Выбранный товар</th></tr></thead>
                 <tbody>
                   {% for item in lead.items %}
-                    <tr><td class="text-break">{{ item.article|e }}</td><td>{{ item.quantity|e }}</td><td class="text-break">{% if item.product_id %}<strong>{{ item.product_brand|e }}</strong><br>{{ item.product_title|e }}<br><small>{{ item.product_sku|e }} · {{ item.product_id|e }}</small>{% else %}—{% endif %}</td></tr>
+                    <tr><td class="text-break">{{ item.article|e }}</td><td>{{ item.quantity|e }}</td><td class="text-break">{% if item.product_id %}<strong>{{ item.product_brand|e }}</strong><br>{{ item.product_title|e }}<br><small>{{ item.product_sku|e }} · {{ item.product_id|e }}</small>{% if item.offer_id|default('') %}<hr><strong>Склад: {{ item.warehouse_name|e }}</strong><br>{{ item.warehouse_city|e }} · {{ item.warehouse_code|e }}<br>{% if item.unit_price is not null %}{{ item.unit_price|e }} {{ item.currency|e }} за шт.{% else %}Цена по запросу{% endif %}<br>Срок: {{ item.delivery_term|e }}<br><small>Предложение {{ item.offer_id|e }} · условия на момент заявки</small>{% endif %}{% else %}—{% endif %}</td></tr>
                   {% endfor %}
                 </tbody>
               </table>

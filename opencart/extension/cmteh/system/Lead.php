@@ -12,6 +12,7 @@ use Throwable;
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/LeadInput.php';
 require_once __DIR__ . '/Catalog.php';
+require_once __DIR__ . '/Inventory.php';
 
 final class Lead
 {
@@ -19,7 +20,7 @@ final class Lead
     private const GLOBAL_LIMIT = 240;
     private const CLIENT_LIMIT = 12;
 
-    public function __construct(private readonly PDO $pdo, private readonly string $prefix)
+    public function __construct(private readonly PDO $pdo, private readonly string $prefix, private readonly int $storeId = 0, private readonly int $languageId = 1)
     {
         if (!preg_match('/^[a-zA-Z0-9_]{0,40}$/D', $prefix)) {
             throw new InvalidArgumentException('Invalid lead table prefix.');
@@ -101,6 +102,11 @@ final class Lead
      */
     public function submit(string $raw, string $clientAddress, array $headers = []): array
     {
+        return $this->submitRequest($raw, $clientAddress, $headers, false);
+    }
+
+    private function submitRequest(string $raw, string $clientAddress, array $headers, bool $warehouse): array
+    {
         if (strlen($raw) > 512000) {
             return self::error(413, 'Заявка слишком большая.');
         }
@@ -115,9 +121,11 @@ final class Lead
                 return self::error(429, 'Слишком много запросов. Попробуйте чуть позже.')
                     + ['headers' => ['Retry-After' => (string) (60 - $now % 60)]];
             }
-            [$key, $data] = LeadInput::parse($raw);
+            [$key, $data] = $warehouse ? LeadInput::parseWarehouse($raw) : LeadInput::parse($raw);
 
             return $this->save($key, $data);
+        } catch (InventoryException $error) {
+            return self::error($error->status, $error->getMessage());
         } catch (InvalidArgumentException $error) {
             return self::error(400, $error->getMessage());
         } catch (Throwable $error) {
@@ -125,6 +133,11 @@ final class Lead
 
             return self::error(503, 'Сохранение заявки не подтверждено. Повторите отправку.');
         }
+    }
+
+    public function submitWarehouse(string $raw, string $clientAddress, array $headers = []): array
+    {
+        return $this->submitRequest($raw, $clientAddress, $headers, true);
     }
 
     public function list(int $page): array
@@ -153,8 +166,11 @@ final class Lead
         if (!$lead) {
             return null;
         }
-        $items = $this->pdo->prepare("SELECT article, quantity, product_id, product_sku, product_brand, product_title FROM {$table}_item
-            WHERE lead_id = ? ORDER BY position");
+        $inventory = $this->inventoryReady();
+        $extra = $inventory ? ', w.offer_id, w.offer_version, w.warehouse_code, w.warehouse_name, w.warehouse_city, w.unit_price, w.currency, w.delivery_term, w.availability_status' : '';
+        $join = $inventory ? " LEFT JOIN {$this->prefix}cmteh_lead_inventory w ON w.lead_id=i.lead_id AND w.position=i.position" : '';
+        $items = $this->pdo->prepare("SELECT i.article, i.quantity, i.product_id, i.product_sku, i.product_brand, i.product_title$extra FROM {$table}_item i$join
+            WHERE i.lead_id = ? ORDER BY i.position");
         $items->execute([$lead['lead_id']]);
         unset($lead['lead_id']);
         $lead['items'] = $items->fetchAll(PDO::FETCH_ASSOC);
@@ -255,7 +271,37 @@ final class Lead
     private function saveItems(string $table, string $leadId, array $items): void
     {
         $ids = array_column($items, 'product_id');
-        $products = $ids ? (new Catalog($this->pdo, $this->prefix))->selectedProducts($ids) : [];
+        $ready = $this->inventoryReady();
+        if ($ready && $ids) {
+            $marks = implode(',', array_fill(0, count($ids), '?'));
+            // Acquire individual primary-key mutexes in native numeric order,
+            // independent of the optimizer's chosen source-ID index scan.
+            $map = $this->pdo->prepare("SELECT product_id FROM {$this->prefix}cmteh_product WHERE source_id IN ($marks)");
+            $map->execute($ids);
+            $nativeIds = array_map('intval', $map->fetchAll(PDO::FETCH_COLUMN));
+            sort($nativeIds, SORT_NUMERIC);
+            foreach ($nativeIds as $nativeId) {
+                $lock = $this->pdo->prepare("SELECT product_id FROM {$this->prefix}product WHERE product_id=? FOR UPDATE");
+                $lock->execute([$nativeId]); $lock->fetchAll();
+                $lock = $this->pdo->prepare("SELECT product_id FROM {$this->prefix}cmteh_inventory_product WHERE product_id=? FOR UPDATE");
+                $lock->execute([$nativeId]); $lock->fetchAll();
+            }
+            $managed = $this->pdo->prepare("SELECT x.source_id FROM {$this->prefix}cmteh_inventory_product ip
+                JOIN {$this->prefix}cmteh_product x ON x.product_id=ip.product_id
+                WHERE x.source_id IN ($marks) FOR UPDATE");
+            $managed->execute($ids);
+            $managedIds = $managed->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($items as $item) {
+                if (isset($item['product_id']) && in_array($item['product_id'], $managedIds, true) && !isset($item['offer_id'])) {
+                    throw new InventoryException('stale_offer', 'Для этого товара выберите склад в каталоге.', 409);
+                }
+            }
+        }
+        $snapshots = $ready ? (new Inventory($this->pdo, $this->prefix, $this->storeId, $this->languageId))->resolveSelectedOffers($items) : [];
+        if (!$ready && array_filter($items, static fn(array $item): bool => isset($item['offer_id']))) {
+            throw new InventoryException('stale_offer', 'Предложения складов временно недоступны.', 409);
+        }
+        $products = $ids ? (new Catalog($this->pdo, $this->prefix, $this->languageId, $this->storeId))->selectedProducts($ids) : [];
         foreach ($items as $item) {
             if (!isset($item['product_id'])) continue;
             $product = $products[$item['product_id']] ?? null;
@@ -270,7 +316,23 @@ final class Lead
             $product = isset($item['product_id']) ? $products[$item['product_id']] : null;
             $insert->execute([$leadId, $position + 1, $item['article'], $item['quantity'],
                 $product['id'] ?? null, $product['sku'] ?? null, $product['brand'] ?? null, $product['title'] ?? null]);
+            if (isset($snapshots[$position])) {
+                $snapshot = $snapshots[$position];
+                $save = $this->pdo->prepare("INSERT INTO {$this->prefix}cmteh_lead_inventory
+                    (lead_id,position,offer_id,offer_version,warehouse_code,warehouse_name,warehouse_city,unit_price,currency,delivery_term,availability_status)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+                $save->execute([$leadId,$position+1,$snapshot['offer_id'],$snapshot['offer_version'],
+                    $snapshot['warehouse_code'],$snapshot['warehouse_name'],$snapshot['warehouse_city'],
+                    $snapshot['unit_price'],$snapshot['currency'],$snapshot['delivery_term'],$snapshot['availability_status']]);
+            }
         }
+    }
+
+    private function inventoryReady(): bool
+    {
+        $query = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=?');
+        $query->execute([$this->prefix . 'cmteh_lead_inventory']);
+        return (int) $query->fetchColumn() === 1;
     }
 
     private function rollback(): void

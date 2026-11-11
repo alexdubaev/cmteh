@@ -6,7 +6,9 @@
 {% macro price(product) %}{% autoescape 'html' %}
 {%- set currency = product.currency|default('')|upper -%}
 {%- set symbols = {RUB: '₽', USD: '$', EUR: '€', CNY: 'CN¥', GBP: '£', KZT: '₸', JPY: '¥'} -%}
-{%- if product.price_status|default('') == 'fixed' and product.price is not null and product.price >= 0 and currency matches '/^[A-Z]{3}$/' -%}
+{%- if product.inventory_managed|default(false) -%}
+  Цены по складам
+{%- elseif product.price_status|default('') == 'fixed' and product.price is not null and product.price >= 0 and currency matches '/^[A-Z]{3}$/' -%}
   {{- product.price|number_format(product.price == product.price|round(0) or currency in ['JPY', 'KRW'] ? 0 : (currency in ['BHD', 'KWD', 'OMR', 'JOD', 'TND'] ? 3 : 2), ',', ' ') }} {{ symbols[currency]|default(currency) -}}
 {%- else -%}
   Цена по запросу
@@ -22,8 +24,10 @@
 </span>
 {% endautoescape %}{% endmacro %}
 {% macro add(product, full = false) %}{% autoescape 'html' %}
+{% if product.inventory_managed|default(false) %}<a class="{{ full ? 'button primary wide' : 'card-action' }}" href="/product/{{ product.slug|url_encode }}#warehouse-offers">Выбрать склад</a>{% else %}
 <button class="{{ full ? 'button primary wide' : 'card-action' }}" type="button" data-product-id="{{ product.id }}" data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}">В корзину</button>
 <span class="request-announcement" role="status" aria-live="polite"></span>
+{% endif %}
 {% endautoescape %}{% endmacro %}
 {% macro card(product) %}{% autoescape 'html' %}
 {% set photo = product.main_image_url|default('') ?: _self.asset(product.main_image|default('')) %}

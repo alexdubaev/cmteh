@@ -58,8 +58,8 @@ final class Storefront
             }
             parse_str($query, $params);
 
-            if ($path === '/api/lead' && $raw === $path) {
-                $this->lead($method);
+            if (in_array($path, ['/api/lead', '/api/lead/warehouse'], true) && $raw === $path) {
+                $this->lead($method, $path === '/api/lead/warehouse');
                 return;
             }
             if (in_array($path, ['/api/quote', '/api/list-check'], true) && $raw === $path) {
@@ -100,6 +100,16 @@ final class Storefront
                 } else {
                     $this->renderError(404);
                 }
+                return;
+            }
+            if ($path === '/api/warehouse-offers') {
+                $ids = $params['ids'] ?? null;
+                if (!is_array($ids) || !array_is_list($ids) || !$ids || count($ids)>100
+                    || array_filter($ids, static fn($id): bool => !is_string($id) || $id==='' || !mb_check_encoding($id, 'UTF-8') || mb_strlen($id)>160 || preg_match('/[\\x00-\\x1F\\x7F]/', $id))) {
+                    $this->json(400, ['error'=>'Проверьте список товаров.']);
+                    return;
+                }
+                $this->json(200, ['data'=>$this->catalog()->publicWarehouseOffers($ids)], cache: 'no-store');
                 return;
             }
             if ($path === '/api/search') {
@@ -207,7 +217,7 @@ final class Storefront
         $this->json(200, ['data' => $result['products'], 'meta' => $meta], cache: 'private, max-age=15');
     }
 
-    private function lead(string $method): void
+    private function lead(string $method, bool $warehouse = false): void
     {
         if ($method !== 'POST') {
             $this->json(405, ['error' => 'Метод не поддерживается.'], ['Allow' => 'POST']);
@@ -237,9 +247,11 @@ final class Storefront
             $this->json(400, ['error' => 'Не удалось прочитать заявку.']);
             return;
         }
-        $result = (new Lead($this->db(), DB_PREFIX))->submit($raw, (string) ($this->server['REMOTE_ADDR'] ?? ''), [
-            'content-type' => $contentType, 'origin' => $origin,
-        ]);
+        $config = $this->registry->get('config');
+        $lead = new Lead($this->db(), DB_PREFIX, (int) $config->get('config_store_id'), (int) ($config->get('config_language_id') ?: 1));
+        $headers = ['content-type' => $contentType, 'origin' => $origin];
+        $address = (string) ($this->server['REMOTE_ADDR'] ?? '');
+        $result = $warehouse ? $lead->submitWarehouse($raw, $address, $headers) : $lead->submit($raw, $address, $headers);
         $this->json($result['status'], $result['body'], $result['headers'] ?? []);
     }
 

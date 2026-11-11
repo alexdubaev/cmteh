@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, onCartChange, readCart } from "./cart.mjs?v=20261110-8";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, selectedLine, onCartChange, readCart } from "./cart.mjs?v=20261111-1";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
@@ -31,7 +31,21 @@ for (const button of document.querySelectorAll("[data-add-article]")) {
       temporaryFeedback(button, "Не добавлено", "Некорректный артикул. Выберите товар в каталоге.");
       return;
     }
-    const result = mergeCart([{ article, title, brand, productId, quantity: 1 }]);
+    const data = button.dataset;
+    const line = data.offerId ? selectedLine({ id: productId, sku: article, title, brand }, {
+      offer_id: data.offerId, offer_version: data.offerVersion,
+      warehouse: { name: data.warehouseName, code: data.warehouseCode, city: data.warehouseCity },
+      delivery_term: data.deliveryTerm, price: data.price || null, currency: "RUB",
+    }) : { article, title, brand, productId, quantity: 1 };
+    const result = mergeCart([line]);
+    if (result.requiresReview) {
+      temporaryFeedback(button, "Проверьте корзину", "Условия склада изменились. Проверьте выбранную строку в корзине.");
+      return;
+    }
+    if (!result.persisted) {
+      temporaryFeedback(button, "Сохранено в этой вкладке", "Хранилище браузера недоступно. Не закрывайте вкладку до отправки.");
+      return;
+    }
     if (result.overflow) {
       temporaryFeedback(button, "Корзина заполнена", "Достигнут лимит 100 позиций.");
     } else {

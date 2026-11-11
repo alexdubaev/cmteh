@@ -238,3 +238,33 @@ Prior 24-PASS ×2 receipt: runner SHA256 `b106d0b4bab00147eda07b1d807e2525237814
 
 
 Rootclosure02: installed form-only3PASS exit0, actualeventdata route/product/tokenencoding+ACL checked. Priornative24×2 checks reused withmatching source receipts; do notbroadrepeatforhref-onlychange. MigrationImportwiring deferredMANDATORYto05, noconstructorDDL/noop.
+
+## Завершённый таск04 — public/Lead exactcontract
+
+# Ticket 04 — exact public integration contract
+- DONE: G01/G03/G04/G05/G06/G08/G09 public warehouse selection + additive RFQ snapshots; no reservation, account, order, checkout, payment or raw Quote changes.
+- `Catalog::publicWarehouseOffers(array $sourceIds): array` delegates Inventory with the actual store/language; batched at 1000 IDs, total 10000 projected offers. Products/list-check add `inventory_managed:bool, offers:PublicOffer[], offers_partial:bool`.
+- Managed product global `price=null, price_status="warehouse"`; effective availability derives from any active published offer with available stock. SQL filter/count/DTO agree without warehouse joins multiplying products. Price sorting uses minimum visible offer price, null prices last; it never selects an offer.
+- Product cards link to explicit warehouse choices; detail/list-check show escaped public labels, exact decimal price, status, delivery term. Zero availability disables cart selection and retains the general quote link.
+- `GET /api/warehouse-offers?ids[]=<source>` accepts 1–100 bounded exact source IDs and returns `{data:sourceId=>{managed,offers,partial}}`, no-store. Public DTO is Inventory’s allowlist, with no physical/reserved counts or private address/note.
+- `Lead::__construct(PDO,string,int $storeId=0,int $languageId=1)` preserves two-argument callers. Existing `submit(string,string,array=[]):array` signature stays unchanged; new `submitWarehouse(string,string,array=[]):array` is explicit.
+- `POST /api/lead/warehouse` shares existing origin/content-type/rate/contact guards and invokes `LeadInput::parseWarehouse(string):array`; legacy parse shape, property order, fingerprint and pending namespace remain unchanged.
+- Selected wire item: `{article:string,quantity:int,product_id:sourceId,offer_id:decimalString<=20,offer_version:lowercaseSHA256}`. At least one selected item required; both selection fields required together; legacy freeform lines can coexist.
+- Warehouse normalized data adds per-item `offer_id,offer_version` and final `warehouse_contract:1`; requested identity/revision determines fingerprint, never current live prices or client labels.
+- First acceptance uses one PDO transaction/header-key lock, native product/control locks in ascending native ID, Inventory locked resolver, existing items/outbox and `cmteh_lead_inventory` at internal BIGINT lead_id/1-based position. Table and Lead schema3 are owned/preserved by 01.
+- Snapshot exact fields: `offer_id,offer_version,warehouse_code,warehouse_name,warehouse_city,unit_price:string|null,currency,delivery_term,availability_status`; accepted replay resolves before freshness and never rereads/replaces snapshots.
+- New canonical managed legacy submission without explicit selection returns 409 with a safe Russian reselection message; previously committed legacy replay still returns its original ID. Stale/tampered selected first write returns 409 and rolls back header/items/job/snapshots; SQL failures return honest 503.
+- `Lead::find` left-joins snapshots when Inventory is installed; manager detail displays original warehouse/price/term independently of later warehouse/product edits. No private ACL or native controller changes.
+- Original `smtechno-request` remains an array for unassigned legacy rows. New `smtechno-warehouse-request-v1` is an independent array of draft selected rows with `productId,offerId,offerVersion,article,title,brand,quantity,warehouseName,warehouseCode,warehouseCity,deliveryTerm,price,currency,warehouseSelection,selectionInvalid`.
+- Cart identity is source product + offer + revision for acknowledgement; merge identity is product + offer and refuses revision replacement without review. Same product A+B are separate; acknowledgement subtracts submitted quantities and preserves concurrent additions/reviewed revisions.
+- Selected pending key is `smtechno-pending-warehouse-lead-v1:<formType>`; legacy pending key/hash/property order remain byte compatible. Unsupported selected endpoint has no fallback to `/api/lead`; 404/405 preserve the selection and pending draft.
+- Combined legacy+AUX data exceeding 100 rows stays intact; new additions/submission are rejected visibly, no combined truncation. Storage failure retains the in-page recovery copy and refuses acknowledgement clearing. Malformed selected drafts stay visible for repair/removal.
+- Cart exact decimal arithmetic uses BigInt minor units, including totals beyond JS safe integers. New public CSS/module graph suffix is uniformly `20261111-1`, including request-import/vendor inherited query and updated current-graph browser expectations.
+- RED: actual managed canonical legacy RFQ was accepted instead of 409; Catalog omitted two-offer projection/effective availability; real browser merged legacy+A+B into one line rather than three.
+- Checks: `warehouse-offers-integration.php` 18 PASS on installed MySQL8.4/PHP8.3 and workspace MySQL5.7.44/PHP8.3; `browser/warehouse-offers.mjs` 7 PASS against installed 3190; Catalog20/Lead35/Quote54 compatibility PASS (private capture only).
+- Browser proves actual product A+B→reload/independent quantities/terms→server stale409/no orphan→explicit review→real commit/lost acknowledgement→same-key replay→fresh addition retained; also prior cached 2031f82 module, storage failure, BigInt bound, unsupported endpoint and 101 combined rows. Owned fixture records are cleaned.
+- Installed evidence: `D:/codex/temp/cmteh-warehouse-dev-20261111/evidence/warehouse-offers-targeted-installed.json` verifies Reflection paths and exact SHA256 for 12 installed class/trait files plus private test copy; product/cart 390px PNGs were visually inspected without horizontal overflow.
+- Limits: legacy full browser suite cannot run here because documented RE568158 fixture is absent (GET search total0); 05 must run it after final fixture seeding. Final immutable package/strict verifier/actual host PHP8.2/deployment are NOT claimed. No commit, host action, external mail, real customer/stock fixture or secret output.
+
+
+Rootclosure04: preservedtestreceipt verifiedcurrent12sourceclass hashes, all12Reflectionpathsunderinstalledsystem andprivate runnerSHA; reusecompleted18×2+browser7+existingcompatchecks perownerpolicy, no needlessrepeat. Legacyfullbrowsermissingfixture explicitlypending05, notPASS. Rootdidnotreadproductdiff.
