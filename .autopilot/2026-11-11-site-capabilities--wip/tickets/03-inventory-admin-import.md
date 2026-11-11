@@ -2,7 +2,7 @@
 
 **Требования:** G01, G02, G06, G07, G08, G09, A01, A02
 **Зависит от:** 01
-**Зона:** `opencart/extension/cmteh/admin/view/template/module/cmteh_catalog.twig` · `opencart/tests/browser/inventory-admin.mjs` · `opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php` · `opencart/extension/cmteh/admin/view/template/inventory/` · `opencart/extension/cmteh/admin/view/assets/inventory/` · `opencart/extension/cmteh/admin/controller/event/cmteh_admin.php` · `opencart/extension/cmteh/system/InventoryImport.php` · `opencart/tests/inventory-import-integration.php`
+**Зона:** `opencart/extension/cmteh/catalog/view/assets/inventory-admin.mjs` · `opencart/extension/cmteh/admin/view/template/module/cmteh_catalog.twig` · `opencart/tests/browser/inventory-admin.mjs` · `opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php` · `opencart/extension/cmteh/admin/view/template/inventory/` · `opencart/extension/cmteh/admin/view/assets/inventory/` · `opencart/extension/cmteh/admin/controller/event/cmteh_admin.php` · `opencart/extension/cmteh/system/InventoryImport.php` · `opencart/tests/inventory-import-integration.php`
 **Волна:** 2
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** обычная

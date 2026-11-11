@@ -2,7 +2,7 @@
 
 **Требования:** G01, G03, G04, G05, G06, G08, G09
 **Зависит от:** 01
-**Зона:** `opencart/tests/browser/storefront.mjs` · `opencart/extension/cmteh/system/Catalog.php` · `opencart/extension/cmteh/system/Storefront.php` · `opencart/extension/cmteh/system/StorefrontPages.php` · `opencart/extension/cmteh/system/Lead.php` · `opencart/extension/cmteh/system/LeadInput.php` · `opencart/extension/cmteh/catalog/view/` · `opencart/extension/cmteh/admin/view/template/module/cmteh_leads.twig` · `opencart/tests/warehouse-offers-integration.php` · `opencart/tests/browser/warehouse-offers.mjs`
+**Зона:** `opencart/tests/browser/storefront.mjs` · `opencart/extension/cmteh/system/Catalog.php` · `opencart/extension/cmteh/system/Storefront.php` · `opencart/extension/cmteh/system/StorefrontPages.php` · `opencart/extension/cmteh/system/Lead.php` · `opencart/extension/cmteh/system/LeadInput.php` · `opencart/extension/cmteh/catalog/view/assets/cart.mjs` · `opencart/extension/cmteh/catalog/view/assets/request.mjs` · `opencart/extension/cmteh/catalog/view/assets/storefront.mjs` · `opencart/extension/cmteh/catalog/view/assets/parts-list.mjs` · `opencart/extension/cmteh/catalog/view/assets/request-import.mjs` · `opencart/extension/cmteh/catalog/view/assets/storefront.css` · `opencart/extension/cmteh/catalog/view/template/storefront/` · `opencart/extension/cmteh/admin/view/template/module/cmteh_leads.twig` · `opencart/tests/warehouse-offers-integration.php` · `opencart/tests/browser/warehouse-offers.mjs`
 **Волна:** 2
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** сильная

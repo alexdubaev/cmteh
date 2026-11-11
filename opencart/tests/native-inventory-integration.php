@@ -27,7 +27,7 @@ $autoloader->register('Opencart\\Catalog\\Controller\\Extension\\Cmteh', DIR_EXT
 $autoloader->register('Opencart\\Catalog\\Model\\Extension\\Cmteh', DIR_EXTENSION . 'cmteh/catalog/model/');
 foreach (['Database','CatalogSchema','InventorySchema','Inventory'] as $class) require_once DIR_EXTENSION . 'cmteh/system/' . $class . '.php';
 foreach (['system/InventoryNativeGuard.php','system/Inventory.php','system/InventoryInput.php','system/InventorySchema.php','system/InventoryException.php','system/CatalogInput.php','system/CatalogWrites.php','system/CatalogImport.php','system/CatalogAdmin.php','system/NativeCatalog.php',
- 'admin/controller/event/cmteh_catalog.php','admin/controller/module/cmteh.php','admin/model/catalog/inventory_guard.php','admin/view/javascript/cmteh_inventory_guard.js',
+ 'admin/controller/event/cmteh_catalog.php','admin/controller/module/cmteh.php','admin/model/catalog/inventory_guard.php','catalog/view/assets/inventory-native-admin.js',
  'catalog/controller/event/cmteh_inventory.php','catalog/model/catalog/inventory_guard.php','catalog/model/checkout/inventory_guard.php'] as $dependency) {
  $artifact=realpath(DIR_EXTENSION.'cmteh/'.$dependency);
  if (!$artifact || !str_starts_with($artifact,$installed) || hash_file('sha256',$artifact)!==hash_file('sha256',__DIR__.'/../extension/cmteh/'.$dependency)) throw new RuntimeException('Installed native dependency mismatch: '.$dependency);
@@ -66,6 +66,53 @@ $hooks=function(string $application) use($registry): void {
   }
  }
 };
+if (in_array($argv[1]??'',['--form-browser-event-setup','--form-browser-event-cleanup'],true)) {
+ $nonce=$argv[2]??'';
+ if (!preg_match('/^[a-f0-9]{12}$/D',$nonce) || DB_HOSTNAME!=='db') throw new RuntimeException('Isolated owned browser event required');
+ $module=new Opencart\Admin\Controller\Extension\Cmteh\Module\Cmteh($registry);
+ [$trigger,$action,$priority]=(new ReflectionMethod($module,'inventoryEvents'))->invoke($module)['cmteh_inventory_native_form'];
+ $code='ngt_native_form_'.$nonce;
+ $username='ngt'.$nonce; $groupName='Synthetic native form '.$nonce;
+ $capture=sys_get_temp_dir().'/cmteh-native-form-'.$nonce.'.json';
+ $rowHash=static fn(string $table,string $key): string=>hash('sha256',serialize($pdo->query('SELECT * FROM `'.DB_PREFIX.$table.'` ORDER BY `'.$key.'`')->fetchAll(PDO::FETCH_ASSOC)));
+ if ($argv[1]==='--form-browser-event-setup') {
+  if (is_file($capture)) throw new RuntimeException('Owned browser recovery record already exists');
+  $secret=json_decode(stream_get_contents(STDIN,512),true,8,JSON_THROW_ON_ERROR)['password']??'';
+  if (!is_string($secret)||!preg_match('/^[a-f0-9]{48}$/D',$secret)) throw new RuntimeException('Owned disposable password required');
+  $q=$pdo->prepare('SELECT COUNT(*) FROM `'.DB_PREFIX.'event` WHERE code=?'); $q->execute([$code]);
+  if ($q->fetchColumn()) throw new RuntimeException('Owned browser event already exists');
+  $q=$pdo->prepare('SELECT COUNT(*) FROM `'.DB_PREFIX.'user` WHERE username=?'); $q->execute([$username]);
+  if ($q->fetchColumn()) throw new RuntimeException('Owned browser user already exists');
+  $state=['events_hash'=>$rowHash('event','event_id'),'users_hash'=>$rowHash('user','user_id'),'groups_hash'=>$rowHash('user_group','user_group_id')];
+  $pdo->beginTransaction();
+  try {
+   $pdo->prepare('INSERT INTO `'.DB_PREFIX.'event` (code,description,`trigger`,action,status,sort_order) VALUES(?,?,?,?,1,?)')->execute([$code,'Synthetic native form acceptance',$trigger,$action,$priority]); $state['event_id']=(int)$pdo->lastInsertId();
+   $permissions=json_encode(['access'=>['catalog/product','extension/cmteh/module/cmteh_catalog'],'modify'=>['catalog/product']],JSON_THROW_ON_ERROR);
+   $pdo->prepare('INSERT INTO `'.DB_PREFIX.'user_group` (name,permission) VALUES(?,?)')->execute([$groupName,$permissions]); $state['group_id']=(int)$pdo->lastInsertId();
+   $pdo->prepare('INSERT INTO `'.DB_PREFIX.'user` (user_group_id,username,password,firstname,lastname,email,image,ip,status,date_added) VALUES(?,?,?,?,?,?,\'\',\'127.0.0.1\',1,UTC_TIMESTAMP())')->execute([$state['group_id'],$username,password_hash($secret,PASSWORD_DEFAULT),'Synthetic','Native form',$username.'@example.invalid']); $state['user_id']=(int)$pdo->lastInsertId();
+   if (file_put_contents($capture,json_encode($state,JSON_THROW_ON_ERROR))===false||!chmod($capture,0600)) throw new RuntimeException('Cannot store private browser recovery record');
+   $pdo->commit();
+  } catch (Throwable $error) { if ($pdo->inTransaction()) $pdo->rollBack(); if(is_file($capture)) unlink($capture); throw $error; }
+  echo json_encode(['username'=>$username],JSON_THROW_ON_ERROR); return;
+ } else {
+  if (!is_file($capture)) throw new RuntimeException('Owned browser recovery record unavailable');
+  $state=json_decode(file_get_contents($capture),true,16,JSON_THROW_ON_ERROR);
+  $pdo->beginTransaction();
+  try {
+   $q=$pdo->prepare('SELECT user_id FROM `'.DB_PREFIX.'user` WHERE user_id=? AND user_group_id=? AND username=?'); $q->execute([$state['user_id'],$state['group_id'],$username]);
+   if (!$q->fetchColumn()) throw new RuntimeException('Owned browser user identity mismatch');
+   $pdo->prepare('DELETE FROM `'.DB_PREFIX.'user_login` WHERE user_id=?')->execute([$state['user_id']]);
+   $pdo->prepare('DELETE FROM `'.DB_PREFIX.'session` WHERE JSON_VALID(data) AND JSON_UNQUOTE(JSON_EXTRACT(data,\'$.user_id\'))=?')->execute([(string)$state['user_id']]);
+   $pdo->prepare('DELETE FROM `'.DB_PREFIX.'user` WHERE user_id=? AND username=?')->execute([$state['user_id'],$username]);
+   $pdo->prepare('DELETE FROM `'.DB_PREFIX.'user_group` WHERE user_group_id=? AND name=? AND NOT EXISTS(SELECT 1 FROM `'.DB_PREFIX.'user` WHERE user_group_id=?)')->execute([$state['group_id'],$groupName,$state['group_id']]);
+   $pdo->prepare('DELETE FROM `'.DB_PREFIX.'event` WHERE event_id=? AND code=? AND `trigger`=? AND action=?')->execute([$state['event_id'],$code,$trigger,$action]);
+   $pdo->commit();
+  } catch (Throwable $error) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $error; }
+  if ($rowHash('event','event_id')!==$state['events_hash']||$rowHash('user','user_id')!==$state['users_hash']||$rowHash('user_group','user_group_id')!==$state['groups_hash']) throw new RuntimeException('Other native users/groups/event rows changed during scoped browser check');
+  unlink($capture);
+ }
+ echo '{}'; return;
+}
 if ($child) {
  $nativeUser();
  if (($argv[1]??'')==='--before-failure') {
@@ -116,6 +163,7 @@ try {
   $registry->get('request')->get=['product_id'=>1];
   $formRoute='catalog/product_form'; $formData=['footer'=>''];
   $registry->get('event')->trigger('view/catalog/product_form/before',[&$formRoute,&$formData]);
+  check(str_contains($formData['footer'],'../extension/cmteh/catalog/view/assets/inventory-native-admin.js?v=20261111-1'),'Native form emits the versioned allowed static asset URL');
   if (!preg_match('~<script type="application/json" id="cmteh-inventory-guard">(.*?)</script>~s',$formData['footer'],$match)) throw new RuntimeException('Installed form event did not emit stock summary');
   $summary=json_decode($match[1],true,32,JSON_THROW_ON_ERROR);
   $parts=parse_url($summary['url']); parse_str($parts['query']??'',$query);

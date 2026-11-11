@@ -2,7 +2,7 @@
 
 **Требования:** G01, G02
 **Зависит от:** 01
-**Зона:** `opencart/extension/cmteh/catalog/controller/event/cmteh_inventory.php` · `opencart/extension/cmteh/catalog/model/checkout/inventory_guard.php` · `opencart/extension/cmteh/system/InventoryNativeGuard.php` · `opencart/extension/cmteh/admin/view/javascript/cmteh_inventory_guard.js` · `opencart/extension/cmteh/admin/model/catalog/` · `opencart/extension/cmteh/catalog/model/catalog/` · `opencart/extension/cmteh/admin/controller/event/cmteh_catalog.php` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/extension/cmteh/system/CatalogAdmin.php` · `opencart/extension/cmteh/system/CatalogWrites.php` · `opencart/extension/cmteh/system/NativeCatalog.php` · `opencart/tests/native-inventory-integration.php`
+**Зона:** `opencart/extension/cmteh/catalog/view/assets/inventory-native-admin.js` · `opencart/tests/browser/native-inventory-form.mjs` · `opencart/extension/cmteh/catalog/controller/event/cmteh_inventory.php` · `opencart/extension/cmteh/catalog/model/checkout/inventory_guard.php` · `opencart/extension/cmteh/system/InventoryNativeGuard.php` · `opencart/extension/cmteh/admin/view/javascript/cmteh_inventory_guard.js` · `opencart/extension/cmteh/admin/model/catalog/` · `opencart/extension/cmteh/catalog/model/catalog/` · `opencart/extension/cmteh/admin/controller/event/cmteh_catalog.php` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/extension/cmteh/system/CatalogAdmin.php` · `opencart/extension/cmteh/system/CatalogWrites.php` · `opencart/extension/cmteh/system/NativeCatalog.php` · `opencart/tests/native-inventory-integration.php`
 **Волна:** 2
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** сильная

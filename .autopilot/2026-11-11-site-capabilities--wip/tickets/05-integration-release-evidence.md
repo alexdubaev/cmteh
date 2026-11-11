@@ -34,3 +34,7 @@ Read finalfiles fromprior tickets; don'trerunbroadchecks alreadygreenunless chan
 ## D01 — обязательный integrationwire
 
 Послеготового03 подключить require/static InventoryImport::migrate($pdo,DB_PREFIX) сразу после InventorySchema::migrate в существующем authorizedmodulemigrator. Только здесь peerdependencies всеcommitted; никакого class_exists/skip/noop и constructorDDL. Проверитьactual fresh moduleinstall/upgrade создал previewtable без измененияACL/старыхданных. Ticket02domain/guardcode не переписывать.
+
+## Final execution coordination
+
+Не запускатьсамостоятельноwhole strict whilewriting andthen rootrepeat. Сначалаownaffectedregistration/migrator/recovery checks+report, rootcommit05/reviewfixes, thenrootcleanclone exactimmutablecandidate one strictfullrun withinstalledbyteguards. Existingdoc-onlychangesaftergreen не rerunproduct. Cachedruntime/reference/tooling reuseroot; no rawnewlineswhitelist, no patchedtestexpectedhashes.

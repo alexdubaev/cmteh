@@ -51,6 +51,8 @@
 
 D01 (обнаружено02/03): importpreview имеет собственную additive staging-таблицу. Её explicit migrator подключается в интеграционном05 после готовности Import service; final authorized module migration вызывает оба сервиса. Промежуточный02 не ссылается на отсутствующийpeer-класс. No read/constructor DDL, mandatoryfreshinstallcheck сохраняется.
 
+D02 (обнаружено02/03): существующая static allowlist отдаёт404 для новых admin/view скриптов. Generic JS размещается в уже разрешённом catalog/view/assets; конфигурация/токен остаются в защищённом HTML, данные/операции за прежним ACL. Не создаётся authenticated asset=js endpoint и не расширяется .htaccess. ActualHTTP/realnativeformbrowser проверяют доставку, не толькоeventdata.
+
 ## Границы и швы
 
 См. interfaces.md. Файлы отчётов scouts — доказательства exactseams, не замена контрактам. Конкретные механизмы loader/DB guards проверяются installednative integration.

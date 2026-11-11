@@ -58,3 +58,4 @@
 | A01 | Фиксация завершённого перемещения → G01 | in-spec | Минимальное парное складское движение; полный transitworkflow исключён по G2 как лишнее расширение | spec.md: история5 |
 | A02 | Полная отгрузка резерва → G09 | in-spec | Завершение жизненного цикла ручного резерва; частичные отгрузки исключены по G2 | spec.md: история19a |
 | D01 | Явная миграция importpreview → G07 | in-spec | Таски02/03 показали ссылку на peer-класс до его интеграции. Обязательное InventoryImport::migrate подключается в05 после готовности всех сервисов; без skip/class_exists или DDL в read | spec.md: Решения по реализации; ticket05 |
+| D02 | Существующая static allowlist → G01,G07 | in-spec | ActualHTTP admin/view asset paths404, catalog/view/assets200. Generic02/03JS размещается в разрешённом publicassets без privateconfig; protected HTML/API и ACL сохраняются, без нового asset=js маршрута/ослабления.htaccess | spec.md: Решения по реализации; tickets02/03/05 |

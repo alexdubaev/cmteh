@@ -63,7 +63,7 @@ final class CmtehCatalog extends Controller
         $link=$this->user->hasPermission('access','extension/cmteh/module/cmteh_catalog')
             ? $this->url->link('extension/cmteh/module/cmteh_catalog.inventory',['user_token'=>$this->session->data['user_token'],'product_id'=>$id],true) : '';
         $json=json_encode($stock+['url'=>$link],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR);
-        $data['footer']=($data['footer']??'').'<script type="application/json" id="cmteh-inventory-guard">'.$json.'</script><script src="../extension/cmteh/admin/view/javascript/cmteh_inventory_guard.js"></script>';
+        $data['footer']=($data['footer']??'').'<script type="application/json" id="cmteh-inventory-guard">'.$json.'</script><script src="../extension/cmteh/catalog/view/assets/inventory-native-admin.js?v=20261111-1"></script>';
     }
 
     public function guardCategoryDelete(string &$route, array &$args): void
