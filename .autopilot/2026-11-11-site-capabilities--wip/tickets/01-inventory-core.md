@@ -2,7 +2,7 @@
 
 **Требования:** G01, G02, G06, G08, G09
 **Зависит от:** —
-**Зона:** `opencart/extension/cmteh/system/InventorySchema.php` · `opencart/extension/cmteh/system/Inventory.php` · `opencart/extension/cmteh/system/InventoryInput.php` · `opencart/tests/inventory-integration.php`
+**Зона:** `opencart/extension/cmteh/system/InventorySchema.php` · `opencart/extension/cmteh/system/Inventory.php` · `opencart/extension/cmteh/system/InventoryInput.php` · `opencart/extension/cmteh/system/InventoryException.php` · `opencart/tests/inventory-integration.php`
 **Волна:** 1
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** сильная

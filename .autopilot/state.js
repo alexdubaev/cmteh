@@ -11,9 +11,9 @@ window.STATE =
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": "2031f82d9bb75a85600cb540e94cd8428676f952",
+  "baseCommit": "060c56b",
   "startedAt": "2026-11-11T18:21:24+03:00",
-  "updatedAt": "2026-11-11T19:03:35+03:00",
+  "updatedAt": "2026-11-11T19:12:54+03:00",
   "finishedAt": null,
   "stages": [
     {
@@ -42,12 +42,14 @@ window.STATE =
     },
     {
       "id": "plan",
-      "status": "active",
-      "startedAt": "2026-11-11T19:00:31+03:00"
+      "status": "done",
+      "startedAt": "2026-11-11T19:00:31+03:00",
+      "finishedAt": "2026-11-11T19:04:15+03:00"
     },
     {
       "id": "build",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-11-11T19:04:15+03:00"
     },
     {
       "id": "review",
@@ -84,11 +86,13 @@ window.STATE =
         "opencart/extension/cmteh/system/InventorySchema.php",
         "opencart/extension/cmteh/system/Inventory.php",
         "opencart/extension/cmteh/system/InventoryInput.php",
+        "opencart/extension/cmteh/system/InventoryException.php",
         "opencart/tests/inventory-integration.php"
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "сильная",
-      "status": "pending",
+      "status": "in-progress",
+      "startedAt": "2026-11-11T19:04:16+03:00",
       "retries": 0,
       "repairs": 0
     },
@@ -258,9 +262,15 @@ window.STATE =
     "2026-11-11T19:00:31+03:00",
     "2026-11-11T19:03:04+03:00",
     "2026-11-11T19:03:05+03:00",
-    "2026-11-11T19:03:35+03:00"
+    "2026-11-11T19:03:35+03:00",
+    "2026-11-11T19:04:14+03:00",
+    "2026-11-11T19:04:15+03:00",
+    "2026-11-11T19:04:16+03:00",
+    "2026-11-11T19:06:39+03:00",
+    "2026-11-11T19:08:18+03:00",
+    "2026-11-11T19:12:54+03:00"
   ],
-  "rev": 26,
+  "rev": 33,
   "waiting": null,
   "waits": [
     {
@@ -404,6 +414,45 @@ window.STATE =
       "g": "G3",
       "ok": true,
       "problems": 0
+    },
+    {
+      "t": "2026-11-11T19:04:15+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T19:04:16+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T19:06:39+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T19:06:39+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T19:08:18+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T19:12:54+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
     }
   ],
   "reqList": [
@@ -721,7 +770,7 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-11T19:03:35+03:00",
+      "at": "2026-11-11T19:06:39+03:00",
       "problems": 0
     }
   },
@@ -730,6 +779,9 @@ window.STATE =
   "report": [
     "Read-only разбор завершён: auth-scout.md, orders-crm-scout.md, marketing-scout.md и discovery-summary.md. Продуктовый код и хостинг не менялись; ожидаются ответы на три бизнес-вопроса.",
     "Текущий объём: только склады. Прежние функции отложены владельцем. Warehouse discovery выявил защиту агрегата от старых native форм; ожидаются источник остатков, публичный показ и ручные резервы.",
-    "Склады видны покупателю: отдельные предложения одного товара с ценой и сроком. Выбор склада сохраняется в корзине/RFQ; старые позиции совместимы. Города и суммы пользователя — пример, не данные для публикации."
+    "Склады видны покупателю: отдельные предложения одного товара с ценой и сроком. Выбор склада сохраняется в корзине/RFQ; старые позиции совместимы. Города и суммы пользователя — пример, не данные для публикации.",
+    "Разработка01: локальный runtime3190 готов, initial realMySQL RED зафиксирован до кода. Реальный сайт и почта не менялись.",
+    "Read-only hostpreflight: PHP8.2.35; пять nativecorefiles rawSHA совпали с pinnedZIP. Без DB/config/mail/deploy действий; это не тест склада.",
+    "Дополнительный isolated runtime3191 готов: SELECT VERSION MySQL5.7.44/PHP8.3.36. Без изменений source compose/verifier/хостинга."
   ]
 }
