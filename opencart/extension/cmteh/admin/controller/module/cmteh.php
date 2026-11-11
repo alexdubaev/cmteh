@@ -84,7 +84,7 @@ final class Cmteh extends Controller
             }
         }
         foreach ($this->adminEvents() as $code => [$trigger, $action]) {
-            // Re-register our two hooks to repair stale versions without touching other events.
+            // Re-register our own hooks to repair stale versions without touching other events.
             $this->model_setting_event->deleteEventByCode($code);
             $this->model_setting_event->addEvent([
                 'code' => $code, 'description' => 'СМ ТЕХНО: русская панель управления',
@@ -152,6 +152,8 @@ final class Cmteh extends Controller
     {
         return [
             'cmteh_admin_menu' => ['admin/view/common/column_left/before', 'extension/cmteh/event/cmteh_admin.menu'],
+            'cmteh_admin_header' => ['admin/view/common/header/before', 'extension/cmteh/event/cmteh_admin.header'],
+            'cmteh_admin_dashboard' => ['admin/view/common/dashboard/before', 'extension/cmteh/event/cmteh_admin.dashboard'],
             'cmteh_admin_language' => ['admin/language/*/after', 'extension/cmteh/event/cmteh_admin.language'],
         ];
     }

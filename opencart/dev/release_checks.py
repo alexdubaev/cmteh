@@ -351,9 +351,9 @@ def admin_navigation(runtime):
         event_count = runtime.docker("exec", "-T", "db", "sh", "-ec",
                                     'export MYSQL_PWD="$(cat /runtime/db-root-password)"; '
                                     'mysql -uroot -NB cmteh_dev -e "SELECT COUNT(*) FROM oc_event '
-                                    "WHERE code IN ('cmteh_admin_menu','cmteh_admin_language') AND status=1\"",
+                                    "WHERE code IN ('cmteh_admin_menu','cmteh_admin_language','cmteh_admin_header','cmteh_admin_dashboard') AND status=1\"",
                                     capture=True).stdout.strip()
-        require(event_count == "2", "Repeat upgrade duplicated or failed to activate admin events.")
+        require(event_count == "4", "Repeat upgrade duplicated or failed to activate admin events.")
         for route, words in (
             ("catalog/product", ["Товары", "Название товара", "Фильтр"]),
             ("catalog/product.form", ["Добавить товар", "Описание", "Мета-заголовок"]),
@@ -380,7 +380,7 @@ def admin_navigation(runtime):
             (manager, LEADS, LEADS, CATALOG), (operator, CATALOG, CATALOG, LEADS),
         ):
             code, page = session.request(session.action(route))
-            menu = re.search(r'<li id="menu-cmteh".*?</li>\s*</ul>', page, re.S)
+            menu = re.search(r'<nav id="column-left".*?</nav>', page, re.S)
             require(code == 200 and menu and expected in menu[0] and forbidden not in menu[0],
                     "Direct menu does not follow the role's existing access permissions.")
         require(operator.request(operator.action(LEADS))[0] in (401, 403), "Catalog role can access leads.")
@@ -647,7 +647,7 @@ def collect_browser(runtime, tooling, reference, evidence):
                         "CMTEH_ADMIN_CMS_SCENARIO": "full",
                         "CMTEH_ADMIN_USERNAME": username,
                         "CMTEH_ADMIN_PASSWORD_FILE": str(password_file)}
-    for name in ("storefront.mjs", "admin-cms.mjs", "capture.mjs"):
+    for name in ("storefront.mjs", "admin-cms.mjs", "admin-shell.mjs", "capture.mjs"):
         subprocess.run(["node", str(browser_dir / name)], env=env, check=True)
 
     pairs = []

@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "dev"))
 from release_checks import (admin_roles, check_recovery, collect_browser, editorial_content, import_fixture, lint,
                             native_catalog_editor, preflight, quote_acceptance, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
 from runtime import LocalOpenCart, build
+from admin_unification_checks import shell
 
 
 def main() -> None:
@@ -56,6 +57,9 @@ def main() -> None:
 
         runtime.smoke()
         lint(runtime)
+        run_php_suite(runtime, "seed-cleanup-integration.php")
+        run_php_suite(runtime, "admin-unmapped-integration.php")
+        shell(runtime)
         demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 36, "release-demo", expected_updated=13)
         run_php_suite(runtime, "catalog-integration.php")
         run_php_suite(runtime, "lead-integration.php")

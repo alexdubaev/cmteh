@@ -36,11 +36,22 @@ trait CatalogAdmin
         return ['SELECT source_id AS id, slug, 0 AS native_id, sort_order, status, data, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(data, \'$.title\')), JSON_UNQUOTE(JSON_EXTRACT(data, \'$.label\')), slug) AS title FROM ' . $this->table('cmteh_content') . ' WHERE type = ?',[$type]];
     }
 
-    public function editRows(string $type, int $page = 1, string $search = '', string $status = ''): array
+    public function editRows(string $type, int $page = 1, string $search = '', string $status = '', bool $includeNative = false): array
     {
         $search=CatalogInput::text($search,128,'search');
         if (!in_array($status,['','published','draft','archived','1','0'],true)) throw new InvalidArgumentException('Неизвестный фильтр статуса');
         [$base,$params]=$this->choiceQuery($type);
+        if ($includeNative && in_array($type, ['product','category','brand'], true)) {
+            [$native,$key] = match($type) { 'product'=>['product','product_id'], 'category'=>['category','category_id'], default=>['manufacturer','manufacturer_id'] };
+            $base = 'SELECT mapped.*, 0 AS unmapped FROM (' . $base . ') mapped UNION ALL SELECT CONCAT(\'native:\',n.' . $key . ') AS id, \'\' AS slug, n.' . $key . ' AS native_id, n.sort_order, '
+                . ($type === 'brand' ? 'n.name AS title, 0 AS status' : 'd.name AS title, n.status')
+                . ', \'{}\' AS data, 1 AS unmapped FROM ' . $this->table($native) . ' n LEFT JOIN ' . $this->table('cmteh_' . $type) . " x USING ($key)";
+            if ($type !== 'brand') {
+                $base .= ' LEFT JOIN ' . $this->table($native . '_description') . " d ON d.$key=n.$key AND d.language_id=?";
+                $params[] = $this->languageId;
+            }
+            $base .= " WHERE x.$key IS NULL";
+        }
         $sql='SELECT * FROM (' . $base . ') records WHERE 1=1';
         if ($search !== '') {
             $sql .= " AND (title LIKE ? OR slug LIKE ? OR id LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(data, '$.sku')) LIKE ?)";
@@ -75,7 +86,8 @@ trait CatalogAdmin
             $row['title']=self::nativeText((string)$row['title'],$data);
             $row['native_id']=(int)$row['native_id'];
             $row['status']=(int)$row['status']===1 ? 'published' : (($data['status']??'draft')==='archived' ? 'archived':'draft');
-            $row['path']=$this->recordPath($type,$row['slug']);
+            $row['unmapped'] = !empty($row['unmapped']);
+            $row['path']=$row['unmapped'] ? null : $this->recordPath($type,$row['slug']);
             if ($type==='category') {
                 $row['parent_slug']=$this->run('SELECT x.slug FROM ' . $this->table('category') . ' c JOIN ' . $this->table('cmteh_category') . ' x ON x.category_id=c.parent_id WHERE c.category_id=?',[$row['native_id']])->fetchColumn() ?: '';
             }
