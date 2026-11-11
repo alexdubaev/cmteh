@@ -13,7 +13,7 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dev"))
-from release_checks import (admin_roles, check_recovery, collect_browser, editorial_content, import_fixture, lint,
+from release_checks import (admin_roles, check_recovery, collect_browser, editorial_content, import_fixture, inventory_browser_acceptance, inventory_migration, lint,
                             native_catalog_editor, preflight, quote_acceptance, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
 from runtime import LocalOpenCart, build
 from admin_unification_checks import shell
@@ -57,13 +57,18 @@ def main() -> None:
         print("PASS: the native installation used the candidate's OpenCart and extension bytes", flush=True)
 
         runtime.smoke()
+        inventory_migration(runtime)
         lint(runtime)
         run_php_suite(runtime, "seed-cleanup-integration.php")
         run_php_suite(runtime, "admin-unmapped-integration.php")
         shell(runtime)
         demo = import_fixture(runtime, "/workspace/fixtures/demo.ndjson", 36, "release-demo", expected_updated=13)
         run_php_suite(runtime, "catalog-integration.php")
+        run_php_suite(runtime, "inventory-integration.php")
+        run_php_suite(runtime, "native-inventory-integration.php")
+        run_php_suite(runtime, "inventory-import-integration.php")
         run_php_suite(runtime, "lead-integration.php")
+        run_php_suite(runtime, "warehouse-offers-integration.php")
         run_php_suite(runtime, "quote-integration.php")
         run_php_suite(runtime, "admin-business-integration.php")
         business(runtime)
@@ -71,6 +76,7 @@ def main() -> None:
         quote_acceptance(runtime, package)
         run_http(runtime, evidence)
         collect_browser(runtime, args.browser_tooling.resolve(), args.reference_dir.resolve(), evidence)
+        inventory_browser_acceptance(runtime, args.browser_tooling.resolve())
         media = verify_media(runtime)
         lead_id = submit_lead(runtime, "до снимка")
         admin_roles(runtime, lead_id)

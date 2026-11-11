@@ -54,11 +54,18 @@ final class Cmteh extends Controller
 
     private function applyChanges(): void
     {
+        $this->load->model('setting/event');
+        foreach ($this->inventoryEvents() as $code => [$trigger, $action, $priority]) {
+            if (!$this->model_setting_event->getEventByCode($code)) $this->model_setting_event->addEvent([
+                'code' => $code, 'description' => 'СМ ТЕХНО: защита складского учёта', 'trigger' => $trigger,
+                'action' => $action, 'status' => true, 'sort_order' => $priority,
+            ]);
+        }
+
         $this->load->model('setting/setting');
         $this->model_setting_setting->editValue('config', 'config_error_display', '0');
         $this->config->set('config_error_display', false);
         $this->migrate();
-        $this->load->model('setting/event');
 
         if (!$this->model_setting_event->getEventByCode(self::EVENT_CODE)) {
             $this->model_setting_event->addEvent([
@@ -82,11 +89,6 @@ final class Cmteh extends Controller
                     'sort_order' => 0,
                 ]);
             }
-        }
-        foreach ($this->inventoryEvents() as $code => [$trigger,$action,$priority]) {
-            if (!$this->model_setting_event->getEventByCode($code)) $this->model_setting_event->addEvent([
-                'code'=>$code,'description'=>'СМ ТЕХНО: защита складского учёта','trigger'=>$trigger,'action'=>$action,'status'=>true,'sort_order'=>$priority,
-            ]);
         }
         foreach ($this->adminEvents() as $code => [$trigger, $action]) {
             // Re-register our own hooks to repair stale versions without touching other events.
@@ -246,6 +248,8 @@ final class Cmteh extends Controller
             (new \Cmteh\Quote($pdo, DB_PREFIX))->migrate();
         }
         require_once $system . 'InventorySchema.php';
-        \Cmteh\InventorySchema::migrate($pdo,DB_PREFIX);
+        \Cmteh\InventorySchema::migrate($pdo, DB_PREFIX);
+        require_once $system . 'InventoryImport.php';
+        \Cmteh\InventoryImport::migrate($pdo, DB_PREFIX);
     }
 }

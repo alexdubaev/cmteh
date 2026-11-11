@@ -9,8 +9,9 @@ const require=createRequire(resolve(process.env.CMTEH_BROWSER_TOOLING||'D:/codex
 const {chromium}=require('playwright'); const browser=await chromium.launch();
 const token=randomBytes(6).toString('hex');
 const runtimeDir=process.env.CMTEH_WAREHOUSE_RUNTIME||'D:/codex/temp/cmteh-warehouse-dev-20261111';
+const warehouseFixture=process.env.CMTEH_BROWSER_WAREHOUSE_FIXTURE||'/workspace/tests/warehouse-offers-integration.php';
 function fixture(mode) {
- const text=execFileSync('python',['opencart/dev/runtime.py','--runtime-dir',runtimeDir,'--port',base.port,'compose','exec','-T','web','php','/workspace/tests/warehouse-offers-integration.php','/var/www/html/config.php','--browser-'+mode,token],{encoding:'utf8'});
+ const text=execFileSync('python',['opencart/dev/runtime.py','--runtime-dir',runtimeDir,'--port',base.port,'compose','exec','-T','web','php',warehouseFixture,'/var/www/html/config.php','--browser-'+mode,token],{encoding:'utf8'});
  return JSON.parse(text);
 }
 let owned=false;

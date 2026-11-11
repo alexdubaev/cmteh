@@ -18,7 +18,8 @@ const {chromium}=require('playwright');
 const nonce=randomBytes(6).toString('hex');
 const passwordFile=join(tmpdir(),`inventory-import-${nonce}.password`);
 const xlsxFile=join(tmpdir(),`inventory-import-${nonce}.xlsx`);
-const phpFixture='/workspace/tests/browser/inventory-import-fixture.php';
+const phpFixture=process.env.CMTEH_BROWSER_IMPORT_FIXTURE||'/workspace/tests/browser/inventory-import-fixture.php';
+const warehouseFixture=process.env.CMTEH_BROWSER_WAREHOUSE_FIXTURE||'/workspace/tests/warehouse-offers-integration.php';
 let owned=false,username='',product=null,browser;
 
 function fixture(mode,...args) {
@@ -33,7 +34,7 @@ function fixture(mode,...args) {
 
 function offers(mode) {
   try {
-    const output=execFileSync('python',['opencart/dev/runtime.py','--runtime-dir',runtime,'--port',port,'compose','exec','-T','web','php','/workspace/tests/warehouse-offers-integration.php','/var/www/html/config.php',`--browser-${mode}`,nonce],{cwd:root,encoding:'utf8',stdio:['pipe','pipe','pipe']});
+    const output=execFileSync('python',['opencart/dev/runtime.py','--runtime-dir',runtime,'--port',port,'compose','exec','-T','web','php',warehouseFixture,'/var/www/html/config.php',`--browser-${mode}`,nonce],{cwd:root,encoding:'utf8',stdio:['pipe','pipe','pipe']});
     return output.trim()?JSON.parse(output):{};
   } catch(error) {
     const message=String(error?.stderr||error?.message||error).replace(/user_token(?:=|%3D)[^&\s"'<>]+/gi,'user_token=[REDACTED]');

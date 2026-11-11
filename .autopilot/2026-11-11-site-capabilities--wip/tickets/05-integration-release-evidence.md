@@ -2,7 +2,7 @@
 
 **Требования:** G01, G02, G03, G04, G05, G06, G07, G08, G09
 **Зависит от:** 02, 03, 04
-**Зона:** `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/dev/release_checks.py` · `opencart/bin/verify-local` · `opencart/tests/inventory-recovery.php` · `opencart/admin-guide.md` · `docs/warehouses.md` · `docs/admin-capabilities-2026-11-11.md`
+**Зона:** `opencart/tests/inventory-recovery-integration.php` · `opencart/tests/browser/inventory-import-happy.mjs` · `opencart/tests/browser/warehouse-offers.mjs` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/dev/release_checks.py` · `opencart/bin/verify-local` · `opencart/tests/inventory-recovery.php` · `opencart/admin-guide.md` · `docs/warehouses.md` · `docs/admin-capabilities-2026-11-11.md`
 **Волна:** 3
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** обычная
