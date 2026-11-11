@@ -185,7 +185,23 @@ final class CmtehAdmin extends Controller
     public function marketing(string &$route,array &$data,string &$code,string &$output): void
     {
         if (!$this->authenticated() || !$this->user->hasPermission('access','marketing/marketing')) return;
-        if (!in_array($route,['marketing/marketing','marketing/marketing_list','marketing/marketing_form'],true)) return;
+        if (!in_array($route,['marketing/marketing','marketing/marketing_list','marketing/marketing_form','marketing/marketing_report'],true)) return;
+        if ($route==='marketing/marketing_report') {
+            $this->load->model('marketing/marketing');
+            $this->load->model('setting/store');
+            $id=(int)($this->request->get['marketing_id'] ?? 0);
+            $page=($this->request->get['route'] ?? '')==='marketing/marketing.report'
+                ? max(1,(int)($this->request->get['page'] ?? 1)) : 1;
+            $data['reports']=[];
+            foreach ($this->model_marketing_marketing->getReports($id,($page-1)*10,10) as $report) {
+                $store=(int)$report['store_id']===0 ? 'СМ ТЕХНО'
+                    : html_entity_decode($this->model_setting_store->getStore((int)$report['store_id'])['name'] ?? 'Другой магазин',ENT_QUOTES,'UTF-8');
+                $data['reports'][]=['ip'=>$report['ip'],'store'=>$store,'country'=>$report['country'],
+                    'date_added'=>date($this->language->get('datetime_format'),strtotime($report['date_added']))];
+            }
+            $route='extension/cmteh/marketing/marketing_report';
+            return;
+        }
         $data['cmteh_can_modify']=$this->user->hasPermission('modify','marketing/marketing');
         // Native stores Request::clean's entities. Own templates consistently escape
         // their text, while all navigation uses array arguments, never raw filter args.
@@ -208,8 +224,10 @@ final class CmtehAdmin extends Controller
         }
         foreach (['name','code','date_added'] as $field) $data['sort_'.$field]=$this->url->link('marketing/marketing.list',array_replace($params,['sort'=>'m.'.$field,'order'=>$params['order']==='ASC'?'DESC':'ASC']));
         if (isset($data['marketings'])) {
+            $this->load->model('marketing/marketing');
             foreach ($data['marketings'] as &$campaign) {
                 foreach (['name','code'] as $field) $campaign[$field]=html_entity_decode($campaign[$field],ENT_QUOTES,'UTF-8');
+                $campaign['tracked_requests']=$this->model_marketing_marketing->getTotalReports((int)$campaign['marketing_id']);
                 $campaign['edit']=$this->url->link('marketing/marketing.form',array_replace($params,['marketing_id'=>(int)$campaign['marketing_id']]));
             }
             unset($campaign);

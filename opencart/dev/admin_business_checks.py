@@ -69,8 +69,19 @@ def business(runtime):
         require('success' not in denied,"Role without campaign ACL modified registry")
         # New cookie jar, cookie wins over query after first visit. No public form submission or mail.
         client=LocalOpenCart(runtime.directory,runtime.port)
-        for path,expected in (("/?tracking="+code,200),("/",200),("/synthetic-tracking-404",404)):
+        for path,expected in (("/?tracking="+code,200),("/",200)):
             status,_=client.request(path);require(status==expected,"Current candidate public tracking route changed")
+        status,listed=runtime.request(runtime.action('marketing/marketing',filter_code=code))
+        body=re.findall(r'<tbody>\s*(.*?)\s*</tbody>',listed,re.S)
+        rows=[row for row in re.findall(r'<tr\b.*?</tr>',body[0],re.S) if code in row] if body else []
+        cells=re.findall(r'<td\b[^>]*>(.*?)</td>',rows[0],re.S) if len(rows)==1 else []
+        shown=html.unescape(re.sub('<[^>]+>','',cells[3])).strip() if len(cells)>=4 else ''
+        status,report=runtime.request(runtime.action('marketing/marketing.report',marketing_id=campaign_id))
+        report_rows=re.findall(r'<tbody>\s*(.*?)\s*</tbody>',report,re.S)
+        report_count=len(re.findall(r'<tr\b',report_rows[0])) if report_rows else 0
+        require(shown=='2' and report_count==2,'Campaign list/report disagree after two real requests: list='+shown+' report='+str(report_count))
+        require('Your Store' not in report and 'СМ ТЕХНО' in report,'Campaign report uses unrelated native store label')
+        status,_=client.request('/synthetic-tracking-404');require(status==404,'Current candidate 404 tracking route changed')
         raw=runtime.docker('exec','-T','web','php','-r',"require '/var/www/html/config.php';require '/workspace/extension/cmteh/system/Database.php';$p=Cmteh\\Database::connectFromOpenCart();echo $p->query('SELECT COUNT(*) FROM '.DB_PREFIX.'marketing_report WHERE marketing_id='.(int)$argv[1])->fetchColumn();",str(campaign_id),capture=True).stdout
         require(int(raw)==3,"Current candidate tracking must count repeated and 404 requests")
         after=json.loads(fixture("hash")); prior=json.loads(before)
@@ -92,6 +103,7 @@ def business_browser(runtime,tooling,evidence):
     password_file=runtime.directory/'admin-business-password'
     role=None
     campaign_id=None
+    tracked_id=None
     def fixture(action):
         runtime.docker('exec','-T','-e','CMTEH_LOCAL_BUSINESS_FIXTURE=1','web','php','/workspace/tests/admin-business-fixture.php',action,capture=True)
     try:
@@ -99,15 +111,21 @@ def business_browser(runtime,tooling,evidence):
         campaign=admin_post(runtime,'marketing/marketing.save',{'name':'Synthetic HTML boundary','code':'"><svg data-probe=cmteh onload=1>','description':'Local text boundary'})
         require(campaign.get('success') and campaign.get('marketing_id'),'Campaign boundary fixture failed')
         campaign_id=int(campaign['marketing_id'])
+        tracking_code='synthetic-tracked-'+uuid4().hex[:12]
+        tracked=admin_post(runtime,'marketing/marketing.save',{'name':'Synthetic tracked campaign','code':tracking_code,'description':'Two real local requests'})
+        require(tracked.get('success') and tracked.get('marketing_id'),'Tracked campaign fixture failed')
+        tracked_id=int(tracked['marketing_id'])
         role=create_role(runtime,'Browser business reader',[LEADS,'marketing/marketing'],[],password_file=password_file)
         username=role.username;role.logout()
         env=os.environ | {'CMTEH_BROWSER_BASE':runtime.origin,'CMTEH_BROWSER_TOOLING':str(tooling),
                           'CMTEH_BROWSER_EVIDENCE':str(evidence),'CMTEH_ADMIN_USERNAME':username,
-                          'CMTEH_ADMIN_PASSWORD_FILE':str(password_file),'CMTEH_CAMPAIGN_ID':str(campaign_id)}
+                          'CMTEH_ADMIN_PASSWORD_FILE':str(password_file),'CMTEH_CAMPAIGN_ID':str(campaign_id),
+                          'CMTEH_TRACKED_CAMPAIGN_ID':str(tracked_id),'CMTEH_TRACKING_CODE':tracking_code}
         subprocess.run(['node',str(Path(__file__).resolve().parents[1]/'tests/browser/admin-business.mjs')],env=env,check=True)
     finally:
         fixture('delete')
         if campaign_id:admin_post(runtime,'marketing/marketing.delete',{'selected[]':campaign_id})
+        if tracked_id:admin_post(runtime,'marketing/marketing.delete',{'selected[]':tracked_id})
         if role:role.logout()
         password_file.unlink(missing_ok=True)
         runtime.logout()

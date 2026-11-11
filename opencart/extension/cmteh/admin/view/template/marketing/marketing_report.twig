@@ -1,0 +1,7 @@
+<p>Отслеживаемые запросы кампании. Сайт СМ ТЕХНО указан для основной витрины; повторные запросы и ошибки тоже учитываются. Это не уникальные посетители и не заявки.</p>
+<div class="table-responsive"><table class="table table-bordered table-hover">
+  <thead><tr><th>{{ column_ip|escape }}</th><th>Сайт</th><th>{{ column_country|escape }}</th><th>{{ column_date_added|escape }}</th></tr></thead>
+  <tbody>{% for report in reports %}<tr><td>{{ report.ip|escape }}</td><td>{{ report.store|escape }}</td><td>{{ report.country|escape }}</td><td>{{ report.date_added|escape }}</td></tr>
+  {% else %}<tr><td colspan="4" class="text-center">{{ text_no_results|escape }}</td></tr>{% endfor %}</tbody>
+</table></div>
+<div class="row"><div class="col-sm-6 text-start">{{ pagination }}</div><div class="col-sm-6 text-end">{{ results }}</div></div>

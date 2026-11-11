@@ -18,7 +18,7 @@
               <td class="text-center"><input type="checkbox" name="selected[]" value="{{ marketing.marketing_id }}" class="form-check-input"/></td>
               <td>{{ marketing.name|escape }}</td>
               <td>{{ marketing.code|escape }}</td>
-              <td class="text-end">{{ marketing.clicks }}</td>
+              <td class="text-end">{{ marketing.tracked_requests }}</td>
               <td class="d-none d-lg-table-cell">{{ marketing.date_added|escape }}</td>
               <td class="text-end"><a href="{{ marketing.edit }}" data-bs-toggle="tooltip" title="{{ button_edit }}" class="btn btn-primary"><i class="fa-solid fa-pencil"></i></a></td>
             </tr>

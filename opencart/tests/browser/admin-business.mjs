@@ -92,11 +92,28 @@ try {
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Capability page overflows viewport');
     await page.screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,`admin-capabilities-${width}.png`)});
   }
-  await page.goto('/admin/index.php?'+new URLSearchParams({route:'marketing/marketing',user_token:token}));
+  stage='actual tracked campaign list and report';
+  await page.goto('/admin/index.php?'+new URLSearchParams({route:'marketing/marketing.form',user_token:token,marketing_id:process.env.CMTEH_TRACKED_CAMPAIGN_ID}));
+  const trackingUrl=await page.locator('#input-example1').inputValue();
+  const visitor=await browser.newContext({baseURL:base.href});
+  assert.equal((await visitor.request.get(trackingUrl)).status(),200);
+  assert.equal((await visitor.request.get(base.href)).status(),200);
+  await visitor.close();
+  await page.goto('/admin/index.php?'+new URLSearchParams({route:'marketing/marketing',user_token:token,filter_code:process.env.CMTEH_TRACKING_CODE}));
   assert.equal(await page.locator('h1').innerText(),'Рекламные кампании');
   assert.ok((await page.locator('#content').innerText()).includes('включая повторы и ошибки 404'));
   assert.equal(await page.getByRole('columnheader',{name:'Заказы',exact:true}).count(),0);
+  const campaignRow=page.locator('#marketing tbody tr').filter({hasText:'Synthetic tracked campaign'});
+  assert.equal(await campaignRow.locator('td').nth(3).innerText(),'2');
   await page.screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,'admin-marketing-390.png')});
+  await Promise.all([page.waitForURL(url=>url.searchParams.get('route')==='marketing/marketing.form'),campaignRow.locator('a').click()]);
+  await page.locator('#form-marketing a[href="#tab-report"]').click();
+  assert.ok(await page.locator('#tab-report').isVisible());
+  assert.equal(await page.locator('#report tbody tr').count(),2);
+  assert.equal(await page.locator('#report').getByRole('cell',{name:'СМ ТЕХНО',exact:true}).count(),2);
+  assert.ok(!(await page.locator('#report').innerText()).includes('Your Store'));
+  assert.equal(await page.locator('#report a[href*="customer/customer"], #report a[href*="geoiptool"]').count(),0);
+  await page.screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,'admin-marketing-report-390.png')});
   console.log('PASS business browser 1440/390: contact pagination, type/date filter, private original, reports, unknown source, capability disclosure and truthful marketing');
 }catch(error){
   throw new Error(stage+': '+String(error?.message||error).replace(/user_token=[^&\s"'<>]+/g,'user_token=[REDACTED]'));
