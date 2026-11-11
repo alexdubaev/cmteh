@@ -2,7 +2,7 @@
 
 **Требования:** R01, R02, R03, R04, R05, R06, R07, R08, R15
 **Зависит от:** —
-**Зона:** `opencart/extension/cmteh/admin/controller/event/cmteh_admin.php` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/extension/cmteh/admin/view/` · `opencart/extension/cmteh/admin/language/` · `opencart/extension/cmteh/system/` · `opencart/bin/` · `opencart/tests/` · `opencart/dev/`
+**Зона:** `opencart/extension/cmteh/admin/controller/event/cmteh_admin.php` · `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php` · `opencart/extension/cmteh/admin/view/` · `opencart/extension/cmteh/admin/language/` · `opencart/extension/cmteh/system/` · `opencart/bin/` · `opencart/tests/` · `opencart/dev/` · `opencart/packaging/build.py`
 **Волна:** 1
 **Ревью:** нет
 **Модель:** сильная

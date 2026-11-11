@@ -1,37 +1,35 @@
 <!-- autopilot:progress -->
-# СМ ТЕХНО — состояние после общей UX-переработки
+# СМ ТЕХНО — единая админка
 
-Последняя сборка: `.autopilot/2026-11-10-site-ux-density/`. Все13требований закрыты; финальный продуктcc893a0 черезPR16/17, maincddac54 до финальной записи документов. Testобновлён,186strictPASS; деталиreport.md/host-report.md.
+Последняя сборка: `.autopilot/2026-11-11-admin-unification/`, продукт1aa4ca6. Локально305strictPASS/exit0 иclean-clone10/10. Публикация/выкладка после source-acceptance commit черезодинPR. Актуальный факт хостинга/SHA/PR/backup/recovery и полное время: `D:/codex/_handoffs/cmteh-admin-unification-result-2026-11-11.md`. Локальная приёмка не доказывает уже выполненный deploy.
 
 ## Договорились — не пересматривать
 
-- OpenCart4.1.0.4 вopencart/ — реальныйpublicapp, rootNext — reference. Бело-жёлтый бренд/локальныеfonts/CMSсодержимое; explicit home_blocks сильнееfallback.
-- Толькоtest.cmteh.ru; production/cmteh.ru/StoreLand/DNS/engine исключены. Nativeauth/ACL/config/DB/очереди не менять UXпереработкой.
-- Главная: компактный экран с целым фото → категории → товары. Внизу «Позвонить / Запрос», отдельная короткаяформа и корзина вшапке. Согласованный телефон+7 911 921-22-14 изCMS.
-- Content-first: поле иCheck на первомтелефонномэкране, послепроверки реально виднытовар/статус/действие. Результаты перед раскрываемойформойрасценки, безgenericзелёногосообщения.
-- «Изменить список» возвращаетфокус и целикомполе, не толькоcaret (реальныйWebKitдефектF1закрыт). Черновик/файл/корзина сохраняются.
-- Каталоги/категории/бренды/товар/корзина/контент используютобщийкомпактныйритм; не уменьшатьтекст/targets и не удалятьCMSконтент радиfold.
-- Весь CSS/module/import/XLSX graph согласованно20261110-8. SamecachedChromium/WebKit normalreload7→8 соstatepreservation проверен.
-- List/check/quote не добавляютсыройсписоквкорзину. Толькоявно выбранныепредложения поодному; legacycart/storage/idempotency/URLs сохранять.
-- ExactpublishedSKU, до1000строк/50page, ведущиенули/порядок/дубли. Статус изкаталога не подтверждает физическоеколичество.
-- Отдельнаярасценка наinfo@cmteh.ru от«СМ ТЕХНО»: таблицы/PDF/фото безOCR; автоматическипроверятьтолькоXLSX/CSV/TXT. Заявки/оригиналы хранятсявnative«СМ ТЕХНО → Заявки».
-- Толькоquotecron/queue включён; старыйLeadSMTP не включать. Конфигвprivatebase/sealed. Lead schema3/product_id160, приcode-onlyrollback cache-onlyclear; не старыйupgrade/понижениеmarker/восстановлениестаройБДповерхновыхобращений.
-- UI-only byteguard строгий: Gitcanonicalравенство не означает byte-identicalZIP из-заphysicalCRLF/LF. D01: acceptedprotectedbytes сохранять; exactfinalartifact тестировать, newline-whitelist запрещён.
-- Chromium/WebKit и реальныеviewport проверены, физическийiPhone отдельно не подтверждён. MTAaccepted/localMIME/Inbox — разныедоказательства.
-- 2026-11-11 владелец подтвердил оба контрольных письма расценки во «Входящих» и наличие исходного CSV. Фактическая Inbox-приёмка закрыта; receipt в quote-сборке/inbox-confirmation-2026-11-11.md.
+- Actual app `opencart/`, OpenCart4.1.0.4; rootNext reference. Толькоtest.cmteh.ru; production/StoreLand/DNS/engine исключены.
+- Один каталог/рабочийстол; native advanced формы по месту/прежнемуACL. IDs/source_id/slug/mappings/ownerdata сохраняются; чтение не публикуетunknown. Upgrade не выдаёт права.
+- Adminusers/groups access/modify ужеесть; публичные покупатели отсутствуют. Обращение/расценка ≠ заказ/оплата, mailstate ≠ стадияпродажи; контакты по исходнойзаявке безслияниялюдей/подписки.
+- Кампании: native getTotalReports (повторы/404), неstaleclicks/люди/выручка. page_url заявленный, неатрибуция.3новыхсобытия header/dashboard/marketing;4точныхcampaignviews. Original64events byteexact.
+- seed-cleanup.json -text хранитточныеподписанныебайты/SHAcb85…; неформатировать/неослаблятьpin. Unmapped≠demo; толькоofficialpositiveproof+refs/guard. Allphysicalfiles/системныеdefinitions/правила/новыеобращениясохранять. НеrestoreстаруюБДповерхновыхзаявок.
+- UXсохранён: компактныйпервыйэкран→категории→товары; отдельнаяформа«Запрос»,«Позвонить»+7 911 921-22-14; content-firstparts/results/backtotop; драфты/файлы/корзина/URLs стабильны. CSS/modulesgraph20261110-8; actualiPhone отдельнонеподтверждён.
+- List/check/quote неавтодобавляютсыройсписоквкорзину; толькоявновыбранныепредложения. ExactSKU/ведущиенули/порядок/дубли;до1000строк/50page; статускаталоганефизическийостаток.
+- Quoteinfo@cmteh.ru от«СМТЕХНО»:таблицы/PDF/фото безOCR; автопроверкатолькоXLSX/CSV/TXT. История/оригиналывЗаявках. OwnerподтвердилобаInbox+CSV; непереоткрыватьпочтовуюприёмку.
+- Толькоquotequeuecron; старыйLeadSMTPневключать. Privatebase/sealed, Leadschema3/product_id160. Config/ACL/cron/privateoriginals сохранять, rollbackcode-only+ownTwig, безloweringmarkers/oldmigrator/globalDBrestore.
+- КартаофисаопциональновCMSsite:толькоtrustedYandexiframeURL;richHTMLсанитайзернеослаблять. Собственныйкод/адресвладельцемпока непредоставлен.
+- Rawbyteguardстрогий: Gitcanonical≠rawZIP; толькоunchangedTEXTacceptedoverlays+restore. Новыеintegration suitesinstalledpaths/hashonly, workspacefallback/CLIdowngradeзапрещены.
+- LocalPHP8.3/MySQL8.4 ≠ hostPHP8.2/MySQL5.7. Actual5.7business13/cleanup46PASS; actualhostrehearsalотдельныйgate. Normalnativeвходможетизменитьuser1.ip/login/sessionmetadata, неостальныеuser/hash/groupACL.
 
 ## Не доделано
 
-- Прежний отдельныйобъём: реальныйассортимент/карта/изображения, складскаяинтеграция, остальные коммерческиеконтакты, стараяLeadSMTP, нагрузка/квотыREG.RU иproductionпереход.
-- НовыйаналитическийCRMотчёт/воронка/распределениеменеджерам отдельно незаказывались; существующаяистория сохраняетданные.
-- Внешниевалидаторы/индексация требуютотдельныхданных/доступа/протокола.
+- Кабинеты/коммерческийзаказ/CRMстадии+ответственные/consentрассылок/купоны/партнёры/аналитика: конкретныйпереченьразработкив `docs/admin-capabilities-2026-11-11.md`, реализацияотдельная.
+- Прежнийобъём: реальныйассортимент/фото/склад, остальныереквизиты/картавладельца, стараяLeadSMTP, нагрузка/квотыREG.RU, productionпереход.
+- Внешниевалидаторы/индексациятребуютотдельныхданных/доступа/протокола.
 
 ## Известные баги
 
-Открытых подтверждённых дефектов принятойUX-сборки нет. ИсторическиеFAIL/STOP и закрытия сохранены, не стёрты.
+- Открытыхподтверждённыхдефектовлокальнойпользовательскойприёмки не осталось. ПервыеcleancloneFAILpin/маркетингсохраненыизакрыты.
+- ОперационныйSQL-reader: REFERENCES/TABLEвquoteduserdata могутбезопасноостановитьrehearsal; передудалениемобязательнопроверятьконкретнуюсвежуюкопию. НеослаблятьguardsрадиPASS.
 
 ## Правки без автопилота
 
-<!-- дата — что — почему -->
+—
 
-- 2026-11-11 — добавлена «Яндекс Карта офиса» в настройках сайта (продукт6067045): iframe-код/ссылка нормализуется в проверенный URL, карта видна в контактах перед формой, очистка скрывает её. Без схемы/ACL/SDK/изменений корзины. Инструкция в opencart/admin-guide.md;238strictPASS, одно чистое securityreview, nativeadminroundtrip1440/390 и отдельный реальный vendorprobe. Адрес/код владельца не предоставлены, значение по умолчанию пустое. Операционный итог: D:/codex/_handoffs/cmteh-contacts-yandex-map-result-2026-11-11.md.

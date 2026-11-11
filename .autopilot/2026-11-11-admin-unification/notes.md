@@ -70,3 +70,11 @@ Register new own hooks through existing `cmteh.php::adminEvents/applyChanges/uni
 - Existing `::native_catalog_editor` covers native CRUD synchronization and whole-batch dependent category delete denial without mutations; keep it affected when changing native list/form shell events.
 - Existing `tests/admin-catalog-integration.php` and short `tests/browser/admin-cms.mjs` protect identity/URLs/native-model independence, unmanaged native fields/languages, category assignments, specifications and CMTEH/native edit round trip.
 - Do not represent this read-only source discovery as product checks PASS. No runtime, app test, publication, deployment or group permission mutation performed by this scout.
+
+## Business and host read-only facts added by orchestrator
+
+- Complete native capability inventory and old-runtime tracking caveat are in business-discovery.md. Native users/groups already support admin permissions; public customer accounts and commercial orders are distinct absent processes.
+- Host SELECT-only snapshot at 2026-11-11 14:56 Moscow: native35/46/17 vs mapped16/8/11; actual lead/quote/customer/order/marketing/newsletter rows0. These counts are NOT demo provenance and are NOT final cleanup preconditions.
+- Ops exact official4.1.0.4 positive proof: candidate19products/38categories/6manufacturers, bounded3coupons/3banners/4modules and4layout_module rows. Preserve information1..4, configured policyIDs3/4, all users/settings/layouts/shared definitions and ALL physical assets. Unknown/modified/mapped records never demo by inference.
+- Sanitized typed closure/provenance is D:/codex/temp/cmteh-admin-unification-20261111/cleanup-provenance.json. Sensitive full live snapshot remains restricted outside Git; don't copy it to code/reports. Proof from old snapshot must be rechecked by apply guard against fresh host DB and exact source manifest.
+- Operations plan and unexecuted backup/snapshot/release guard scripts outside Git in same opsdir. No host writes have been performed for this task at this point. New-task source/artifact/changed-path/new-event/cleanup bindings reviewed before root release GO.
