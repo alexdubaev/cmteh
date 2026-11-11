@@ -143,14 +143,24 @@ try {
     rejects(fn()=>$inventory->resolveSelectedOffers($selection),'stale_offer'); $pdo->rollBack();
     $other->exec("UPDATE `{$prefix}cmteh_product` SET sku='00001' WHERE product_id=1");
     $before=$inventory->productState(1); $history=$inventory->history()['total'];
-    // Owned fixture-only schema fault produces a real SQL rejection after stock
-    // and movement-header writes, without privileged triggers or server changes.
-    $pdo->exec("ALTER TABLE `{$prefix}cmteh_inventory_entry` ADD COLUMN injected_failure INT NOT NULL");
-    $failed=false;
-    try { $run('balance.receive',$input((int)$a['warehouse_id'],['quantity'=>2]),'injected-ledger-failure'); }
-    catch(PDOException $e) { $failed=(int)($e->errorInfo[1]??0)===1364; }
-    finally { $pdo->exec("ALTER TABLE `{$prefix}cmteh_inventory_entry` DROP COLUMN injected_failure"); }
-    check($failed && $inventory->productState(1)===$before && $inventory->history()['total']===$history && (int)$pdo->query("SELECT COUNT(*) FROM `{$prefix}cmteh_inventory_command` WHERE request_key='injected-ledger-failure'")->fetchColumn()===0,'Injected ledger failure rolls back physical count, header, command and native mirror');
+    // A fixture-only FK rejects the ledger insert even without STRICT mode.
+    // Existing entries stay NULL; new inserts default to the absent parent 0.
+    $originalSqlMode=(string)$pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
+    $nativeBefore=(int)$pdo->query("SELECT quantity FROM `{$prefix}product` WHERE product_id=1")->fetchColumn();
+    $failureConstraint=$prefix.'injected_failure'; $injected=false; $failed=false;
+    try {
+        $pdo->exec("ALTER TABLE `{$prefix}cmteh_inventory_entry` ADD COLUMN injected_failure INT NULL DEFAULT NULL, ADD CONSTRAINT `{$failureConstraint}` FOREIGN KEY (injected_failure) REFERENCES `{$prefix}cmteh_inventory_product` (product_id)");
+        $injected=true;
+        $pdo->exec("ALTER TABLE `{$prefix}cmteh_inventory_entry` ALTER COLUMN injected_failure SET DEFAULT 0");
+        $pdo->exec("SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'");
+        try { $run('balance.receive',$input((int)$a['warehouse_id'],['quantity'=>2]),'injected-ledger-failure'); }
+        catch(PDOException $e) { $failed=(int)($e->errorInfo[1]??0)===1452; }
+    }
+    finally {
+        try { if($injected) $pdo->exec("ALTER TABLE `{$prefix}cmteh_inventory_entry` DROP FOREIGN KEY `{$failureConstraint}`, DROP COLUMN injected_failure"); }
+        finally { $pdo->exec('SET SESSION sql_mode='.$pdo->quote($originalSqlMode)); }
+    }
+    check($failed && $inventory->productState(1)===$before && $inventory->history()['total']===$history && (int)$pdo->query("SELECT COUNT(*) FROM `{$prefix}cmteh_inventory_command` WHERE request_key='injected-ledger-failure'")->fetchColumn()===0 && (int)$pdo->query("SELECT quantity FROM `{$prefix}product` WHERE product_id=1")->fetchColumn()===$nativeBefore,'Injected ledger failure rolls back physical count, header, command and native mirror');
     $active=$inventory->reservations(['state'=>'active'])['rows'][0];
     $before=$inventory->productState(1)['on_hand'];
     $released=$run('reservation.release',$input((int)$b['warehouse_id'],['reservation_id'=>$active['reservation_id'],'expected_reservation_version'=>$active['version']]));
