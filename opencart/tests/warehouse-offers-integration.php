@@ -135,9 +135,21 @@ try {
  $fresh=$base; $fresh['request_key']=Cmteh\LeadInput::uuid();
  $current=$inventory->publicOffers(['public-001'])['public-001']['offers'][0];
  $fresh['request_items']=[['product_id'=>'public-001','article'=>'00001','quantity'=>2,'offer_id'=>$current['offer_id'],'offer_version'=>$current['offer_version']]];
- $pdo->exec("ALTER TABLE {$prefix}cmteh_lead_inventory ADD COLUMN injected_failure INT NOT NULL");
- try {$failed=$warehouse($fresh);} finally {$pdo->exec("ALTER TABLE {$prefix}cmteh_lead_inventory DROP COLUMN injected_failure");}
- check($failed['status']===503 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead")->fetchColumn()===2 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead_outbox")->fetchColumn()===2,'Snapshot SQL failure rolls back the first header and all item/outbox writes');
+ // Keep the real snapshot INSERT failure independent of STRICT mode.
+ if((int)$pdo->query('SELECT @@SESSION.foreign_key_checks')->fetchColumn()!==1 || (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead WHERE lead_id=0")->fetchColumn()!==0) throw new RuntimeException('Fault fixture requires checked foreign keys and absent parent zero');
+ $originalSqlMode=(string)$pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
+ $failureConstraint=$prefix.'injected_failure'; $injected=false;
+ try {
+  $pdo->exec("ALTER TABLE {$prefix}cmteh_lead_inventory ADD COLUMN injected_failure BIGINT UNSIGNED NULL DEFAULT NULL, ADD CONSTRAINT `{$failureConstraint}` FOREIGN KEY (injected_failure) REFERENCES {$prefix}cmteh_lead (lead_id)");
+  $injected=true;
+  $pdo->exec("ALTER TABLE {$prefix}cmteh_lead_inventory ALTER COLUMN injected_failure SET DEFAULT 0");
+  $pdo->exec("SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'");
+  $failed=$warehouse($fresh);
+ } finally {
+  try {if($injected) $pdo->exec("ALTER TABLE {$prefix}cmteh_lead_inventory DROP FOREIGN KEY `{$failureConstraint}`, DROP COLUMN injected_failure");}
+  finally {$pdo->exec('SET SESSION sql_mode='.$pdo->quote($originalSqlMode));}
+ }
+ check($failed['status']===503 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead")->fetchColumn()===2 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead_item")->fetchColumn()===3 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead_outbox")->fetchColumn()===2 && (int)$pdo->query("SELECT COUNT(*) FROM {$prefix}cmteh_lead_inventory")->fetchColumn()===2,'Snapshot SQL failure rolls back the first header and all item/outbox writes');
  $children=[];
  try {
   $pdo->beginTransaction(); $pdo->query("SELECT product_id FROM {$prefix}product WHERE product_id=1 FOR UPDATE")->fetchAll();
