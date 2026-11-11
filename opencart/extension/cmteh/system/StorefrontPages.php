@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cmteh;
 
 use DOMDocument;
+use InvalidArgumentException;
 
 require_once __DIR__ . '/EditorialDefaults.php';
 
@@ -78,6 +79,12 @@ final class StorefrontPages
         $params = $this->params($rawParams);
         $site = self::htmlFields($this->catalog->content('site') ?? []);
         $site['logo_url'] = EditorialDefaults::imageUrl($site['logo'] ?? null);
+        try {
+            $site['yandex_map_src'] = CatalogInput::yandexMapEmbed($site['yandex_map_embed'] ?? '');
+        } catch (InvalidArgumentException) {
+            $site['yandex_map_src'] = '';
+        }
+        unset($site['yandex_map_embed']);
         $home = self::htmlFields($page === 'home' ? $record : ($this->catalog->content('home') ?? []));
         $home['hero_image_url'] = EditorialDefaults::imageUrl($home['hero_image_path'] ?? null)
             ?? $this->seo->assetUrl($home['hero_image'] ?? null);

@@ -35,6 +35,7 @@ final class CmtehCatalog extends Controller
         'description' => ['Описание', 'rich'], 'content' => ['Текст публикации', 'rich'], 'excerpt' => ['Анонс', 'textarea'],
         'company_name' => ['Компания', 'text'], 'phone' => ['Телефон', 'text'], 'email' => ['Email', 'text'],
         'address' => ['Адрес', 'text'], 'working_hours' => ['Режим работы', 'text'], 'hero_title' => ['Заголовок обложки', 'text'],
+        'yandex_map_embed' => ['Яндекс Карта офиса', 'textarea'],
         'hero_text' => ['Текст обложки', 'textarea'], 'label' => ['Подпись пункта меню', 'text'], 'url' => ['Адрес ссылки', 'text'],
         'location' => ['Область меню', ['header' => 'Шапка', 'footer' => 'Подвал', 'legal' => 'Правовая информация']],
         'intro' => ['Вступление', 'textarea'],
@@ -114,7 +115,7 @@ final class CmtehCatalog extends Controller
         ],
         'navigation' => ['label', 'location', 'open_in_new_tab'],
         'site' => [
-            'company_name', 'logo', 'phone', 'email', 'city', 'address', 'working_hours',
+            'company_name', 'logo', 'phone', 'email', 'city', 'address', 'working_hours', 'yandex_map_embed',
             'legal_name', 'legal_address', 'inn', 'kpp', 'ogrn', 'vat_info', 'footer_text', 'footer_disclaimer',
             'footer_brand_label', 'footer_sections_title', 'footer_contacts_title', 'footer_copyright',
             'product_delivery_title', 'product_delivery_text', 'product_documents_title', 'product_documents_text',

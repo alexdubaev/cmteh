@@ -172,6 +172,7 @@
                   {% else %}
                     <input class="form-control" type="{% if item.control in ['number', 'integer'] %}number{% else %}text{% endif %}"{% if item.control == 'number' %} min="0" step="0.0001"{% endif %} id="field-{{ item.field|escape }}" name="{{ item.field|escape }}" value="{{ item.value|escape }}">
                   {% endif %}
+                  {% if item.field == 'yandex_map_embed' %}<p class="form-text">В Яндекс Картах выберите «Поделиться» → «Виджет с картой» (iframe), в Конструкторе — «Получить код карты» → iframe. Вставьте код или ссылку виджета. После сохранения останется только ссылка. Очистите поле, чтобы убрать карту со страницы контактов.</p>{% endif %}
                 </div>
               {% endfor %}
               {% if type == 'navigation' %}

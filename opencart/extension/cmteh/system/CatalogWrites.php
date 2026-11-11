@@ -395,7 +395,9 @@ trait CatalogWrites
             throw new InvalidArgumentException('Слишком сложная структура контента');
         }
         foreach ($row as $key => &$value) {
-            if (is_array($value)) {
+            if ($key === 'yandex_map_embed') {
+                $value = CatalogInput::yandexMapEmbed($value);
+            } elseif (is_array($value)) {
                 $value = $this->sanitizeContent($value, $depth + 1);
             } elseif (in_array($key, ['image', 'cover_image', 'og_image', 'hero_image'], true)) {
                 $value = CatalogInput::uuid($value);

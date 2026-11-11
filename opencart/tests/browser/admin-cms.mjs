@@ -90,6 +90,7 @@ const restoreSite = async () => {
   if (!siteRestore) return;
   await edit('site',siteRestore.id);
   await field('phone').fill(siteRestore.phone);
+  if (siteRestore.map !== undefined) await field('yandex_map_embed').fill(siteRestore.map);
   // The test adds one social row after all stored rows; remove exactly that row.
   const rows=page.locator('[data-collection=social_links] [data-collection-row]');
   if (await rows.count() > siteRestore.socialCount) await rows.last().locator('[data-collection-remove]').click();
@@ -173,6 +174,47 @@ const reviewClosure = async () => {
   for (const record of [product,brand,article,category]) { await remove(record); own.splice(own.indexOf(record),1); }
   console.log('PASS review closure: category H1 and article excerpt reach storefront after reload; native model survives CMS save; social navigation label is Russian');
 };
+const contactsMap = async () => {
+  await openFirst('site');
+  siteRestore={id:await field('id').inputValue(),phone:await field('phone').inputValue(),map:await field('yandex_map_embed').inputValue(),socialCount:await page.locator('[data-collection=social_links] [data-collection-row]').count()};
+  const contactNames=['phone','email','city','address','working_hours'];
+  const contacts=await Promise.all(contactNames.map(async name=>[name,await field(name).inputValue()]));
+  const src='https://api-maps.yandex.ru/frame/v1/-/CVh7YBYg?lang=ru_RU';
+  // Assert the actual iframe boundary deterministically, without depending on vendor network availability.
+  await publicContext.route(url=>url.hostname==='api-maps.yandex.ru' && url.pathname.startsWith('/frame/v1/-/'),route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ru"><meta charset="utf-8"><title>Local map frame probe</title><body style="font:20px sans-serif;background:#e5e7eb;padding:32px">Яндекс Карты · локальная проверка iframe</body></html>'}));
+  const embed='<div style="position:relative"><a href="https://yandex.ru/maps/">Яндекс Карты</a><iframe src="'+src+'" width="560" height="400" frameborder="0"></iframe></div>';
+  await field('yandex_map_embed').fill(embed);
+  await save(); await page.reload();
+  assert.equal(await field('yandex_map_embed').inputValue(),src,'Pasted wrapper reloads as canonical URL');
+  for (const [name,value] of contacts) assert.equal(await field(name).inputValue(),value,'Map save preserves contact '+name);
+  if (process.env.CMTEH_BROWSER_EVIDENCE) {
+    await mkdir(process.env.CMTEH_BROWSER_EVIDENCE,{recursive:true});
+    await field('yandex_map_embed').locator('..').screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,'contacts-map-admin-field.png')});
+  }
+  for (const width of [1440,390]) {
+    await shop.setViewportSize({width,height:900}); await shop.goto('/contacts');
+    const map=shop.locator('iframe[title="Офис на Яндекс Картах"]');
+    await map.scrollIntoViewIfNeeded(); await map.waitFor({state:'visible'});
+    assert.equal(await map.getAttribute('src'),src);
+    assert.equal(await map.locator('xpath=ancestor::details').count(),0,'Map remains outside collapsed contact details');
+    assert.ok(await map.evaluate(node=>Boolean(node.compareDocumentPosition(document.querySelector('.contact-grid form')) & Node.DOCUMENT_POSITION_FOLLOWING)),'Map precedes contact form in reading order');
+    assert.equal(await shop.locator('.contact-more').getAttribute('open'),null,'Contact metadata stays compact');
+    assert.ok(await shop.locator('.contact-grid form').count(),'Existing contact form remains present');
+    const box=await map.boundingBox(); assert.ok(box.width>250 && box.height >= 280 && box.height <= 320,'Map is responsive at '+width);
+    const card=await shop.locator('.contact-card').boundingBox(); assert.ok(box.width>card.width-50,'Map fills contact card at '+width);
+    assert.ok(await shop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow at '+width);
+    if (process.env.CMTEH_BROWSER_EVIDENCE) await shop.screenshot({path:join(process.env.CMTEH_BROWSER_EVIDENCE,'contacts-map-'+width+'.png'),fullPage:true});
+  }
+  await field('yandex_map_embed').fill('<script src="https://api-maps.yandex.ru/services/constructor/1.0/js/"></script>');
+  await page.locator('#cmteh-editor > button[type=submit]').click();
+  await page.getByRole('alert').filter({hasText:'вставьте iframe-код'}).waitFor();
+  await edit('site',siteRestore.id); assert.equal(await field('yandex_map_embed').inputValue(),src,'Rejected code leaves saved map unchanged');
+  await field('yandex_map_embed').fill(''); await save(); await page.reload();
+  assert.equal(await field('yandex_map_embed').inputValue(),'');
+  await shop.reload(); assert.equal(await shop.locator('iframe[title="Офис на Яндекс Картах"]').count(),0,'Clearing removes public map');
+  await restoreSite();
+  console.log('PASS contacts map: native admin paste/save/reload, canonical URL, preserved contacts, responsive public iframe, script rejection and clear (vendor frame stubbed)');
+};
 try {
   await page.goto('/admin/');
   await page.locator('[name=username]').fill(process.env.CMTEH_ADMIN_USERNAME || 'cmteh-admin');
@@ -180,6 +222,8 @@ try {
   await page.locator('#form-login button[type=submit]').click();
   await page.waitForURL(/user_token=/);
   token = new URL(page.url()).searchParams.get('user_token');
+  await contactsMap();
+  if (process.env.CMTEH_ADMIN_CMS_SCENARIO !== 'contacts-map') {
   await homeRenderingBoundary();
   await reviewClosure();
   if (process.env.CMTEH_ADMIN_CMS_SCENARIO !== 'review-closure') {
@@ -297,6 +341,7 @@ try {
   console.log('PASS home order/modes/selected order, nested inclusion, unlimited categories and shared contacts/social links');
   for (const record of [...own].reverse()) { await remove(record); own.splice(own.indexOf(record),1); if (record.type !== 'navigation') assert.equal((await publicContext.request.get((record.type==='page'?'/':('/'+record.type+'/'))+record.slug)).status(),410); }
   console.log('PASS explicit deletion of isolated browser records and old URL410; existing content restored');
+  }
   }
 } catch (error) {
   let message=String(error?.message || error).replaceAll(password,'[REDACTED]').replace(/user_token=[^&\s"'<>]+/g,'user_token=[REDACTED]');

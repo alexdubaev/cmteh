@@ -179,6 +179,42 @@ final class CatalogInput
             && !array_key_exists('user', $parts) && !array_key_exists('pass', $parts) ? $value : null;
     }
 
+    /** Extract a trusted iframe URL; pasted markup is never stored or rendered. */
+    public static function yandexMapEmbed(mixed $value): string
+    {
+        $error = 'Карта: вставьте iframe-код Яндекс Карт или ссылку виджета HTTPS. Код со script не поддерживается.';
+        if (is_string($value) && preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/', $value)) throw new InvalidArgumentException($error);
+        $value = self::text($value, 20000, 'Карта');
+        if ($value === '') return '';
+        if (str_contains($value, '<')) {
+            $document = new DOMDocument();
+            $document->loadHTML('<!doctype html><html><head><meta charset="UTF-8"></head><body>' . $value . '</body></html>',
+                LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+            $frames = $document->getElementsByTagName('iframe');
+            if ($frames->length !== 1 || $document->getElementsByTagName('script')->length !== 0) {
+                throw new InvalidArgumentException($error);
+            }
+            $frame = $frames->item(0);
+            if (!$frame instanceof DOMElement || $frame->hasAttribute('srcdoc')) throw new InvalidArgumentException($error);
+            $value = $frame->getAttribute('src');
+        }
+        if ($value === '' || preg_match('/[\x00-\x20\x7f\\\\]/', $value)
+            || preg_match('/%(?:0[0-9a-f]|1[0-9a-f]|7f|5c)/i', $value)) {
+            throw new InvalidArgumentException($error);
+        }
+        $parts = parse_url($value);
+        if (!is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https'
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['fragment'])) {
+            throw new InvalidArgumentException($error);
+        }
+        $host = strtolower($parts['host'] ?? '');
+        $path = $parts['path'] ?? '';
+        $allowed = (in_array($host, ['yandex.ru', 'www.yandex.ru'], true) && $path === '/map-widget/v1/')
+            || ($host === 'api-maps.yandex.ru' && preg_match('~^/frame/v1/-/[A-Za-z0-9_-]+$~D', $path));
+        if (!$allowed) throw new InvalidArgumentException($error);
+        return 'https://' . $host . $path . (isset($parts['query']) ? '?' . $parts['query'] : '');
+    }
+
     public static function html(mixed $value): string
     {
         $html = self::text($value, 150000, 'HTML');
