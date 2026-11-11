@@ -1,0 +1,7 @@
+<div id="business-summary">
+<p class="d-md-none"><strong>Обращения: {{ summary.total }}</strong> · Заявки: {{ summary.lead }} · Расценки: {{ summary.quote }}<br>Позиций в заявках: {{ summary.items }} · Количество: {{ summary.quantity }}</p>
+<div class="row g-3 mb-3 d-none d-md-flex">
+  {% for label,value in {'Обращения':summary.total,'Заявки':summary.lead,'Расценки':summary.quote,'Позиций в заявках':summary.items,'Количество в заявках':summary.quantity} %}<div class="col-6 col-lg"><div class="card h-100"><div class="card-body"><div>{{ label }}</div><strong class="fs-3">{{ value }}</strong></div></div></div>{% endfor %}
+</div>
+</div>
+{% if summary.states %}<p>Уведомления: {% for state in summary.states %}{{ status_labels[state.status]|default(state.status)|escape }} — {{ state.requests }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}

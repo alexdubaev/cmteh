@@ -154,6 +154,7 @@ final class Cmteh extends Controller
             'cmteh_admin_menu' => ['admin/view/common/column_left/before', 'extension/cmteh/event/cmteh_admin.menu'],
             'cmteh_admin_header' => ['admin/view/common/header/before', 'extension/cmteh/event/cmteh_admin.header'],
             'cmteh_admin_dashboard' => ['admin/view/common/dashboard/before', 'extension/cmteh/event/cmteh_admin.dashboard'],
+            'cmteh_admin_marketing' => ['admin/view/marketing/marketing*/before', 'extension/cmteh/event/cmteh_admin.marketing'],
             'cmteh_admin_language' => ['admin/language/*/after', 'extension/cmteh/event/cmteh_admin.language'],
         ];
     }

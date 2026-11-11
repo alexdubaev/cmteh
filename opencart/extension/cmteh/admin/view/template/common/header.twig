@@ -30,6 +30,8 @@
   {% endfor %}
   <style>
     #column-left { z-index: 999; }
+    #nav-requests .nav-link { padding-left: 15px; padding-right: 15px; line-height: 30px; font-size: 22px; }
+    @media (min-width: 992px) { #nav-requests .nav-link { line-height: 50px; } }
     @media (max-width: 767.98px) {
       #header .container-fluid { min-height: 60px; flex-wrap: nowrap; gap: 4px; padding: 0 12px; }
       #header .navbar-brand { flex: 0 0 auto; margin: 0 auto 0 0; font-size: 15px; white-space: nowrap; }
@@ -49,19 +51,7 @@
       {% if logged %}
         <button type="button" id="button-menu" class="btn btn-link d-inline-block d-lg-none"><i class="fa-solid fa-bars"></i></button>
         <ul class="nav navbar-nav">
-          <li id="nav-notification" class="nav-item dropdown">
-            <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle"><i class="fa-regular fa-bell"></i>{% if notification_total %} <span class="badge bg-danger">{{ notification_total }}</span>{% endif %}</a>
-            <div class="dropdown-menu dropdown-menu-end">
-              {% if notifications %}
-                {% for notification in notifications %}
-                  <a href="{{ notification.href }}" data-bs-toggle="modal" class="dropdown-item">{{ notification.title }}</a>
-                {% endfor %}
-                <a href="{{ notification_all }}" class="dropdown-item text-center text-primary">{{ text_notification_all }}</a>
-              {% else %}
-                <span class="dropdown-item text-center">{{ text_no_results }}</span>
-              {% endif %}
-            </div>
-          </li>
+          {% if cmteh_requests %}<li id="nav-requests" class="nav-item"><a href="{{ cmteh_requests }}" class="nav-link" aria-label="Обращения" title="Обращения"><i class="fa-solid fa-inbox"></i></a></li>{% endif %}
           <li id="nav-language" class="nav-item dropdown">{{ language }}</li>
           <li id="nav-profile" class="nav-item dropdown">
             <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle"><img src="{{ image }}" alt="{{ cmteh_username|escape }}" title="{{ cmteh_username|escape }}" class="rounded-circle"/><span class="d-none d-md-inline d-lg-inline">&nbsp;&nbsp;&nbsp;{{ cmteh_username|escape }} <i class="fa-solid fa-caret-down fa-fw"></i></span></a>

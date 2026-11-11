@@ -17,6 +17,7 @@ from release_checks import (admin_roles, check_recovery, collect_browser, editor
                             native_catalog_editor, preflight, quote_acceptance, require, run_http, run_php_suite, sha256, submit_lead, verify_media)
 from runtime import LocalOpenCart, build
 from admin_unification_checks import shell
+from admin_business_checks import business, business_browser
 
 
 def main() -> None:
@@ -64,6 +65,9 @@ def main() -> None:
         run_php_suite(runtime, "catalog-integration.php")
         run_php_suite(runtime, "lead-integration.php")
         run_php_suite(runtime, "quote-integration.php")
+        run_php_suite(runtime, "admin-business-integration.php")
+        business(runtime)
+        business_browser(runtime, args.browser_tooling.resolve(), evidence)
         quote_acceptance(runtime, package)
         run_http(runtime, evidence)
         collect_browser(runtime, args.browser_tooling.resolve(), args.reference_dir.resolve(), evidence)

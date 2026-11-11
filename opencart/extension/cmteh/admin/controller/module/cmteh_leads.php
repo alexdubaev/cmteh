@@ -33,6 +33,14 @@ final class CmtehLeads extends Controller
             return;
         }
 
+        $view = $this->request->get['view'] ?? '';
+        if (!is_string($view) || !in_array($view, ['', 'requests', 'contacts', 'reports', 'sources', 'capabilities'], true)) {
+            $this->fail(400, 'Неизвестный раздел.'); return;
+        }
+        if ($view !== '' || !isset($this->request->get['id']) && !isset($this->request->get['type'])) {
+            $this->business($view ?: 'requests'); return;
+        }
+
         $id = $this->request->get['id'] ?? null;
         if ($id !== null && (!is_string($id)
             || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D', $id))) {
@@ -91,6 +99,46 @@ final class CmtehLeads extends Controller
             $this->log->write('СМ ТЕХНО: не удалось открыть заявки (' . get_class($error) . ')');
             $this->fail(503, 'Не удалось открыть заявки. Попробуйте позже.');
         }
+    }
+
+    private function business(string $view): void
+    {
+        if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'GET') { $this->fail(405, 'Используйте GET.'); return; }
+        try {
+            require_once DIR_EXTENSION . 'cmteh/system/Database.php';
+            require_once DIR_EXTENSION . 'cmteh/system/AdminBusiness.php';
+            require_once DIR_EXTENSION . 'cmteh/system/AdminCapabilities.php';
+            // OpenCart Request::clean has escaped GET once; restore input before the
+            // parameterized read model and escape exactly once at the Twig boundary.
+            $input=$this->request->get;
+            foreach (['search','from','to','type','status'] as $key) if (is_string($input[$key] ?? null)) $input[$key]=html_entity_decode($input[$key],ENT_QUOTES,'UTF-8');
+            $filters = \Cmteh\AdminBusiness::filters($input);
+            $query = ['user_token'=>$this->session->data['user_token'], 'view'=>$view] + $filters;
+            $requestedPage=$this->request->get['page'] ?? '1';
+            $page=is_string($requestedPage) && preg_match('/^[0-9]{1,9}$/D',$requestedPage) ? max(1,(int)$requestedPage) : 1;
+            $titles = ['requests'=>'Заявки и расценки', 'contacts'=>'Контакты обращений', 'reports'=>'Отчёты по обращениям', 'sources'=>'Источники обращений', 'capabilities'=>'Возможности и доработки'];
+            $data = ['view'=>$view, 'heading_title'=>$titles[$view], 'filters'=>$filters, 'status_labels'=>self::STATUS_LABELS + ['sending'=>'Передаётся почтовому серверу', 'unknown'=>'Нет состояния'],
+                'capabilities'=>\Cmteh\AdminCapabilities::all(), 'navigation'=>[], 'rows'=>[], 'unavailable'=>[]];
+            $data['status_labels']['sent'] = 'Передано почтовому серверу';
+            foreach ($titles as $key=>$label) $data['navigation'][]=['name'=>$label,'href'=>$this->url->link(self::ROUTE,['user_token'=>$query['user_token'],'view'=>$key])];
+            if ($view !== 'capabilities') {
+                $service = new \Cmteh\AdminBusiness(Database::connectFromOpenCart(), DB_PREFIX);
+                $data['summary']=$service->dashboard($filters);
+                $result = match($view) { 'reports'=>$service->reports($filters,$page), 'sources'=>$service->sources($filters,$page), default=>$service->contacts($filters,$page) };
+                $data=array_replace($data,$result);
+                foreach ($data['rows'] as &$row) if (isset($row['public_id'])) $row['href']=$this->url->link(self::ROUTE,['user_token'=>$query['user_token'],'type'=>$row['type'],'id'=>$row['public_id']]);
+                unset($row);
+                $data['previous']=$data['page']>1 ? $this->url->link(self::ROUTE,array_replace($query,['page'=>$data['page']-1])) : '';
+                $data['next']=$data['page']<$data['pages'] ? $this->url->link(self::ROUTE,array_replace($query,['page'=>$data['page']+1])) : '';
+            }
+            $data['action']='index.php'; $data['user_token']=$query['user_token']; $data['route']=self::ROUTE;
+            $this->document->setTitle($titles[$view]);
+            $data['header']=$this->load->controller('common/header');
+            $data['column_left']=$this->load->controller('common/column_left');
+            $data['footer']=$this->load->controller('common/footer');
+            $this->response->setOutput($this->load->view('extension/cmteh/module/cmteh_business',$data));
+        } catch (\InvalidArgumentException $e) { $this->fail(400,$e->getMessage()); }
+        catch (Throwable $e) { $this->log->write('СМ ТЕХНО: сводка обращений недоступна (' . get_class($e) . ')'); $this->fail(503,'Данные обращений временно недоступны.'); }
     }
 
     private function fail(int $status, string $message): void
