@@ -91,9 +91,182 @@
       2,
       3,
       4
+    ],
+    "attribute": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "attribute_group": [
+      3,
+      4,
+      5,
+      6
     ]
   },
   "rows": {
+    "attribute": [
+      {
+        "attribute_id": "1",
+        "attribute_group_id": "6",
+        "sort_order": "1"
+      },
+      {
+        "attribute_id": "2",
+        "attribute_group_id": "6",
+        "sort_order": "5"
+      },
+      {
+        "attribute_id": "3",
+        "attribute_group_id": "6",
+        "sort_order": "3"
+      },
+      {
+        "attribute_id": "4",
+        "attribute_group_id": "3",
+        "sort_order": "1"
+      },
+      {
+        "attribute_id": "5",
+        "attribute_group_id": "3",
+        "sort_order": "2"
+      },
+      {
+        "attribute_id": "6",
+        "attribute_group_id": "3",
+        "sort_order": "3"
+      },
+      {
+        "attribute_id": "7",
+        "attribute_group_id": "3",
+        "sort_order": "4"
+      },
+      {
+        "attribute_id": "8",
+        "attribute_group_id": "3",
+        "sort_order": "5"
+      },
+      {
+        "attribute_id": "9",
+        "attribute_group_id": "3",
+        "sort_order": "6"
+      },
+      {
+        "attribute_id": "10",
+        "attribute_group_id": "3",
+        "sort_order": "7"
+      },
+      {
+        "attribute_id": "11",
+        "attribute_group_id": "3",
+        "sort_order": "8"
+      }
+    ],
+    "attribute_description": [
+      {
+        "attribute_id": "1",
+        "language_id": "1",
+        "name": "Description"
+      },
+      {
+        "attribute_id": "2",
+        "language_id": "1",
+        "name": "No. of Cores"
+      },
+      {
+        "attribute_id": "3",
+        "language_id": "1",
+        "name": "Clockspeed"
+      },
+      {
+        "attribute_id": "4",
+        "language_id": "1",
+        "name": "test 1"
+      },
+      {
+        "attribute_id": "5",
+        "language_id": "1",
+        "name": "test 2"
+      },
+      {
+        "attribute_id": "6",
+        "language_id": "1",
+        "name": "test 3"
+      },
+      {
+        "attribute_id": "7",
+        "language_id": "1",
+        "name": "test 4"
+      },
+      {
+        "attribute_id": "8",
+        "language_id": "1",
+        "name": "test 5"
+      },
+      {
+        "attribute_id": "9",
+        "language_id": "1",
+        "name": "test 6"
+      },
+      {
+        "attribute_id": "10",
+        "language_id": "1",
+        "name": "test 7"
+      },
+      {
+        "attribute_id": "11",
+        "language_id": "1",
+        "name": "test 8"
+      }
+    ],
+    "attribute_group": [
+      {
+        "attribute_group_id": "3",
+        "sort_order": "2"
+      },
+      {
+        "attribute_group_id": "4",
+        "sort_order": "1"
+      },
+      {
+        "attribute_group_id": "5",
+        "sort_order": "3"
+      },
+      {
+        "attribute_group_id": "6",
+        "sort_order": "4"
+      }
+    ],
+    "attribute_group_description": [
+      {
+        "attribute_group_id": "3",
+        "language_id": "1",
+        "name": "Memory"
+      },
+      {
+        "attribute_group_id": "4",
+        "language_id": "1",
+        "name": "Technical"
+      },
+      {
+        "attribute_group_id": "5",
+        "language_id": "1",
+        "name": "Motherboard"
+      },
+      {
+        "attribute_group_id": "6",
+        "language_id": "1",
+        "name": "Processor"
+      }
+    ],
     "banner": [
       {
         "banner_id": "6",
@@ -3640,10 +3813,85 @@
     "All unknown or changed native records",
     "Information 1..4: account/affiliate policy and useful service content",
     "Users, groups, settings, shared definitions, layout and all physical media files",
-    "New and historical requests, quotes and private originals"
+    "New and historical requests, quotes and private originals",
+    "Owner attributes12..15/group7, all CMTEH attribute mappings and retained product usages; no general definition sweep"
   ],
   "provenance": "Exact official primary fields and complete owned rowsets from pinned install SQL; omitted defaults from pinned db_schema.php; coupon IDs1..3 from fresh upstream import. No unmapped inference.",
   "schema": {
+    "attribute": {
+      "attribute_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": "auto_increment"
+      },
+      "attribute_group_id": {
+        "type": "int",
+        "null": "YES",
+        "key": "",
+        "extra": ""
+      },
+      "sort_order": {
+        "type": "int",
+        "null": "YES",
+        "key": "",
+        "extra": ""
+      }
+    },
+    "attribute_description": {
+      "attribute_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": ""
+      },
+      "language_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": ""
+      },
+      "name": {
+        "type": "varchar(64)",
+        "null": "YES",
+        "key": "",
+        "extra": ""
+      }
+    },
+    "attribute_group": {
+      "attribute_group_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": "auto_increment"
+      },
+      "sort_order": {
+        "type": "int",
+        "null": "YES",
+        "key": "",
+        "extra": ""
+      }
+    },
+    "attribute_group_description": {
+      "attribute_group_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": ""
+      },
+      "language_id": {
+        "type": "int",
+        "null": "NO",
+        "key": "PRI",
+        "extra": ""
+      },
+      "name": {
+        "type": "varchar(64)",
+        "null": "YES",
+        "key": "",
+        "extra": ""
+      }
+    },
     "banner": {
       "banner_id": {
         "type": "int",

@@ -9,7 +9,7 @@ use RuntimeException;
 final class SeedCleanup
 {
     public const TASK = 'admin-unification-20261111';
-    public const MANIFEST_SHA256 = '8009d1f67e2540739e1cae9a88322097a561a75cc94e3f0a06c27278c9715bb8';
+    public const MANIFEST_SHA256 = 'cb85e816b60619469242145760577a8757093dade1201ad29a550d0529757c08';
     private array $manifest;
     private array $columns = [];
 
@@ -167,7 +167,7 @@ final class SeedCleanup
             return $type!=='' && in_array((int)$row['value'],$this->manifest['entities'][$type],true);
         }
         if ($table==='layout_module') return in_array((int)$row['layout_module_id'],[3,4,5,6],true);
-        foreach (['product','category','manufacturer','banner','coupon','module'] as $type) {
+        foreach (['product','category','manufacturer','banner','coupon','module','attribute_group','attribute'] as $type) {
             if ($table===$type || str_starts_with($table,$type.'_')) {
                 return in_array((int)($row[$type.'_id'] ?? 0),$this->manifest['entities'][$type],true);
             }
@@ -189,7 +189,7 @@ final class SeedCleanup
 
     private function target(string $table,string $key): string
     {
-        if (in_array($key,['product_id','category_id','manufacturer_id','banner_id','coupon_id','module_id'],true)) return substr($key,0,-3);
+        if (in_array($key,['product_id','category_id','manufacturer_id','banner_id','coupon_id','module_id','attribute_id','attribute_group_id'],true)) return substr($key,0,-3);
         if ($key==='related_id' && $table==='product_related') return 'product';
         if ($key==='master_id' && $table==='product') return 'product';
         if (($key==='parent_id' && $table==='category') || ($key==='path_id' && $table==='category_path')) return 'category';
@@ -201,7 +201,7 @@ final class SeedCleanup
         $json=json_decode($value,true);
         if (is_array($json)) $this->jsonReferences($json,$table);
         $plain=html_entity_decode(rawurldecode($value),ENT_QUOTES|ENT_HTML5,'UTF-8');
-        if (preg_match_all('~(?:^|[?&;/\\s])((?:product|category|manufacturer|banner|coupon|module)_id|path)=([0-9_]+)~',$plain,$matches,PREG_SET_ORDER)) {
+        if (preg_match_all('~(?:^|[?&;/\\s])((?:product|category|manufacturer|banner|coupon|module|attribute(?:_group)?)_id|path)=([0-9_]+)~',$plain,$matches,PREG_SET_ORDER)) {
             foreach($matches as $match) {
                 $type=$match[1]==='path'?'category':substr($match[1],0,-3);
                 foreach(explode('_',$match[2]) as $id) if(in_array((int)$id,$this->manifest['entities'][$type],true)) throw new RuntimeException('Live URL reference: '.$table.'.'.$column);
@@ -220,7 +220,7 @@ final class SeedCleanup
         foreach($data as $key=>$value) {
             $name=is_string($key)?$key:$context;
             $type=$this->target($table,$name);
-            $type=$type ?: (['product'=>'product','products'=>'product','category'=>'category','categories'=>'category','manufacturer'=>'manufacturer','manufacturers'=>'manufacturer','banner'=>'banner','coupon'=>'coupon','module'=>'module'][$name] ?? '');
+            $type=$type ?: (['product'=>'product','products'=>'product','category'=>'category','categories'=>'category','manufacturer'=>'manufacturer','manufacturers'=>'manufacturer','banner'=>'banner','coupon'=>'coupon','module'=>'module','attribute'=>'attribute','attributes'=>'attribute','attribute_group'=>'attribute_group','attribute_groups'=>'attribute_group'][$name] ?? '');
             if (is_array($value)) $this->jsonReferences($value,$table,$name);
             elseif ($type && is_numeric($value) && in_array((int)$value,$this->manifest['entities'][$type],true)) throw new RuntimeException('Live structured reference: '.$table.'.'.$name);
         }
@@ -233,6 +233,10 @@ final class SeedCleanup
             ksort($row);
             foreach($row as $key=>&$value) if($value!==null) {
                 $value=(string)$value;
+                if(preg_match('/^(?:binary|varbinary|bit|tinyblob|blob|mediumblob|longblob)/i',$this->columns[$table][$key] ?? '')) {
+                    $value=['binary_hex'=>bin2hex($value)];
+                    continue;
+                }
                 if(preg_match('/^(?:tinyint|smallint|mediumint|int|bigint|decimal|float|double)/i',$this->columns[$table][$key] ?? '')) {
                     if (str_contains($value,'.')) $value=rtrim(rtrim($value,'0'),'.');
                     if ($value==='-0') $value='0';
@@ -245,6 +249,7 @@ final class SeedCleanup
 
     private function contains(array $rows,array $needle,string $table): bool
     {
+        if (!$rows) return false;
         $match=$this->canonical([$needle],$table);
         foreach($rows as $row) if($this->canonical([$row],$table)===$match) return true;
         return false;
