@@ -11,3 +11,5 @@ Host PHP8.2.35. Extensiondirectories opencart/cmteh/ocmod; listingalone notproof
 - catalog/model/catalog/product.php d69c05852584f3d81b3d5998df8a81a843cf7834915804c4fdba1d16269350a5
 
 Это readiness/sourceevidence, неPASSскладскихтестов и неcompatibilityproofPHP8.2/MySQL5.7. Новаятаблица/движения ещёнепримененынаhost. TargetDBactualversion/newdatafreshbackup/recovery/compiledhookinventory toverifybeforedeployment. ПрежниеGO остаютсязакрыты.
+
+Additionalreadonlytargetmoduleprobe PHP8.2.35: pdo_mysql/mysqli/mbstring/zip/dom/xmlreader/simplexml/fileinfo all extension_loaded=true. NoDB/nativebootstrap/filewrites. Notfunctionalnewfeaturehostproof.

@@ -13,7 +13,7 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "060c56b",
   "startedAt": "2026-11-11T18:21:24+03:00",
-  "updatedAt": "2026-11-11T19:12:54+03:00",
+  "updatedAt": "2026-11-11T21:43:19+03:00",
   "finishedAt": null,
   "stages": [
     {
@@ -62,8 +62,8 @@ window.STATE =
   ],
   "requirements": {
     "total": 51,
-    "done": 0,
-    "inTicket": 9,
+    "done": 5,
+    "inTicket": 4,
     "inSpec": 0,
     "placeholder": 0,
     "deferred": 42,
@@ -91,10 +91,16 @@ window.STATE =
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "сильная",
-      "status": "in-progress",
+      "status": "done",
       "startedAt": "2026-11-11T19:04:16+03:00",
+      "finishedAt": "2026-11-11T19:21:51+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 0,
+      "tests": {
+        "passed": 90,
+        "failed": 0
+      },
+      "commit": "809b65b"
     },
     {
       "id": "02",
@@ -108,6 +114,12 @@ window.STATE =
       ],
       "wave": 2,
       "zone": [
+        "opencart/extension/cmteh/catalog/view/assets/inventory-native-admin.js",
+        "opencart/tests/browser/native-inventory-form.mjs",
+        "opencart/extension/cmteh/catalog/controller/event/cmteh_inventory.php",
+        "opencart/extension/cmteh/catalog/model/checkout/inventory_guard.php",
+        "opencart/extension/cmteh/system/InventoryNativeGuard.php",
+        "opencart/extension/cmteh/admin/view/javascript/cmteh_inventory_guard.js",
         "opencart/extension/cmteh/admin/model/catalog/",
         "opencart/extension/cmteh/catalog/model/catalog/",
         "opencart/extension/cmteh/admin/controller/event/cmteh_catalog.php",
@@ -119,9 +131,20 @@ window.STATE =
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "сильная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-11T19:22:06+03:00",
+      "finishedAt": "2026-11-11T20:24:36+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 2,
+      "repairFindings": [
+        "Native form summary link must use existing cmteh_catalog.inventory base route, not standalone cmteh_inventory (native permission denies it)",
+        "D02 actualHTTP404 blocks native readonly script; move genericJS to existing allowedpublicassets and verify realformbrowser"
+      ],
+      "tests": {
+        "passed": 55,
+        "failed": 0
+      },
+      "commit": "02e5d88"
     },
     {
       "id": "03",
@@ -141,6 +164,11 @@ window.STATE =
       ],
       "wave": 2,
       "zone": [
+        "opencart/tests/browser/inventory-import-happy.mjs",
+        "opencart/tests/browser/inventory-import-fixture.php",
+        "opencart/extension/cmteh/catalog/view/assets/inventory-admin.mjs",
+        "opencart/extension/cmteh/admin/view/template/module/cmteh_catalog.twig",
+        "opencart/tests/browser/inventory-admin.mjs",
         "opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php",
         "opencart/extension/cmteh/admin/view/template/inventory/",
         "opencart/extension/cmteh/admin/view/assets/inventory/",
@@ -150,9 +178,19 @@ window.STATE =
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "обычная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-11T19:22:06+03:00",
+      "finishedAt": "2026-11-11T20:44:51+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 1,
+      "repairFindings": [
+        "Critical import browser happy path missing: valid XLSX→preview→apply→updated stock/price must work through actual authenticated HTTP, not only direct domain tests."
+      ],
+      "tests": {
+        "passed": 61,
+        "failed": 0
+      },
+      "commit": "53cc766"
     },
     {
       "id": "04",
@@ -171,21 +209,38 @@ window.STATE =
       ],
       "wave": 2,
       "zone": [
+        "opencart/tests/browser/storefront.mjs",
         "opencart/extension/cmteh/system/Catalog.php",
         "opencart/extension/cmteh/system/Storefront.php",
         "opencart/extension/cmteh/system/StorefrontPages.php",
         "opencart/extension/cmteh/system/Lead.php",
         "opencart/extension/cmteh/system/LeadInput.php",
-        "opencart/extension/cmteh/catalog/view/",
+        "opencart/extension/cmteh/catalog/view/assets/cart.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/request.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/storefront.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/parts-list.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/request-import.mjs",
+        "opencart/extension/cmteh/catalog/view/assets/storefront.css",
+        "opencart/extension/cmteh/catalog/view/template/storefront/",
         "opencart/extension/cmteh/admin/view/template/module/cmteh_leads.twig",
         "opencart/tests/warehouse-offers-integration.php",
         "opencart/tests/browser/warehouse-offers.mjs"
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "сильная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-11T19:22:06+03:00",
+      "finishedAt": "2026-11-11T20:01:05+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 1,
+      "repairFindings": [
+        "Visual acceptance390: warehouse choice is below generic product metadata; quantity1 repeats same price twice. Move managed-offer choice earlier, remove redundant managed delivery/price text."
+      ],
+      "tests": {
+        "passed": 44,
+        "failed": 0
+      },
+      "commit": "95a7b77"
     },
     {
       "id": "05",
@@ -208,6 +263,7 @@ window.STATE =
       ],
       "wave": 3,
       "zone": [
+        "opencart/extension/cmteh/admin/controller/module/cmteh.php",
         "opencart/dev/release_checks.py",
         "opencart/bin/verify-local",
         "opencart/tests/inventory-recovery.php",
@@ -217,18 +273,56 @@ window.STATE =
       ],
       "review": "нет — одна независимая проверка всей реализации по политике владельца",
       "model": "обычная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-11T20:44:56+03:00",
+      "retries": 0,
+      "repairs": 0,
+      "finishedAt": "2026-11-11T21:43:19+03:00",
+      "tests": {
+        "passed": 154,
+        "failed": 0
+      },
+      "commit": "0da3d92"
+    },
+    {
+      "id": "06",
+      "title": "Подготовка безопасной проверки и выкладки на хостинг",
+      "requirements": [
+        "G01",
+        "G05",
+        "G07",
+        "G09"
+      ],
+      "blockedBy": [
+        "02",
+        "03",
+        "04"
+      ],
+      "wave": 3,
+      "zone": [
+        "D:/codex/temp/cmteh-warehouse-ops-20261111/"
+      ],
+      "review": "нет — единая независимая проверка product+ops перед исполнением",
+      "model": "сильная",
+      "status": "in-progress",
+      "startedAt": "2026-11-11T20:48:07+03:00",
       "retries": 0,
       "repairs": 0
     }
   ],
-  "tests": null,
+  "tests": {
+    "passed": 154,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [],
     "assumptions": [],
     "emptyEnv": []
   },
-  "additions": [],
+  "additions": [
+    "A01→G01: фиксация подтверждённого завершённого перемещения парным движением, без логистического транзита",
+    "A02→G09: полная отгрузка ручного резерва, без частичных отгрузок/коммерческого заказа"
+  ],
   "coverage": {
     "found": 2,
     "fixed": 2,
@@ -238,7 +332,10 @@ window.STATE =
       "G2: исключены частичные отгрузки; полная отгрузка резерва A02→G09"
     ]
   },
-  "concerns": [],
+  "concerns": [
+    "05: explicit initially-blocked InventorySchema fault injection NOTRUN; early12hooks-before-migrate source ordering and normal/repeat upgrade checked; no PASS claimed for this fault scenario.",
+    "Recovery: old runtime binary manual overwrite is outside app guarantee. Reviewed06 artifact guard denies oldbaseline after ANY inventory table; compatible code recovery preserves DB."
+  ],
   "blind": null,
   "beats": [
     "2026-11-11T18:21:24+03:00",
@@ -268,9 +365,41 @@ window.STATE =
     "2026-11-11T19:04:16+03:00",
     "2026-11-11T19:06:39+03:00",
     "2026-11-11T19:08:18+03:00",
-    "2026-11-11T19:12:54+03:00"
+    "2026-11-11T19:12:54+03:00",
+    "2026-11-11T19:21:51+03:00",
+    "2026-11-11T19:21:52+03:00",
+    "2026-11-11T19:22:06+03:00",
+    "2026-11-11T19:25:10+03:00",
+    "2026-11-11T19:25:11+03:00",
+    "2026-11-11T19:40:17+03:00",
+    "2026-11-11T19:44:10+03:00",
+    "2026-11-11T19:53:25+03:00",
+    "2026-11-11T19:53:54+03:00",
+    "2026-11-11T19:53:55+03:00",
+    "2026-11-11T19:53:56+03:00",
+    "2026-11-11T19:55:27+03:00",
+    "2026-11-11T20:01:05+03:00",
+    "2026-11-11T20:11:28+03:00",
+    "2026-11-11T20:11:29+03:00",
+    "2026-11-11T20:11:30+03:00",
+    "2026-11-11T20:22:06+03:00",
+    "2026-11-11T20:24:36+03:00",
+    "2026-11-11T20:44:51+03:00",
+    "2026-11-11T20:44:52+03:00",
+    "2026-11-11T20:44:53+03:00",
+    "2026-11-11T20:44:54+03:00",
+    "2026-11-11T20:44:55+03:00",
+    "2026-11-11T20:44:56+03:00",
+    "2026-11-11T20:48:05+03:00",
+    "2026-11-11T20:48:06+03:00",
+    "2026-11-11T20:48:07+03:00",
+    "2026-11-11T20:52:52+03:00",
+    "2026-11-11T20:52:53+03:00",
+    "2026-11-11T21:27:50+03:00",
+    "2026-11-11T21:27:51+03:00",
+    "2026-11-11T21:43:19+03:00"
   ],
-  "rev": 33,
+  "rev": 66,
   "waiting": null,
   "waits": [
     {
@@ -453,6 +582,266 @@ window.STATE =
       "k": "add",
       "key": "report",
       "n": 1
+    },
+    {
+      "t": "2026-11-11T19:21:51+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 90,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T19:21:52+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-11T19:21:52+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T19:22:06+03:00",
+      "k": "ticket",
+      "ids": [
+        "02",
+        "03",
+        "04"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T19:25:10+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-11T19:25:11+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T19:40:17+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T19:44:10+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "repair",
+      "note": "Native form summary link must use existing cmteh_catalog.inventory base route, not standalone cmteh_inventory (native permission denies it)"
+    },
+    {
+      "t": "2026-11-11T19:53:25+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 51,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T19:53:54+03:00",
+      "k": "ticket",
+      "ids": [
+        "04"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 43,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T19:53:55+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-11T19:53:56+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T19:55:27+03:00",
+      "k": "ticket",
+      "ids": [
+        "04"
+      ],
+      "act": "repair",
+      "note": "Visual acceptance390: warehouse choice is below generic product metadata; quantity1 repeats same price twice. Move managed-offer choice earlier, remove redundant managed delivery/price text."
+    },
+    {
+      "t": "2026-11-11T20:01:05+03:00",
+      "k": "ticket",
+      "ids": [
+        "04"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 44,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T20:11:28+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "repair",
+      "note": "D02 actualHTTP404 blocks native readonly script; move genericJS to existing allowedpublicassets and verify realformbrowser"
+    },
+    {
+      "t": "2026-11-11T20:11:29+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-11T20:11:30+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T20:22:06+03:00",
+      "k": "ticket",
+      "ids": [
+        "03"
+      ],
+      "act": "repair",
+      "note": "Critical import browser happy path missing: valid XLSX→preview→apply→updated stock/price must work through actual authenticated HTTP, not only direct domain tests."
+    },
+    {
+      "t": "2026-11-11T20:24:36+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 55,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T20:44:51+03:00",
+      "k": "ticket",
+      "ids": [
+        "03"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 61,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T20:44:52+03:00",
+      "k": "add",
+      "key": "additions",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T20:44:53+03:00",
+      "k": "add",
+      "key": "additions",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T20:44:54+03:00",
+      "k": "tickets",
+      "n": 5
+    },
+    {
+      "t": "2026-11-11T20:44:55+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T20:44:56+03:00",
+      "k": "ticket",
+      "ids": [
+        "05"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T20:48:05+03:00",
+      "k": "tickets",
+      "n": 6
+    },
+    {
+      "t": "2026-11-11T20:48:06+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T20:48:07+03:00",
+      "k": "ticket",
+      "ids": [
+        "06"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T20:52:52+03:00",
+      "k": "tickets",
+      "n": 6
+    },
+    {
+      "t": "2026-11-11T20:52:53+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-11T21:27:50+03:00",
+      "k": "add",
+      "key": "concerns",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T21:27:51+03:00",
+      "k": "add",
+      "key": "concerns",
+      "n": 1
+    },
+    {
+      "t": "2026-11-11T21:43:19+03:00",
+      "k": "ticket",
+      "ids": [
+        "05"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 154,
+        "failed": 0
+      }
     }
   ],
   "reqList": [
@@ -716,17 +1105,17 @@ window.STATE =
     {
       "id": "G02",
       "text": "«остальное оставим на будущее»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G03",
       "text": "«клиентам тоже показывать склады»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G04",
       "text": "«от этого будет зависеть срок поставки»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G05",
@@ -736,7 +1125,7 @@ window.STATE =
     {
       "id": "G06",
       "text": "«в наличии в Питере, цена 1000 рублей, наличие в Благовещенске цена 850»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G07",
@@ -746,7 +1135,7 @@ window.STATE =
     {
       "id": "G08",
       "text": "«Вручную для склада и при необходимости для товара (рекомендую)»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G09",
@@ -770,7 +1159,7 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-11T19:06:39+03:00",
+      "at": "2026-11-11T20:52:53+03:00",
       "problems": 0
     }
   },
@@ -782,6 +1171,7 @@ window.STATE =
     "Склады видны покупателю: отдельные предложения одного товара с ценой и сроком. Выбор склада сохраняется в корзине/RFQ; старые позиции совместимы. Города и суммы пользователя — пример, не данные для публикации.",
     "Разработка01: локальный runtime3190 готов, initial realMySQL RED зафиксирован до кода. Реальный сайт и почта не менялись.",
     "Read-only hostpreflight: PHP8.2.35; пять nativecorefiles rawSHA совпали с pinnedZIP. Без DB/config/mail/deploy действий; это не тест склада.",
-    "Дополнительный isolated runtime3191 готов: SELECT VERSION MySQL5.7.44/PHP8.3.36. Без изменений source compose/verifier/хостинга."
+    "Дополнительный isolated runtime3191 готов: SELECT VERSION MySQL5.7.44/PHP8.3.36. Без изменений source compose/verifier/хостинга.",
+    "04 промежуточно: realbrowser A+B→cart→stale409→lostack/replay PASS; 02 nativeguard checks идут наinstalledruntime. Финальная проверка установленного пакета и хостинга ещё не выполнена."
   ]
 }

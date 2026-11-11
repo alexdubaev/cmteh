@@ -53,6 +53,8 @@ D01 (обнаружено02/03): importpreview имеет собственную
 
 D02 (обнаружено02/03): существующая static allowlist отдаёт404 для новых admin/view скриптов. Generic JS размещается в уже разрешённом catalog/view/assets; конфигурация/токен остаются в защищённом HTML, данные/операции за прежним ACL. Не создаётся authenticated asset=js endpoint и не расширяется .htaccess. ActualHTTP/realnativeformbrowser проверяют доставку, не толькоeventdata.
 
+D03 (обнаружено05): штатный applyChanges начинал миграцию раньше защиты. Только12 новых inventoryсобытий регистрируются до InventorySchema readiness. При настоящей выкладке с подтверждённым отсутствием прежних складских данных сначалакод, затемточныеhooks, потомemptySchemas; legacyданные/старые67событий/ACL сохраняются, wholeupgradewitholdhookrewrite наhostнеиспользуется.
+
 ## Границы и швы
 
 См. interfaces.md. Файлы отчётов scouts — доказательства exactseams, не замена контрактам. Конкретные механизмы loader/DB guards проверяются installednative integration.
