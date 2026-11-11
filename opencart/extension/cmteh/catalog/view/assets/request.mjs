@@ -1,4 +1,4 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261110-8";
+import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261111-1";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
@@ -36,14 +36,26 @@ function exactProduct(item, payload) {
 }
 
 function fixedPrice(product) {
-  if (!product || product.price_status !== "fixed" || !Number.isFinite(product.price) || product.price < 0) return null;
+  if (!product || product.price_status !== "fixed") return null;
   const currency = typeof product.currency === "string" ? product.currency.trim().toUpperCase() : "";
   if (!/^[A-Z]{3}$/.test(currency)) return null;
-  const format = new Intl.NumberFormat("ru-RU", { style: "currency", currency });
-  const scale = 10 ** format.resolvedOptions().maximumFractionDigits;
-  const minor = Math.round(product.price * scale);
-  if (!Number.isSafeInteger(minor)) return null;
-  return { minor, currency, format, scale };
+  const digits = new Intl.NumberFormat("ru-RU", { style: "currency", currency }).resolvedOptions().maximumFractionDigits;
+  const scale = 10n ** BigInt(digits);
+  let minor;
+  if (typeof product.price === "string" && /^\d{1,13}\.\d{2}$/.test(product.price) && digits === 2) {
+    minor = BigInt(product.price.replace(".", ""));
+  } else {
+    if (!Number.isFinite(product.price) || product.price < 0) return null;
+    const value = Math.round(product.price * Number(scale));
+    if (!Number.isSafeInteger(value)) return null;
+    minor = BigInt(value);
+  }
+  return { minor, currency, scale, digits };
+}
+function money(unit, minor = unit.minor) {
+  const whole = minor / unit.scale;
+  const fraction = minor % unit.scale;
+  return whole.toLocaleString("ru-RU") + (fraction ? "," + fraction.toString().padStart(unit.digits, "0") : "") + " " + ({ RUB: "₽", USD: "$", EUR: "€" }[unit.currency] || unit.currency);
 }
 
 function setupCart(cart) {
@@ -63,7 +75,15 @@ function setupCart(cart) {
     else items[index].quantity = normalizeQuantity(items[index].quantity + delta);
     writeCart(items);
   }
-
+  function review(item, offer) {
+    const items = readCart();
+    const current = items.find((candidate) => lineKey(candidate) === lineKey(item));
+    if (!current) return;
+    Object.assign(current, { offerVersion: offer.offer_version, price: offer.price, currency: offer.currency,
+      warehouseName: offer.warehouse.name, warehouseCode: offer.warehouse.code, warehouseCity: offer.warehouse.city,
+      deliveryTerm: offer.delivery_term, selectionInvalid: false });
+    writeCart(items);
+  }
   function render() {
     const items = readCart();
     const focused = list.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
@@ -71,96 +91,89 @@ function setupCart(cart) {
     empty.hidden = items.length > 0;
     list.hidden = items.length === 0;
     const totalsByCurrency = new Map();
-    let loading = false;
-    let failed = false;
-    let unpriced = 0;
+    let loading = false, failed = false, unpriced = 0;
     const rows = items.map((item) => {
       const key = lineKey(item);
       const row = element("div", "", "request-line");
       const body = element("div");
       const entry = entries.get(key);
+      const label = item.article + (item.warehouseSelection ? ", склад " + (item.warehouseName || item.warehouseCode || "не выбран") : "");
       body.append(element("small", item.brand), element("strong", item.article), element("span", entry?.product?.title || item.title));
-      const unit = fixedPrice(entry?.product);
-      let priceMessage = "Цена по запросу";
-      if (!entry) {
-        priceMessage = "Загружаем цену…";
-        loading = true;
-      } else if (entry.failed) {
-        priceMessage = "Не удалось загрузить цену";
-        failed = true;
-      } else if (unit && Number.isSafeInteger(unit.minor * item.quantity)) {
-        const lineMinor = unit.minor * item.quantity;
-        const sum = (totalsByCurrency.get(unit.currency)?.minor ?? 0) + lineMinor;
-        if (Number.isSafeInteger(sum)) {
-          totalsByCurrency.set(unit.currency, { ...unit, minor: sum });
-          priceMessage = unit.format.format(unit.minor / unit.scale) + " за шт. · " + unit.format.format(lineMinor / unit.scale) + " за " + item.quantity + " шт.";
-        } else {
-          unpriced++;
+      if (item.warehouseSelection) {
+        body.append(element("strong", "Склад: " + item.warehouseName + (item.warehouseCity ? ", " + item.warehouseCity : "")), element("span", "Срок поставки: " + (item.deliveryTerm || "Уточнит менеджер")));
+        if (item.selectionInvalid || (entry && !entry.failed && !entry.offer)) {
+          body.append(element("span", "Предложение недоступно. Выберите склад заново в каталоге или удалите строку.", "cart-selection-warning"));
+        } else if (entry?.offer && entry.offer.offer_version !== item.offerVersion) {
+          body.append(element("span", "Условия склада изменились: " + (entry.offer.price === null ? "цена по запросу" : entry.offer.price.replace(".", ",") + " ₽") + " · " + (entry.offer.delivery_term || "Срок уточнит менеджер"), "cart-selection-warning"));
+          const accept = quantityButton("Принять новые условия " + label, "Принять новые условия", () => review(item, entry.offer));
+          accept.className = "cart-review button secondary";
+          accept.disabled = entry.offer.availability_status !== "in_stock";
+          if (accept.disabled) accept.textContent = "Нет в наличии — выберите другой склад";
+          body.append(accept);
         }
-      } else {
-        unpriced++;
+        const link = element("a", "Выбрать склад заново"); link.href = "/catalog?q=" + encodeURIComponent(item.article); body.append(link);
+      } else if (entry?.product?.inventory_managed) {
+        body.append(element("span", "Склад не выбран. Удалите эту строку после выбора нужного склада.", "cart-selection-warning"));
+        const link = element("a", "Выбрать склад"); link.href = "/product/" + encodeURIComponent(entry.product.slug) + "#warehouse-offers"; body.append(link);
       }
-      if (entry?.failed) unpriced++;
+      const unit = fixedPrice(item.warehouseSelection ? { price_status: "fixed", price: item.price, currency: item.currency } : entry?.product);
+      let priceMessage = "Цена по запросу";
+      if (!entry) { priceMessage = "Загружаем цену…"; loading = true; }
+      else if (entry.failed) { priceMessage = "Не удалось проверить условия. Сохранённый выбор остаётся в корзине."; failed = true; unpriced++; }
+      else if (unit) {
+        const lineMinor = unit.minor * BigInt(item.quantity);
+        totalsByCurrency.set(unit.currency, { ...unit, minor: (totalsByCurrency.get(unit.currency)?.minor ?? 0n) + lineMinor });
+        priceMessage = money(unit) + " за шт." + (item.quantity > 1 ? " · " + money(unit, lineMinor) + " за " + item.quantity + " шт." : "");
+      } else unpriced++;
       body.append(element("small", priceMessage, "cart-price-label"));
       const qty = element("div", "", "qty");
-      const minus = quantityButton("Уменьшить количество " + item.article, "−", () => updateItem(key, -1));
-      const plus = quantityButton("Увеличить количество " + item.article, "+", () => updateItem(key, 1));
-      qty.append(minus, element("b", item.quantity), plus);
-      const remove = quantityButton("Удалить " + item.article, "×", () => updateItem(key, null));
-      remove.className = "remove";
-      row.append(body, qty, remove);
-      return row;
+      qty.append(quantityButton("Уменьшить количество " + label, "−", () => updateItem(key, -1)), element("b", item.quantity), quantityButton("Увеличить количество " + label, "+", () => updateItem(key, 1)));
+      const remove = quantityButton("Удалить " + label, "×", () => updateItem(key, null)); remove.className = "remove";
+      row.append(body, qty, remove); return row;
     });
     list.replaceChildren(...rows);
     if (focused) Array.from(list.querySelectorAll("button")).find((button) => button.getAttribute("aria-label") === focused)?.focus({ preventScroll: true });
-    totals.hidden = !items.length || loading;
-    totals.replaceChildren();
+    totals.hidden = !items.length || loading; totals.replaceChildren();
     if (!totals.hidden) {
-      totals.append(element("strong", unpriced ? "Расчёт по позициям с ценой" : "Расчёт по ценам каталога"));
-      for (const unit of totalsByCurrency.values()) totals.append(element("b", unit.format.format(unit.minor / unit.scale)));
+      totals.append(element("strong", items.some((item) => item.warehouseSelection) ? "Предварительный расчёт по выбранным условиям" : unpriced ? "Расчёт по позициям с ценой" : "Расчёт по ценам каталога"));
+      for (const unit of totalsByCurrency.values()) totals.append(element("b", money(unit)));
       if (!totalsByCurrency.size) totals.append(element("span", "Сумма будет рассчитана после уточнения цен"));
       if (unpriced) totals.append(element("span", "Позиции без цены не включены — стоимость уточнит менеджер.", "cart-total-note"));
-      if (failed) {
-        const retry = element("button", "Повторить загрузку цен", "cart-retry");
-        retry.type = "button";
-        retry.addEventListener("click", () => update(true));
-        totals.append(retry);
-      }
+      if (failed) { const retry = quantityButton("Повторить загрузку цен", "Повторить загрузку цен", () => update(true)); retry.className = "cart-retry"; totals.append(retry); }
     }
   }
-
-  async function loadPrice(item, signal) {
-    const query = item.article.trim();
-    if (query.length < 2 || query.length > 64) return { product: null };
+  async function loadPrice(item, signal, warehouseData) {
     try {
+      if (item.warehouseSelection) {
+        if (item.selectionInvalid) return {};
+        const data = await warehouseData;
+        return { offer: data?.[item.productId]?.offers?.find((offer) => offer.offer_id === item.offerId) || null };
+      }
+      const query = item.article.trim();
+      if (query.length < 2 || query.length > 64) return { product: null };
       const response = await fetch("/api/search?q=" + encodeURIComponent(query), { signal });
       if (!response.ok) return { failed: true };
       return { product: exactProduct(item, await response.json()) };
-    } catch {
-      return { failed: true };
-    }
+    } catch { return { failed: true }; }
   }
-
   function update(retry = false) {
     const items = readCart();
-    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand, item.productId || null]));
+    const nextIdentity = JSON.stringify(items.map((item) => [item.article, item.brand, item.productId || null, item.offerId || null, item.offerVersion || null]));
     if (retry || nextIdentity !== identity) {
-      identity = nextIdentity;
-      controller?.abort();
-      const signal = (controller = new AbortController()).signal;
-      entries = new Map();
-      const queue = [...new Map(items.map((item) => [lineKey(item), item])).values()];
-      let index = 0;
+      identity = nextIdentity; controller?.abort();
+      const signal = (controller = new AbortController()).signal; entries = new Map();
+      const ids = [...new Set(items.filter((item) => item.warehouseSelection && !item.selectionInvalid).map((item) => item.productId))];
+      const query = new URLSearchParams(); for (const id of ids) query.append("ids[]", id);
+      const warehouseData = ids.length ? fetch("/api/warehouse-offers?" + query, { signal, cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error("Unavailable"); return (await response.json()).data; }).catch(() => null) : Promise.resolve({});
+      const queue = [...new Map(items.map((item) => [lineKey(item), item])).values()]; let index = 0;
       async function worker() {
         while (!signal.aborted && index < queue.length) {
-          const item = queue[index++];
-          const entry = await loadPrice(item, signal);
+          const item = queue[index++]; const entry = await loadPrice(item, signal, warehouseData);
+          if (item.warehouseSelection && !item.selectionInvalid && await warehouseData === null) entry.failed = true;
           if (!signal.aborted) entries.set(lineKey(item), entry);
         }
       }
-      void Promise.all(Array.from({ length: Math.min(queue.length, 4) }, worker)).then(() => {
-        if (!signal.aborted) render();
-      });
+      void Promise.all(Array.from({ length: Math.min(queue.length, 4) }, worker)).then(() => { if (!signal.aborted) render(); });
     }
     render();
   }
@@ -195,7 +208,7 @@ function setupLead(form) {
   const type = form.dataset.lead;
   const rfq = type === "request";
   const draftKey = "smtechno-form-draft:" + (rfq ? type : type + ":" + location.pathname);
-  const pendingKey = "smtechno-pending-lead:" + type;
+  const legacyPendingKey = "smtechno-pending-lead:" + type;
   const submit = form.querySelector("button[type=submit]");
   const progress = form.querySelector("[data-lead-loading]");
   const empty = form.querySelector("[data-cart-required]");
@@ -247,6 +260,11 @@ function setupLead(form) {
       show("Добавьте позиции в корзину перед отправкой заявки.", true);
       return;
     }
+    if (items.length > 100 || items.some((item) => item.selectionInvalid)) {
+      show("Проверьте выбранные склады и оставьте не более 100 позиций.", true); return;
+    }
+    const warehouse = items.some((item) => item.warehouseSelection);
+    const pendingKey = warehouse ? "smtechno-pending-warehouse-lead-v1:" + type : legacyPendingKey;
     const original = readFields();
     const { name, phone, email, company, message } = original;
     if (name.trim().length < 2) {
@@ -265,7 +283,7 @@ function setupLead(form) {
       show(note.length > 3000 ? "Сократите компанию и комментарий до 3 000 символов вместе." : "Откройте страницу без лишних параметров и повторите отправку.", true);
       return;
     }
-    const request_items = items.map(({ article, quantity, productId }) => ({ article, quantity, ...(productId ? { product_id: productId } : {}) }));
+    const request_items = items.map(({ article, quantity, productId, offerId, offerVersion }) => ({ article, quantity, ...(productId ? { product_id: productId } : {}), ...(offerId ? { offer_id: offerId, offer_version: offerVersion } : {}) }));
     const page_url = location.href;
     // Preserve the original field order for pending hashes stored before migration.
     const payload = rfq
@@ -288,7 +306,7 @@ function setupLead(form) {
       const key = previous.fingerprint === hash && uuid.test(previous.key) ? previous.key : crypto.randomUUID();
       const pending = JSON.stringify({ fingerprint: hash, key });
       writeSession(pendingKey, pending);
-      const response = await fetch("/api/lead", {
+      const response = await fetch(warehouse ? "/api/lead/warehouse" : "/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request_key: key, ...payload, ...(website ? { website } : {}) }),
@@ -303,8 +321,11 @@ function setupLead(form) {
         show("Сервис вернул некорректное подтверждение заявки. Попробуйте ещё раз.", true);
         return;
       }
+      if (rfq && !acknowledgeCart(items)) {
+        show("Заявка принята. Номер: " + id + ". Хранилище браузера недоступно: корзина сохранена в этой вкладке, повторная отправка вернёт тот же номер.", false);
+        return;
+      }
       clearSession(pendingKey, pending);
-      if (rfq) acknowledgeCart(items);
       if (names.every((name) => form.elements.namedItem(name).value === original[name])) form.reset();
       clearSession(draftKey, savedDraft);
       show((rfq ? "Заявка принята. Номер: " : type === "quick" ? "Запрос принят: " : "Заявка принята: ") + id + ". Следующий шаг: менеджер свяжется с вами.", false);

@@ -25,17 +25,17 @@
   <meta property="og:type" content="{{ page == 'article' ? 'article' : 'website' }}">
   {% if meta.description|default('') %}<meta property="og:description" content="{{ meta.description }}">{% endif %}
   {% if meta.image|default('') %}<meta property="og:image" content="{{ meta.image }}">{% endif %}
-  <link rel="stylesheet" href="{{ assets }}theme.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}globals.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}home-ux.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}catalog-ux.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}request-ux.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}articles.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261110-8">
-  <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261110-8">
-  <script type="module" src="{{ assets }}storefront.mjs?v=20261110-8"></script>
-  <script type="module" src="{{ assets }}request.mjs?v=20261110-8"></script>
-  <script type="module" src="{{ assets }}parts-list.mjs?v=20261110-8"></script>
+  <link rel="stylesheet" href="{{ assets }}theme.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}globals.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}home-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}catalog-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}request-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
+  <script type="module" src="{{ assets }}storefront.mjs?v=20261111-1"></script>
+  <script type="module" src="{{ assets }}request.mjs?v=20261111-1"></script>
+  <script type="module" src="{{ assets }}parts-list.mjs?v=20261111-1"></script>
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>

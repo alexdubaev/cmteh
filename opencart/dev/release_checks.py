@@ -38,7 +38,33 @@ def require(condition, message):
 INSTALLED_SUITES = {
     "seed-cleanup-integration.php": ["system/Database.php", "system/SeedCleanup.php"],
     "admin-business-integration.php": ["system/Lead.php", "system/Quote.php", "system/AdminBusiness.php"],
+    "inventory-integration.php": ["system/Database.php", "system/CatalogSchema.php", "system/InventoryException.php",
+                                  "system/InventoryInput.php", "system/InventorySchema.php", "system/Inventory.php"],
+    "native-inventory-integration.php": ["system/Database.php", "system/InventoryException.php", "system/InventoryInput.php",
+                                         "system/InventorySchema.php", "system/Inventory.php", "system/InventoryNativeGuard.php",
+                                         "system/CatalogInput.php", "system/CatalogWrites.php", "system/CatalogImport.php",
+                                         "system/CatalogAdmin.php", "system/NativeCatalog.php",
+                                         "admin/controller/event/cmteh_catalog.php", "admin/controller/module/cmteh.php",
+                                         "admin/model/catalog/inventory_guard.php", "catalog/controller/event/cmteh_inventory.php",
+                                         "catalog/model/catalog/inventory_guard.php", "catalog/model/checkout/inventory_guard.php",
+                                         "catalog/view/assets/inventory-native-admin.js"],
+    "inventory-import-integration.php": ["system/Database.php", "system/CatalogSchema.php", "system/InventoryException.php",
+                                         "system/InventoryInput.php", "system/InventorySchema.php", "system/Inventory.php",
+                                         "system/InventoryImport.php"],
+    "lead-integration.php": ["system/Database.php", "system/CatalogSchema.php", "system/InventoryException.php",
+                             "system/InventoryInput.php", "system/InventorySchema.php", "system/Inventory.php",
+                             "system/InventoryImport.php", "system/Lead.php", "system/LeadInput.php",
+                             "system/LeadOutbox.php", "system/LeadMail.php"],
+    "warehouse-offers-integration.php": ["system/Database.php", "system/Catalog.php", "system/CatalogSchema.php",
+                                         "system/CatalogInput.php", "system/CatalogWrites.php", "system/CatalogAdmin.php",
+                                         "system/InventoryException.php", "system/InventoryInput.php", "system/InventorySchema.php",
+                                         "system/Inventory.php", "system/Lead.php", "system/LeadInput.php"],
+    "inventory-recovery-integration.php": ["system/Database.php", "system/Catalog.php", "system/CatalogSchema.php",
+                               "system/CatalogInput.php", "system/CatalogWrites.php", "system/CatalogAdmin.php",
+                               "system/InventoryException.php", "system/InventoryInput.php", "system/InventorySchema.php",
+                               "system/Inventory.php", "system/Lead.php", "system/LeadInput.php"],
 }
+INSTALLED_SUITE_FIXTURES = {"lead-integration.php": ["fixtures/demo.ndjson"]}
 
 # These two release-critical suites must resolve their relative imports to the
 # installed candidate, not the checkout mounted at /workspace. Fail closed on
@@ -50,10 +76,10 @@ if(realpath($root)!==$root || is_link($root) || is_link($root.'/system')) throw 
 if(!is_dir($private) && !mkdir($private,0700)) throw new RuntimeException('Private verifier directory unavailable');
 if(realpath($private)!==$private || is_link($private)) throw new RuntimeException('Private verifier path mismatch');
 $test=$private.'/tests/'.$spec['name'];
-if(!preg_match('/^(seed-cleanup|admin-business)-integration\.php$/D',$spec['name'])) throw new RuntimeException('Unknown installed suite');
+if(!preg_match('/^[a-z][a-z0-9-]*-integration\.php$/D',$spec['name'])) throw new RuntimeException('Unknown installed suite');
 if($spec['test_path']!==$test) throw new RuntimeException('Private test source path mismatch');
 foreach($spec['members'] as $member=>$expected) {
-    if(!preg_match('~^system/[A-Za-z0-9_-]+\.(php|json)$~D',$member)) throw new RuntimeException('Unsafe candidate member');
+    if(!preg_match('~^(?:system|admin/controller/event|admin/controller/module|admin/model/catalog|catalog/controller/event|catalog/model/catalog|catalog/model/checkout|catalog/view/assets)/[A-Za-z0-9_.-]+\.(?:php|js|json)$~D',$member)) throw new RuntimeException('Unsafe candidate member');
     $path=$root.'/'.$member;
     if(!is_file($path) || is_link($path) || realpath($path)!==$path || !hash_equals($expected,hash_file('sha256',$path))) throw new RuntimeException('Installed candidate member mismatch: '.$member);
 }
@@ -67,7 +93,17 @@ if(!is_link($extension) || readlink($extension)!=='/var/www/html/extension' || r
 if(is_link($test)) throw new RuntimeException('Private test cannot be a symlink');
 if(!file_exists($test) && !copy($source,$test)) throw new RuntimeException('Exact private test copy unavailable');
 if(!is_file($test) || realpath($test)!==$test || !hash_equals($spec['test_sha256'],hash_file('sha256',$test))) throw new RuntimeException('Private test bytes mismatch');
-foreach($spec['entries'] as $entry) require_once $root.'/'.$entry;
+if(!is_dir($private.'/fixtures') && !mkdir($private.'/fixtures',0700)) throw new RuntimeException('Private fixture directory unavailable');
+if(realpath($private.'/fixtures')!==$private.'/fixtures' || is_link($private.'/fixtures')) throw new RuntimeException('Private fixture directory mismatch');
+foreach($spec['fixtures'] as $fixture=>$details) {
+    if(!preg_match('~^fixtures/[A-Za-z0-9_.-]+$~D',$fixture)) throw new RuntimeException('Unsafe fixture member');
+    $fixtureSource='/workspace/'.$fixture; $fixturePath=$private.'/'.$fixture;
+    if($details['private_path']!==$fixturePath || !is_file($fixtureSource) || is_link($fixtureSource)
+        || realpath($fixtureSource)!==$fixtureSource || !hash_equals($details['sha256'],hash_file('sha256',$fixtureSource))) throw new RuntimeException('Workspace fixture input mismatch');
+    if(is_link($fixturePath) || (!file_exists($fixturePath) && !copy($fixtureSource,$fixturePath))
+        || !is_file($fixturePath) || realpath($fixturePath)!==$fixturePath || !hash_equals($details['sha256'],hash_file('sha256',$fixturePath))) throw new RuntimeException('Private fixture bytes mismatch');
+}
+foreach($spec['entries'] as $entry) if(str_starts_with($entry,'system/')) require_once $root.'/'.$entry;
 $classes=[];
 foreach(array_merge(get_declared_classes(),get_declared_traits()) as $class) {
     if(!str_starts_with($class,'Cmteh\\')) continue;
@@ -89,15 +125,21 @@ def installed_suite_spec(runtime, name):
         names = archive.namelist()
         require(len(names) == len(set(names)), "Duplicate candidate member.")
         members = {member: hashlib.sha256(archive.read(member)).hexdigest() for member in names
-                   if re.fullmatch(r"system/[A-Za-z0-9_-]+\.(php|json)", member)}
+                   if re.fullmatch(r"(?:system|admin/controller/event|admin/controller/module|admin/model/catalog|catalog/controller/event|catalog/model/catalog|catalog/model/checkout|catalog/view/assets)/[A-Za-z0-9_.-]+\.(?:php|js|json)", member)}
     require(all(entry in members for entry in INSTALLED_SUITES[name])
             and "system/seed-cleanup.json" in members, "Required installed candidate members are missing.")
     test = ROOT / "tests" / name
     require(test.is_file() and not test.is_symlink(), "Exact suite input is unavailable.")
+    fixtures = {}
+    for fixture in INSTALLED_SUITE_FIXTURES.get(name, []):
+        source = ROOT / fixture
+        require(source.is_file() and not source.is_symlink(), "Exact installed-suite fixture is unavailable.")
+        fixtures[fixture] = {"sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                             "private_path": "/var/www/cmteh-verification/" + fixture}
     return {"name": name, "entries": INSTALLED_SUITES[name], "members": members,
             "candidate_sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
             "test_path": "/var/www/cmteh-verification/tests/" + name,
-            "test_sha256": hashlib.sha256(test.read_bytes()).hexdigest()}
+            "test_sha256": hashlib.sha256(test.read_bytes()).hexdigest(), "fixtures": fixtures}
 
 
 def installed_suite_guard(runtime, spec):
@@ -106,11 +148,93 @@ def installed_suite_guard(runtime, spec):
                                      payload, capture=True).stdout)
 
 
+def installed_suite_guard_rejects(runtime, spec, expected_error):
+    payload = base64.b64encode(json.dumps(spec).encode()).decode("ascii")
+    try:
+        runtime.docker("exec", "-T", "web", "php", "-r", INSTALLED_SUITE_GUARD,
+                       payload, capture=True)
+    except subprocess.CalledProcessError as error:
+        require(expected_error in (error.stderr or "") + (error.stdout or ""),
+                "The installed-suite guard rejected an invalid fixture for an unexpected reason.")
+        return
+    raise RuntimeError("The installed-suite guard accepted an invalid fixture.")
+
+
+def installed_suite_negative_checks(runtime, spec):
+    bad_hash = json.loads(json.dumps(spec))
+    first = next(iter(bad_hash["members"]))
+    bad_hash["members"][first] = "0" * 64
+    installed_suite_guard_rejects(runtime, bad_hash, "Installed candidate member mismatch")
+
+    escaped_test = json.loads(json.dumps(spec))
+    escaped_test["test_path"] = "/workspace/tests/" + spec["name"]
+    installed_suite_guard_rejects(runtime, escaped_test, "Private test source path mismatch")
+    print("PASS installed-suite guard rejects wrong dependency hashes and workspace test paths", flush=True)
+
+
+def installed_browser_fixture(runtime, relative):
+    require(relative == "browser/inventory-import-fixture.php", "Unknown installed browser fixture.")
+    source = ROOT / "tests" / relative
+    require(source.is_file() and not source.is_symlink(), "Exact browser fixture source is unavailable.")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    payload = base64.b64encode(json.dumps({"sha256": digest}).encode()).decode("ascii")
+    script = r'''$spec=json_decode(base64_decode($argv[1],true),true,32,JSON_THROW_ON_ERROR);
+$workspace='/workspace/tests/browser/inventory-import-fixture.php';
+$root='/var/www/cmteh-verification'; $directory=$root.'/tests/browser'; $target=$directory.'/inventory-import-fixture.php';
+if(realpath('/var/www/cmteh-verification')!==$root || is_link($root)) throw new RuntimeException('Private browser fixture root mismatch');
+if(!is_dir($directory) && !mkdir($directory,0700,true)) throw new RuntimeException('Private browser fixture directory unavailable');
+if(realpath($directory)!==$directory || is_link($directory) || is_link($workspace) || realpath($workspace)!==$workspace
+   || !is_file($workspace) || !hash_equals($spec['sha256'],hash_file('sha256',$workspace))) throw new RuntimeException('Workspace browser fixture mismatch');
+if(is_link($target) || (!file_exists($target) && !copy($workspace,$target)) || !is_file($target)
+   || realpath($target)!==$target || !hash_equals($spec['sha256'],hash_file('sha256',$target))) throw new RuntimeException('Private browser fixture bytes mismatch');
+echo json_encode(['path'=>$target,'sha256'=>$spec['sha256']],JSON_THROW_ON_ERROR);'''
+    receipt = json.loads(runtime.docker("exec", "-T", "web", "php", "-r", script, payload, capture=True).stdout)
+    require(receipt == {"path": "/var/www/cmteh-verification/tests/browser/inventory-import-fixture.php",
+                        "sha256": digest}, "The private browser fixture receipt did not match source bytes.")
+    return digest
+
+
+def inventory_browser_acceptance(runtime, tooling):
+    # Both browser journeys use installed-candidate service receipts and private PHP fixtures.
+    proofs = {}
+    for name in ("inventory-import-integration.php", "warehouse-offers-integration.php"):
+        spec = installed_suite_spec(runtime, name)
+        proofs[name] = installed_suite_guard(runtime, spec)
+    import_fixture_hash = installed_browser_fixture(runtime, "browser/inventory-import-fixture.php")
+    scripts = ("inventory-import-happy.mjs", "warehouse-offers.mjs")
+    script_paths = {name: ROOT / "tests" / "browser" / name for name in scripts}
+    require(all(path.is_file() and not path.is_symlink() for path in script_paths.values()),
+            "Warehouse browser test source must be a regular workspace file.")
+    hashes = {name: sha256(path) for name, path in script_paths.items()}
+    env = os.environ | {
+        "CMTEH_BROWSER_BASE": runtime.origin,
+        "CMTEH_BROWSER_TOOLING": str(tooling),
+        "CMTEH_WAREHOUSE_RUNTIME": str(runtime.directory),
+        "CMTEH_BROWSER_IMPORT_FIXTURE": "/var/www/cmteh-verification/tests/browser/inventory-import-fixture.php",
+        "CMTEH_BROWSER_WAREHOUSE_FIXTURE": "/var/www/cmteh-verification/tests/warehouse-offers-integration.php",
+    }
+    for name in scripts:
+        subprocess.run(["node", str(ROOT / "tests" / "browser" / name)], cwd=ROOT.parent, env=env, check=True)
+        require(script_paths[name].is_file() and not script_paths[name].is_symlink()
+                and sha256(script_paths[name]) == hashes[name],
+                "A warehouse browser test source changed during execution.")
+        for suite, proof in proofs.items():
+            require(installed_suite_guard(runtime, installed_suite_spec(runtime, suite)) == proof,
+                    "An installed warehouse browser fixture changed during execution.")
+    require(sha256(ROOT / "tests" / "browser" / "inventory-import-fixture.php") == import_fixture_hash,
+            "The warehouse import browser fixture changed during execution.")
+    require(installed_browser_fixture(runtime, "browser/inventory-import-fixture.php") == import_fixture_hash,
+            "The private warehouse import browser fixture changed during execution.")
+    print("PASS installed-candidate XLSX import/admin reserve and warehouse A+B/cart/stale/lost-ack browser journeys", flush=True)
+
+
 def run_php_suite(runtime, name):
     if name not in INSTALLED_SUITES:
         runtime.docker("exec", "-T", "web", "php", "/workspace/tests/" + name)
         return
     spec = installed_suite_spec(runtime, name)
+    if name == "inventory-integration.php":
+        installed_suite_negative_checks(runtime, spec)
     proof = installed_suite_guard(runtime, spec)
     try:
         result = runtime.docker("exec", "-T", "web", "php", spec["test_path"], capture=True)
@@ -127,6 +251,61 @@ def run_php_suite(runtime, name):
     (evidence / (name.removesuffix(".php") + "-installed.json")).write_text(
         json.dumps(proof, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"PASS installed candidate suite: {name}; {proof['pass_lines']} assertions; reflected installed sources match archive", flush=True)
+
+
+def inventory_migration(runtime):
+    php = r'''require '/var/www/html/config.php';
+require_once DIR_EXTENSION.'cmteh/system/Database.php';
+$pdo=Cmteh\Database::connectFromOpenCart();
+function inventory_migration_state(PDO $pdo): array {
+    $expected=['cmteh_inventory_delete_batch','cmteh_inventory_native_form','cmteh_inventory_order_guard',
+      'cmteh_inventory_native_addProduct','cmteh_inventory_native_editProduct','cmteh_inventory_native_copyProduct',
+      'cmteh_inventory_native_deleteProduct','cmteh_inventory_native_addVariant','cmteh_inventory_native_editVariant',
+      'cmteh_inventory_native_addOptionValue','cmteh_inventory_native_editQuantity','cmteh_inventory_native_editOptionQuantity'];
+    $legacyRewrite=['cmteh_admin_menu','cmteh_admin_header','cmteh_admin_dashboard','cmteh_admin_marketing','cmteh_admin_language'];
+    $marks=implode(',',array_fill(0,count($expected), '?'));
+    $q=$pdo->prepare('SELECT COUNT(DISTINCT code) FROM `'.DB_PREFIX.'event` WHERE code IN ('.$marks.')'); $q->execute($expected);
+    $ownedEvents=$pdo->prepare('SELECT event_id,code,description,`trigger`,action,status,sort_order FROM `'.DB_PREFIX.'event` WHERE code IN ('.$marks.') ORDER BY code');
+    $ownedEvents->execute($expected);
+    $tables=$pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (?,?)');
+    $tables->execute([DB_PREFIX.'cmteh_inventory_schema',DB_PREFIX.'cmteh_inventory_import_preview']);
+    $groups=$pdo->query('SELECT user_group_id,name,permission FROM `'.DB_PREFIX.'user_group` ORDER BY user_group_id')->fetchAll(PDO::FETCH_ASSOC);
+    $excluded=array_merge($expected,$legacyRewrite); $excludeMarks=implode(',',array_fill(0,count($excluded), '?'));
+    $events=$pdo->prepare('SELECT event_id,code,description,`trigger`,action,status,sort_order FROM `'.DB_PREFIX.'event` WHERE code NOT IN ('.$excludeMarks.') ORDER BY event_id');
+    $events->execute($excluded);
+    return ['schemas'=>(int)$tables->fetchColumn(),'hooks'=>(int)$q->fetchColumn(),
+      'inventory_events'=>hash('sha256',json_encode($ownedEvents->fetchAll(PDO::FETCH_ASSOC),JSON_THROW_ON_ERROR)),
+      'groups'=>hash('sha256',json_encode($groups,JSON_THROW_ON_ERROR)),
+      'other_events'=>hash('sha256',json_encode($events->fetchAll(PDO::FETCH_ASSOC),JSON_THROW_ON_ERROR))];
+}
+$state=inventory_migration_state($pdo);
+if($state['schemas']!==2 || $state['hooks']!==12) throw new RuntimeException('Fresh authorized module install did not leave both inventory schemas and all twelve hooks.');
+echo json_encode($state,JSON_THROW_ON_ERROR);'''
+    before = json.loads(runtime.docker("exec", "-T", "web", "php", "-r", php, capture=True).stdout)
+    runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
+    try:
+        response = runtime.request_json(runtime.action(MODULE + ".upgrade"), b"")
+        require(response.get("success"), "The authorized repeat module migration did not complete.")
+    finally:
+        runtime.logout()
+    after = json.loads(runtime.docker("exec", "-T", "web", "php", "-r", php, capture=True).stdout)
+    require(after["schemas"] == 2 and after["hooks"] == 12,
+            "The repeat module migration did not preserve both inventory schemas and twelve hooks.")
+    require(after["inventory_events"] == before["inventory_events"],
+            "The repeat module upgrade rewrote or duplicated one of the twelve inventory hooks.")
+    require(after["groups"] == before["groups"], "The module upgrade changed existing user-group permissions.")
+    require(after["other_events"] == before["other_events"], "The module upgrade rewrote an unrelated event row.")
+    print("PASS fresh module install and repeat upgrade keep both schemas/12 hooks without autogrants or unrelated event rewrites", flush=True)
+
+
+def inventory_recovery_fixture(runtime, mode, token):
+    spec = installed_suite_spec(runtime, "inventory-recovery-integration.php")
+    before = installed_suite_guard(runtime, spec)
+    result = runtime.docker("exec", "-T", "web", "php", spec["test_path"], mode, token, capture=True)
+    require(installed_suite_guard(runtime, spec) == before, "Installed recovery fixture sources changed during execution.")
+    rows = [line for line in result.stdout.splitlines() if line.startswith("{")]
+    require(rows, "The installed recovery fixture returned no structured receipt.")
+    return json.loads(rows[-1])
 
 
 def lint(runtime):
@@ -672,6 +851,7 @@ def verify_media(runtime):
 
 
 def check_recovery(runtime, upstream, lead_id):
+    inventory_token = uuid4().hex[:12]
     runtime.login((runtime.directory / "admin-password").read_text(encoding="ascii").strip())
     try:
         manager = create_role(runtime, "Recovery manager", [LEADS], [])
@@ -681,10 +861,19 @@ def check_recovery(runtime, upstream, lead_id):
     dump = "mysqldump -uroot --single-transaction --no-tablespaces --set-gtid-purged=OFF cmteh_dev"
     try:
         lead_visible(manager, lead_id)
+        seeded = inventory_recovery_fixture(runtime, "seed", inventory_token)
+        require(seeded.get("seeded") is True, "Recovery fixture did not create its pre-backup opening balance.")
         runtime.docker("exec", "-T", "db", "sh", "-ec",
                        archive + dump + " >/tmp/cmteh-recovery-earlier.sql")
+        advanced = inventory_recovery_fixture(runtime, "advance", inventory_token)
+        require(advanced.get("advanced") is True, "Recovery fixture did not create post-backup warehouse activity.")
+        inventory_lead = advanced.get("lead_public_id", "")
+        require(re.fullmatch(r"[A-Za-z0-9-]{20,40}", inventory_lead) is not None,
+                "Recovery fixture did not return a bounded synthetic lead ID.")
         late = submit_lead(runtime, "после снимка")
         runtime.start(upstream, refresh=True)
+        verified = inventory_recovery_fixture(runtime, "verify", inventory_token)
+        require(verified.get("verified") is True, "Compatible update did not preserve post-backup inventory and RFQ snapshots.")
         lead_visible(manager, lead_id)
         lead_visible(manager, late)
     finally:
@@ -703,7 +892,13 @@ def check_recovery(runtime, upstream, lead_id):
         test "$(mysql -uroot -NB "$new" -e "$query '$1'")" = 1
         test "$(mysql -uroot -NB "$new" -e "$query '$2'")" = 1
         test "$(mysql -uroot -NB cmteh_dev -e "$query '$2'")" = 1
-    """, "recovery", lead_id, late, uuid4().hex[:12])
+        inventory="warehouse-recovery-$4-"
+        test "$(mysql -uroot -NB "$old" -e "SELECT COUNT(*) FROM oc_cmteh_inventory_command WHERE request_key IN ('${inventory}transfer','${inventory}reserve')")" = 0
+        test "$(mysql -uroot -NB "$old" -e "SELECT COUNT(*) FROM oc_cmteh_lead WHERE public_id='$5'")" = 0
+        test "$(mysql -uroot -NB "$new" -e "SELECT COUNT(*) FROM oc_cmteh_inventory_command WHERE request_key IN ('${inventory}transfer','${inventory}reserve')")" = 2
+        test "$(mysql -uroot -NB "$new" -e "SELECT COUNT(*) FROM oc_cmteh_lead l JOIN oc_cmteh_lead_item i USING (lead_id) JOIN oc_cmteh_lead_inventory w USING (lead_id,position) WHERE l.public_id='$5' AND w.warehouse_code='REC-B-$4' AND w.unit_price='575.00'")" = 1
+    """, "recovery", lead_id, late, uuid4().hex[:12], inventory_token, inventory_lead)
+    inventory_recovery_fixture(runtime, "cleanup", inventory_token)
     runtime.docker("exec", "-T", "web", "sh", "-ec", """
         scratch=$(mktemp -d /tmp/cmteh-release-media.XXXXXX)
         trap 'rm -rf "$scratch"' EXIT
@@ -713,7 +908,7 @@ def check_recovery(runtime, upstream, lead_id):
         cmp /var/www/cmteh-private/media/gate-public.png "$scratch/restored/media/gate-public.png"
         cmp /var/www/cmteh-private/media/gate-private.png "$scratch/restored/media/gate-private.png"
     """)
-    print("PASS: repeat migration and isolated DB/media recovery preserve the lead received after the first backup",
+    print("PASS: compatible code update preserves post-backup transfer, reservation and immutable warehouse RFQ snapshot; old backup stays separate",
           flush=True)
 
 

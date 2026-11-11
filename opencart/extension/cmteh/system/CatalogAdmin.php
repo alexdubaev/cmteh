@@ -258,6 +258,10 @@ trait CatalogAdmin
             require_once __DIR__ . '/StorefrontPages.php';
             if($type==='page' && StorefrontPages::reserved($record['slug'])) throw new InvalidArgumentException('Системную страницу нельзя удалить');
             $nativeId=(int)($record['native_id']??0);
+            if ($type==='product') {
+                require_once __DIR__ . '/InventoryNativeGuard.php';
+                InventoryNativeGuard::assertDeletable($this->pdo,$this->prefix,$nativeId);
+            }
             if($type==='brand' && $this->run('SELECT 1 FROM ' . $this->table('product') . ' WHERE manufacturer_id=? LIMIT 1',[$nativeId])->fetchColumn()) throw new InvalidArgumentException('Бренд связан с товарами; сначала снимите связи');
             if($type==='category' && ($this->run('SELECT 1 FROM ' . $this->table('product_to_category') . ' WHERE category_id=? LIMIT 1',[$nativeId])->fetchColumn() || $this->run('SELECT 1 FROM ' . $this->table('category') . ' WHERE parent_id=? LIMIT 1',[$nativeId])->fetchColumn())) throw new InvalidArgumentException('Категория связана с товарами или дочерними категориями');
             $path=$this->recordPath($type,$record['slug']);

@@ -1,5 +1,5 @@
-import { mergeCart } from "./cart.mjs?v=20261110-8";
-import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261110-8";
+import { mergeCart, selectedLine } from "./cart.mjs?v=20261111-1";
+import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261111-1";
 
 const root = document.querySelector('[data-parts-list]');
 if (root) setup(root);
@@ -125,13 +125,23 @@ function setup(root) {
           const info = node('div');
           const link = node('a', product.title); link.href = '/product/' + encodeURIComponent(product.slug);
           info.append(node('strong', product.brand || 'Бренд не указан'), link, node('span', product.sku), node('small', { in_stock: 'В наличии', on_request: 'Под заказ', out_of_stock: 'Нет в наличии' }[product.availability_status] || 'Наличие уточняется'));
-          const button = node('button', 'В корзину', 'button secondary'); button.type = 'button';
-          const feedback = node('span', '', 'list-add-feedback'); feedback.setAttribute('role', 'status');
-          button.addEventListener('click', () => {
-            const result = mergeCart([{ article: product.sku, productId: product.id, brand: product.brand, title: product.title, quantity: row.quantity }]);
-            feedback.textContent = result.overflow ? 'Корзина заполнена: максимум 100 товаров. Товар не добавлен.' : 'Добавлено: ' + row.quantity + ' шт.';
-          });
-          const action = node('div', '', 'list-offer-action'); action.append(button, feedback); offer.append(info, action); card.append(offer);
+          const action = node('div', '', 'list-offer-action');
+          const choices = product.inventory_managed ? product.offers : [null];
+          for (const choice of choices) {
+            const group = node('div', '', 'list-warehouse-choice');
+            if (choice) group.append(node('strong', choice.warehouse.name + (choice.warehouse.city ? ', ' + choice.warehouse.city : '')),
+              node('span', (choice.price === null ? 'Цена по запросу' : choice.price.replace('.', ',') + ' ₽') + ' · ' + (choice.delivery_term || 'Срок уточнит менеджер')));
+            const button = node('button', choice ? 'Выбрать склад' : 'В корзину', 'button secondary'); button.type = 'button';
+            if (choice && choice.availability_status !== 'in_stock') { button.disabled = true; button.textContent = 'Нет в наличии'; }
+            const feedback = node('span', '', 'list-add-feedback'); feedback.setAttribute('role', 'status');
+            button.addEventListener('click', () => {
+              const result = mergeCart([choice ? selectedLine(product, choice, row.quantity) : { article: product.sku, productId: product.id, brand: product.brand, title: product.title, quantity: row.quantity }]);
+              feedback.textContent = result.requiresReview ? 'Условия изменились. Проверьте выбранную строку в корзине.' : result.overflow ? 'Корзина заполнена: максимум 100 позиций.' : !result.persisted ? 'Сохранено в этой вкладке. Не закрывайте её до отправки.' : 'Добавлено: ' + row.quantity + ' шт.';
+            });
+            group.append(button, feedback); action.append(group);
+          }
+          if (product.inventory_managed && !choices.length) action.append(node('span', 'Предложения уточнит менеджер'));
+          offer.append(info, action); card.append(offer);
         }
       }
       if (row.more_matches) card.append(node('p', 'Выдача ограничена. Остальные предложения уточните у менеджера.'));

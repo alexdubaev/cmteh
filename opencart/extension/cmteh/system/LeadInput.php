@@ -109,6 +109,30 @@ final class LeadInput
         return $data;
     }
 
+    /** Explicit operation; legacy parse and its fingerprint property order stay unchanged. */
+    public static function parseWarehouse(string $raw): array
+    {
+        [$key, $data] = self::parse($raw);
+        $body = json_decode($raw, false, 32, JSON_THROW_ON_ERROR);
+        $selected = 0;
+        foreach ($body->request_items ?? [] as $position => $item) {
+            $hasId = property_exists($item, 'offer_id');
+            $hasVersion = property_exists($item, 'offer_version');
+            if (!$hasId && !$hasVersion) continue;
+            if (!$hasId || !$hasVersion || !isset($data['items'][$position]['product_id'])
+                || !is_string($item->offer_id) || !preg_match('/^[1-9][0-9]{0,19}$/D', $item->offer_id)
+                || !is_string($item->offer_version) || !preg_match('/^[a-f0-9]{64}$/D', $item->offer_version)) {
+                throw new InvalidArgumentException('Выберите склад заново.');
+            }
+            $data['items'][$position]['offer_id'] = $item->offer_id;
+            $data['items'][$position]['offer_version'] = $item->offer_version;
+            $selected++;
+        }
+        if (!$selected) throw new InvalidArgumentException('Выберите предложение склада.');
+        $data['warehouse_contract'] = 1;
+        return [$key, $data];
+    }
+
     public static function uuid(): string
     {
         $bytes = random_bytes(16);

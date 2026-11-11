@@ -125,7 +125,7 @@
 {{ header }}{{ column_left }}
 <div id="content">
   <div class="page-header">
-    <div class="container-fluid"><h1>Каталог и публикации СМ ТЕХНО</h1></div>
+    <div class="container-fluid"><div class="float-end"><a class="btn btn-outline-primary" href="{{ inventory_href|escape }}">Склады и предложения</a></div><h1>Каталог и публикации СМ ТЕХНО</h1></div>
   </div>
   <div class="container-fluid">
     {% if error %}<div class="alert alert-danger" role="alert">{{ error|escape }}</div>{% endif %}

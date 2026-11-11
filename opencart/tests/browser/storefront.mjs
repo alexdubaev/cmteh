@@ -163,7 +163,7 @@ try {
   await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
     let first = true;
     await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
-      assert.equal(new URL(route.request().url()).search, '?v=20261110-8');
+      assert.equal(new URL(route.request().url()).search, '?v=20261111-1');
       if (first) { first = false; await route.abort(); } else await route.continue();
     });
     await page.goto('/parts-list');
@@ -194,7 +194,7 @@ try {
   await scenario("Canonical identity separates offers and preserves fresh additions during acknowledgement", async (page) => {
     await page.goto('/request');
     const result = await page.evaluate(async () => {
-      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261110-8');
+      const { writeCart, mergeCart, readCart, acknowledgeCart } = await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261111-1');
       const legacy = { article: 'SAME', brand: 'Brand', title: 'Legacy', quantity: 2 };
       writeCart([legacy]);
       mergeCart([{ ...legacy, productId: 'offer-a', quantity: 3 }, { ...legacy, productId: 'offer-b', quantity: 4 }]);
