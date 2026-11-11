@@ -23,4 +23,4 @@
 | 2026-11-10 | `2026-11-10-list-quote-stock` | сдан | Списки проверяются отдельно от корзины; расценки и оригиналы сохраняются в админке, automatic quote cron проверен на test.cmteh.ru; Inbox confirmation явно pending |
 | 2026-11-10 | `2026-11-10-site-ux-density` | сдан | Все13требований: компактныйпубличныйсайт, видимыерезультатыиполередактирования; actualtesthost/cache/Chromium/WebKitPASS,186strictPASS |
 | 2026-11-11 | `2026-11-11-admin-unification` | сдан | Единая админка принята локально: 305PASS и clean-clone10/10; выкладка test после merge, итог во внешнем операционном handoff. |
-| 2026-11-11 | `2026-11-11-site-capabilities--wip` | в работе | — |
+| 2026-11-11 | `2026-11-11-site-capabilities` | сдан | Склады приняты локально: strict PASS и слепая приёмка 9/9; фактическая выкладка и время — во внешнем handoff |

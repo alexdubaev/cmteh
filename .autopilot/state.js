@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "site-capabilities",
-  "dir": "2026-11-11-site-capabilities--wip",
+  "dir": "2026-11-11-site-capabilities",
   "title": "СМ ТЕХНО — склады и раздельные остатки",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "060c56b",
   "startedAt": "2026-11-11T18:21:24+03:00",
-  "updatedAt": "2026-11-11T21:43:19+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-11T22:10:39+03:00",
+  "finishedAt": "2026-11-11T22:10:39+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -48,22 +48,27 @@ window.STATE =
     },
     {
       "id": "build",
-      "status": "active",
-      "startedAt": "2026-11-11T19:04:15+03:00"
+      "status": "done",
+      "startedAt": "2026-11-11T19:04:15+03:00",
+      "finishedAt": "2026-11-11T21:43:32+03:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-11T21:43:32+03:00",
+      "finishedAt": "2026-11-11T22:01:13+03:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-11T22:01:13+03:00",
+      "finishedAt": "2026-11-11T22:10:39+03:00"
     }
   ],
   "requirements": {
     "total": 51,
-    "done": 5,
-    "inTicket": 4,
+    "done": 9,
+    "inTicket": 0,
     "inSpec": 0,
     "placeholder": 0,
     "deferred": 42,
@@ -263,6 +268,9 @@ window.STATE =
       ],
       "wave": 3,
       "zone": [
+        "opencart/tests/inventory-recovery-integration.php",
+        "opencart/tests/browser/inventory-import-happy.mjs",
+        "opencart/tests/browser/warehouse-offers.mjs",
         "opencart/extension/cmteh/admin/controller/module/cmteh.php",
         "opencart/dev/release_checks.py",
         "opencart/bin/verify-local",
@@ -275,9 +283,9 @@ window.STATE =
       "model": "обычная",
       "status": "done",
       "startedAt": "2026-11-11T20:44:56+03:00",
+      "finishedAt": "2026-11-11T21:43:19+03:00",
       "retries": 0,
       "repairs": 0,
-      "finishedAt": "2026-11-11T21:43:19+03:00",
       "tests": {
         "passed": 154,
         "failed": 0
@@ -304,14 +312,51 @@ window.STATE =
       ],
       "review": "нет — единая независимая проверка product+ops перед исполнением",
       "model": "сильная",
-      "status": "in-progress",
+      "status": "done",
       "startedAt": "2026-11-11T20:48:07+03:00",
+      "finishedAt": "2026-11-11T21:43:31+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 0,
+      "tests": {
+        "passed": 33,
+        "failed": 0
+      },
+      "commit": "94d2c5e"
+    },
+    {
+      "id": "F1",
+      "title": "Исправления по итоговому ревью",
+      "requirements": [
+        "G01",
+        "G04",
+        "G07",
+        "G08"
+      ],
+      "blockedBy": [],
+      "wave": 4,
+      "zone": [
+        "opencart/extension/cmteh/admin/controller/module/cmteh_catalog.php",
+        "opencart/tests/browser/inventory-import-happy.mjs",
+        "D:/codex/temp/cmteh-warehouse-ops-20261111/proof-ops.py",
+        "D:/codex/temp/cmteh-warehouse-ops-20261111/test-ops.py",
+        "D:/codex/temp/cmteh-warehouse-ops-20261111/ops-prepared-index.json"
+      ],
+      "review": "да — ремонт ветки",
+      "model": "сильная",
+      "status": "done",
+      "retries": 0,
+      "repairs": 0,
+      "startedAt": "2026-11-11T21:54:20+03:00",
+      "tests": {
+        "passed": 18,
+        "failed": 0
+      },
+      "commit": "62eac91",
+      "finishedAt": "2026-11-11T22:01:12+03:00"
     }
   ],
   "tests": {
-    "passed": 154,
+    "passed": 1,
     "failed": 0
   },
   "debt": {
@@ -336,7 +381,11 @@ window.STATE =
     "05: explicit initially-blocked InventorySchema fault injection NOTRUN; early12hooks-before-migrate source ordering and normal/repeat upgrade checked; no PASS claimed for this fault scenario.",
     "Recovery: old runtime binary manual overwrite is outside app guarantee. Reviewed06 artifact guard denies oldbaseline after ANY inventory table; compatible code recovery preserves DB."
   ],
-  "blind": null,
+  "blind": {
+    "checked": 9,
+    "matched": 9,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-11T18:21:24+03:00",
     "2026-11-11T18:22:39+03:00",
@@ -397,9 +446,20 @@ window.STATE =
     "2026-11-11T20:52:53+03:00",
     "2026-11-11T21:27:50+03:00",
     "2026-11-11T21:27:51+03:00",
-    "2026-11-11T21:43:19+03:00"
+    "2026-11-11T21:43:19+03:00",
+    "2026-11-11T21:43:31+03:00",
+    "2026-11-11T21:43:32+03:00",
+    "2026-11-11T21:54:18+03:00",
+    "2026-11-11T21:54:20+03:00",
+    "2026-11-11T21:54:21+03:00",
+    "2026-11-11T22:00:03+03:00",
+    "2026-11-11T22:01:12+03:00",
+    "2026-11-11T22:01:13+03:00",
+    "2026-11-11T22:06:55+03:00",
+    "2026-11-11T22:08:22+03:00",
+    "2026-11-11T22:10:39+03:00"
   ],
-  "rev": 66,
+  "rev": 78,
   "waiting": null,
   "waits": [
     {
@@ -842,6 +902,92 @@ window.STATE =
         "passed": 154,
         "failed": 0
       }
+    },
+    {
+      "t": "2026-11-11T21:43:31+03:00",
+      "k": "ticket",
+      "ids": [
+        "06"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 33,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T21:43:32+03:00",
+      "k": "stage",
+      "id": "review",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T21:54:18+03:00",
+      "k": "tickets",
+      "n": 7
+    },
+    {
+      "t": "2026-11-11T21:54:20+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T21:54:21+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 3
+    },
+    {
+      "t": "2026-11-11T22:00:03+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "review",
+      "tests": {
+        "passed": 18,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T22:01:12+03:00",
+      "k": "ticket",
+      "ids": [
+        "F1"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 18,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-11T22:01:13+03:00",
+      "k": "stage",
+      "id": "final",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-11T22:06:55+03:00",
+      "k": "tests",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-11T22:08:22+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 9,
+      "matched": 9
+    },
+    {
+      "t": "2026-11-11T22:10:39+03:00",
+      "k": "finish",
+      "result": "Склады приняты локально: strict PASS и слепая приёмка 9/9; фактическая выкладка и время — во внешнем handoff"
     }
   ],
   "reqList": [
@@ -1100,7 +1246,7 @@ window.STATE =
     {
       "id": "G01",
       "text": "«Да нам нужны склады»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G02",
@@ -1120,7 +1266,7 @@ window.STATE =
     {
       "id": "G05",
       "text": "«одна и та же запчасть»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G06",
@@ -1130,7 +1276,7 @@ window.STATE =
     {
       "id": "G07",
       "text": "«Нужна загрузка из Excel/CSV»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "G08",
@@ -1140,7 +1286,7 @@ window.STATE =
     {
       "id": "G09",
       "text": "«Да, ручные резервы (рекомендую)»",
-      "status": "in-ticket"
+      "status": "done"
     }
   ],
   "gates": {
@@ -1161,9 +1307,15 @@ window.STATE =
       "ok": true,
       "at": "2026-11-11T20:52:53+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-11T22:08:22+03:00",
+      "checked": 9,
+      "matched": 9
     }
   },
-  "result": null,
+  "result": "Склады приняты локально: strict PASS и слепая приёмка 9/9; фактическая выкладка и время — во внешнем handoff",
   "requestStartedAt": "2026-11-11T18:18:06+03:00",
   "report": [
     "Read-only разбор завершён: auth-scout.md, orders-crm-scout.md, marketing-scout.md и discovery-summary.md. Продуктовый код и хостинг не менялись; ожидаются ответы на три бизнес-вопроса.",
@@ -1172,6 +1324,9 @@ window.STATE =
     "Разработка01: локальный runtime3190 готов, initial realMySQL RED зафиксирован до кода. Реальный сайт и почта не менялись.",
     "Read-only hostpreflight: PHP8.2.35; пять nativecorefiles rawSHA совпали с pinnedZIP. Без DB/config/mail/deploy действий; это не тест склада.",
     "Дополнительный isolated runtime3191 готов: SELECT VERSION MySQL5.7.44/PHP8.3.36. Без изменений source compose/verifier/хостинга.",
-    "04 промежуточно: realbrowser A+B→cart→stale409→lostack/replay PASS; 02 nativeguard checks идут наinstalledruntime. Финальная проверка установленного пакета и хостинга ещё не выполнена."
+    "04 промежуточно: realbrowser A+B→cart→stale409→lostack/replay PASS; 02 nativeguard checks идут наinstalledruntime. Финальная проверка установленного пакета и хостинга ещё не выполнена.",
+    "При более чем 50 складах список и закрытие их резервов требуют доработки пагинации.",
+    "Сортировка по цене пока учитывает также отсутствующие предложения; контракт visible/available требует отдельного исправления.",
+    "Формула в текстовом сроке CSV сохраняется как обычный текст; автоматического исполнения нет, обещанная проверка формул охватывает не все поля."
   ]
 }
