@@ -22,6 +22,37 @@ function rejects(callable $fn,string $message): void { try { $fn(); } catch (Inv
 try {
  foreach ($native as $t) $pdo->exec("CREATE TABLE `$prefix$t` LIKE `" . DB_PREFIX . "$t`");
  $c->migrate();
+ $c->saveFromAdmin('site',['id'=>'site','slug'=>'site','status'=>'published','phone'=>'+7 900 000-00-00','address'=>'Local test office']);
+ $c->save('page',['id'=>'contacts','slug'=>'contacts','title'=>'Contacts','status'=>'published']);
+ $mapView=fn()=> (new Cmteh\StorefrontPages($c,'http://127.0.0.1:3170'))->view('/contacts',[]);
+ check($mapView()['site']['yandex_map_src']==='','No map is supplied by default');
+ $widget='https://yandex.ru/map-widget/v1/?ll=37.617%2C55.755&z=12';
+ $frame='https://api-maps.yandex.ru/frame/v1/-/CZxcTEST';
+ foreach ([$widget, $frame, '<iframe src="'.$frame.'" width="560" height="400"></iframe>',
+     '<div style="position:relative"><a href="https://yandex.ru/maps/">Яндекс Карты</a><iframe src="'.htmlspecialchars($widget,ENT_QUOTES,'UTF-8').'" onload="alert(1)" style="width:100%"></iframe></div>',
+     'HTTPS://WWW.YANDEX.RU/map-widget/v1/?um=constructor%3Atest&source=constructor'] as $index=>$input) {
+   $expected=$index===4 ? 'https://www.yandex.ru/map-widget/v1/?um=constructor%3Atest&source=constructor' : (($index===1 || $index===2) ? $frame : $widget);
+   $c->saveFromAdmin('site',['id'=>'site','yandex_map_embed'=>$input]);
+   $stored=$c->editRecord('site','site');
+   check($stored['yandex_map_embed']===$expected && $c->content('site')['yandex_map_embed']===$expected && $mapView()['site']['yandex_map_src']===$expected,'Yandex map input '.$index.' persists only canonical URL and reaches public projection');
+ }
+ $before=$c->editRecord('site','site');
+ foreach (['https://evil.test/map-widget/v1/', 'https://yandex.ru.evil.test/map-widget/v1/', 'https://evil.test@yandex.ru/map-widget/v1/',
+     'http://yandex.ru/map-widget/v1/', '//yandex.ru/map-widget/v1/', 'javascript:alert(1)', 'https://yandex.ru/maps/',
+     'https://api-maps.yandex.ru/map-widget/v1/', 'https://yandex.ru/map-widget/v1/%2e%2e/', 'https://yandex.ru/map-widget/v1/?x=%0aevil',
+     'https://yandex.ru\\@evil.test/map-widget/v1/', 'https://yandex.ru:443/map-widget/v1/', "https://yandex.ru/map-widget/v1/?x=\tbad", "\0".$widget,
+     '<iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>', '<iframe src="'.$widget.'" srcdoc="ignored"></iframe>',
+     '<iframe src="'.$widget.'"></iframe><iframe src="'.$widget.'"></iframe>', '<script src="https://api-maps.yandex.ru/services/constructor/1.0/js/"></script>',
+     '<iframe src="'.$widget.'"></iframe><script>alert(1)</script>', str_repeat('x',20001), ['src'=>$widget]] as $index=>$input) {
+   rejects(fn()=> $c->saveFromAdmin('site',['id'=>'site','phone'=>'Must roll back','yandex_map_embed'=>$input]),'Unsafe map input '.$index.' rejected');
+   check($c->editRecord('site','site')===$before,'Rejected map input '.$index.' leaves stored site unchanged');
+ }
+ $c->saveFromAdmin('site',['id'=>'site','yandex_map_embed'=>'']);
+ check($c->editRecord('site','site')['yandex_map_embed']==='' && $mapView()['site']['yandex_map_src']==='' && $c->content('site')['address']==='Local test office','Clearing removes map and preserves other contacts');
+ $legacy=$c->editRecord('site','site'); $legacy['yandex_map_embed']='https://evil.test/map-widget/v1/';
+ $pdo->prepare('UPDATE `'.$prefix.'cmteh_content` SET data=? WHERE type=? AND source_id=?')->execute([json_encode($legacy,JSON_THROW_ON_ERROR),'site','site']);
+ check($mapView()['site']['yandex_map_src']==='' && !isset($mapView()['site']['yandex_map_embed']),'Public projection hides invalid legacy map and raw input');
+ check(!str_contains(Cmteh\CatalogInput::html('<p>Keep</p><iframe src="'.$widget.'"></iframe><script>alert(1)</script>'),'iframe'),'General rich text sanitizer still removes embedded frames');
  $c->saveFromAdmin('brand',['id'=>'brand-a','slug'=>'brand-a','name'=>'Synthetic A','status'=>'published','seo_title'=>'SEO A','seo_description'=>'Brand meta','canonical_url'=>'/brand/brand-a','image_path'=>'catalog/test.png']);
  check($c->editRecord('brand','brand-a')['seo_title']==='SEO A','Brand SEO and named image survive save');
  $c->saveFromAdmin('category',['id'=>'root','slug'=>'root','title'=>'Root','status'=>'published']);

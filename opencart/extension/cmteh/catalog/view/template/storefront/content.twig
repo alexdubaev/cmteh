@@ -21,10 +21,12 @@
         {% if site.working_hours|default('') %}<div><small>Режим работы</small><strong>{{ site.working_hours }}</strong></div>{% endif %}
         {% if site.city|default('') or site.address|default('') %}<div><small>Адрес</small><strong>{{ [site.city|default(''), site.address|default('')]|filter(value => value)|join(', ') }}</strong></div>{% endif %}
         {% if site.inn|default('') or site.kpp|default('') or site.ogrn|default('') %}<div><small>Реквизиты</small><strong>{{ [site.inn|default('') ? 'ИНН ' ~ site.inn : '', site.kpp|default('') ? 'КПП ' ~ site.kpp : '', site.ogrn|default('') ? 'ОГРН ' ~ site.ogrn : '']|filter(value => value)|join(' · ') }}</strong></div>{% endif %}
-        {% if site.city|default('') or site.address|default('') %}
-          <div class="contact-map"><span>КОНТАКТЫ</span><strong>{{ site.city|default(company) }}</strong>{% if site.address|default('') %}<small>{{ site.address }}</small>{% endif %}</div>
-        {% endif %}
         </details>
+        {% if site.yandex_map_src|default('') %}
+          <div style="grid-column:1/-1">
+            <iframe title="Офис на Яндекс Картах" src="{{ site.yandex_map_src }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups" allowfullscreen style="display:block;width:100%;height:clamp(280px,30vw,320px);border:0"></iframe>
+          </div>
+        {% endif %}
       </section>
       {% include templates ~ 'lead-form.twig' with {leadType: 'contact'} %}
     </div>
