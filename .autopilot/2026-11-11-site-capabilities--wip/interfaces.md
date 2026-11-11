@@ -57,7 +57,7 @@ Catalogproducts/product/checkList/search additiveoffers projection+effectiveavai
 
 Cart keeps smtechno-request legacy untouched, adds versioned smtechno-warehouse-request-v1 storage for selectedwarehouseentries only. New cartcombinesboth; warehousekey=(productId,offerId), nevermerges intolegacy/unassigned. Auxdata fields {productId,offerId,offerVersion,article,title,brand,quantity,warehouseName,warehouseCode,deliveryTerm,price,currency}; clientlabels aredraftonly, servernevertruststhem. OldJScan'tstrip selectedauxrows. Storagefailure handledwithoutack/clear/dataloss. Pendingnewwarehousebody uses separate pendingnamespace; oldpendinglegacy hash/key/propertyorder retained. Acksubtract matches submittedlineidentity+revision and preservesconcurrent additions. Explicitlegacyreselection mayproducebothrowsif interrupted; showunassignedlegacyclearly and requireintent, no silentmigration/cheapdefault.
 
-New POST /api/lead/warehouse accepts normalLeadcontactfields + request_items where selectedlinesadd offer_id/offer_version pair beside existingproduct_id; canincludepreservedlegacyfreeformlines. Rejectmalformedselection; newserver legacy/api/lead refusesfirstacceptancecanonicalmanagedlinewithoutoffer, committedoldreplaymuststillwork. Oldservernewpathfails404, neverignoresselection. New GET /api/warehouse-offers boundedIDs forcartfreshness, no arbitrarynative routes. ExistingrawQuote routebody untouched.
+New POST /api/lead/warehouse accepts normalLeadcontactfields + request_items where selectedlinesadd offer_id/offer_version pair beside existingproduct_id; canincludepreservedlegacyfreeformlines. Rejectmalformedselection; newserver legacy/api/lead refusesfirstacceptancecanonicalmanagedlinewithoutoffer, committedoldreplaymuststillwork. Oldservernewpathfails4xx (404/405 actuallegacyrouter), neverignoresselection. New GET /api/warehouse-offers boundedIDs forcartfreshness, no arbitrarynative routes. ExistingrawQuote routebody untouched.
 
 LeadInput adds explicit parseWarehouse path withoutchanging legacyparse normalizedshape. Lead firstacceptance samePDO saves baselead/items/outbox and nullablepositionkeyed cmteh_lead_inventory snapshotstable; InventorySchemaownsadditivetable ifLeadmarker3unchanged. Snapshot {offer_id,offer_version,warehouse_code/name/city,unit_price:string|null,currency,delivery_term,availability_status} immutable onacceptedreplay. Resolveproduct↔offer/exactSKU/publication and revision beforeinsert andundercompatiblelocks. Canonicalfingerprint usesonlynormalizedrequestedselection+legacydata, notliveprice. Typedstale409 tellsreview; no orphanlead/job/reserve. Admin Leadfind/display joinsnapshotfororiginalrows, privateACLunchanged. New JSversion allimports consistent, previouscachedJS tests included.
 
@@ -149,3 +149,92 @@ RED before product code: realDB inventory readiness table absent. Additional RED
 
 
 Rootclosure: actualworkspace suite45PASS/exit0 each MySQL8.4 and5.7.44 on3190/3191. PHP8.3local; actualhostPHP8.2/installedartifact notyetclaimed. Rootdidnotreadproductdiff. Finalreview singlefreshwholechange later.
+
+### Nativeorder guard integration02
+
+02зона дополнена catalog/controller/event/cmteh_inventory.php и catalog/model/checkout/inventory_guard.php. Catalogevent Action не можетрезолвитьadmincontroller. ТолькоwrapperaddHistory недостаточно: before-mailhooks ужеотработают доего вызова. Earlybeforeownpriority precedesnativeMAIL; actualregistryDB mutex productrows sorted+transaction holds throughwrapper/finally andpreventsconcurrentcutover. Managedотказ BEFOREeffects; ordinaryunmanaged preserved. Другойbeforehandlerexceptionbetweenownbeforeandwrapper долженrollbackownconnection safely (ownershipflag/shutdownfallback), не оставлять незакрытуюtransaction/не подавлятьexception. Sourcecoreбезпатча, no globalACL bypass. Rootрасширилhelperzones техническивнутритребования, не новыйbusinessscope.
+
+### Импорт/публикация и unknownoperation
+
+Serverpreview показывает, какие предложения будутпубличны послеapply: explicitdesiredpublication includedindigest/receipt, не rawbackgroundpublish и не навсегданевидимыеoffers послеактивации. Оператор подтверждаетраспознанныеценыпредложения, не закупочнуюсебестоимость/НДС. МетодInventoryImport.preview можетдобавитьoptionaloptionsargument дляpublicationchoice, конкретный03contractфиксирует. СтарыйserverотвергаетновыйwarehousePOST4xx (404/405 вфактическомrouter), этоfailclosedcapability анестрого404requirement. Newclientunsupportedresponse не переводитwarehousechoiceвgenericSKU.
+
+### Уточнение03/04/02 в процессе интеграции
+
+03optional source_id column (публичныйcanonicalsource_id, неnativeinteger) разрешёндляразрешенияSKUambiguousimport: еслиестьID, проверятьего↔exactSKU; безнегоSKUдолженбытьуникален. Этоexistingidentity, не новыйтипидентификатораR20. Noautomaticchoiceamongbrands. 04AUXcombinedstorageoverflow (>100 fromoldtabs+newAUX) mustpreserveallstoredrows; limitsapplynewadd/submitwithvisiblemessage, no read-truncate-write data loss.
+
+02foreignouterregistrytransaction cannotproducequietlyunsynchronizedmanagedmetadata. ЕслиpinnedHTTPnone, denybeforemanagedwrites withclearunsupportedtransaction; ournestedownedguardtransactionsallowed. No committing/rollingbackforeigntransaction; no separatePDOprojectionbeforecallercommit. Exact02contractrecordsfailclosedtest. CoreInventoryPDOsavepointjoinsremainlegitimateforimport/Lead andnotaffectedbythisnativeadapterboundary.
+
+## Завершённый таск02 — native integration exactcontract
+
+# Ticket 02 — native stock guards
+
+Owned implementation complete; core Inventory files unchanged. Guard adds no DB columns/tables/permission keys/dependencies or automatic grants. Ticket02 explicit installer migration calls `InventorySchema::migrate($pdo, DB_PREFIX)` under the pre-existing install/upgrade permission gate; reads do not migrate or activate products. Ticket05 integration must explicitly require ticket03's `InventoryImport.php` and call `InventoryImport::migrate($pdo, DB_PREFIX)` on the same PDO after InventorySchema, before the full candidate. This mandatory wiring belongs to ticket05 (depends on02+03+04), keeping standalone ticket02 independent from the not-yet-committed ticket03 class. No conditional skip/no-op is permitted. Import-preview staging schema belongs to ticket03's contract, not a second guard schema.
+
+## Actual native transaction boundary
+
+`Cmteh\InventoryNativeGuard::__construct(object $db,string $prefix)` receives the **registry native DB object**, not PDO. `begin(string $purpose): void`, `finish(bool $success): bool`, `active(): bool`, `run(array $ids,callable $callback): mixed`, `lock(array $ids): array`, `available(int $id): int`, `projectionDeferred(): bool`; static `rejectManaged(array $states): void`; static `assertDeletable(PDO $pdo,string $prefix,int $id): void` for the already-transactional CMTEH deletion path.
+
+Native wrappers lock native product rows numerically ascending, then inventory controls in the same order. The available aggregate is a **current locking read**, ordered by warehouse ID; product mutex prevents concurrent stock changes. No separate PDO is opened until the native commit. Loader route redirection changes the route delivered to the original after-event, so wrappers explicitly call `CmtehCatalog::synchronize` with the original add/edit/delete route **after** commit. Nested original-model proxy calls suppress projection until the outer wrapper completes. Descriptions/native fields survive stale quantity submissions. Managed copy is an unpublished ordinary product with quantity zero and no inherited inventory. Managed deletion, shared-stock variant creation/editing and subtracting-option introduction are rejected. Legacy operations remain native.
+
+Managed operations inside a foreign, pre-existing native transaction fail before writes with `InventoryException(reason=unsupported_native_transaction,status=409)`; that caller retains its transaction. Guard-owned nesting (copy→add, full form→option value) remains supported. Legacy foreign transactions join a savepoint and defer separate-PDO projection while the caller transaction is still open; a native catalog sync warning asks for a postcommit save. A later explicit `synchronize` after that caller commits detects the closed transaction and can proceed. `native_busy` 409 rejects a second prepared scope rather than committing another operation. `managed_stock` 409 is the ordinary protected-path denial. No caller transaction is committed/rolled back wholesale by the guard.
+
+Native order `addHistory` guard runs at priority **-10000**, before native mail/activity/statistics priority zero. It starts the actual native transaction, locks order-product rows plus sorted product/master identities, rejects any managed identity before downstream hooks, then redirects to a wrapper which calls the original native model and commits/rolls back. A later before-event exception is propagated; registered scope-owned shutdown fallback rolls back when the wrapper is never reached. No real mail event/transport is invoked by tests.
+
+## Additive events (12)
+
+All added only if their exact event code is absent; original events are not deleted/rewritten for these additions. Uninstall removes these owned codes. `A=extension/cmteh/event/cmteh_catalog`; `C=extension/cmteh/event/cmteh_inventory`.
+
+| Code | Trigger | Action | Sort |
+|---|---|---|---:|
+| cmteh_inventory_delete_batch | admin/controller/catalog/product.delete/before | A.guardProductDelete | -10000 |
+| cmteh_inventory_native_form | admin/view/catalog/product_form/before | A.inventoryForm | 1000 |
+| cmteh_inventory_order_guard | catalog/model/checkout/order.addHistory/before | C.guardOrder | -10000 |
+| cmteh_inventory_native_addProduct | admin/model/catalog/product.addProduct/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_editProduct | admin/model/catalog/product.editProduct/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_copyProduct | admin/model/catalog/product.copyProduct/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_deleteProduct | admin/model/catalog/product.deleteProduct/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_addVariant | admin/model/catalog/product.addVariant/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_editVariant | admin/model/catalog/product.editVariant/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_addOptionValue | admin/model/catalog/product.addOptionValue/before | A.guardProductModel | -10000 |
+| cmteh_inventory_native_editQuantity | catalog/model/catalog/product.editQuantity/before | C.guardQuantity | -10000 |
+| cmteh_inventory_native_editOptionQuantity | catalog/model/catalog/product.editOptionQuantity/before | C.guardQuantity | -10000 |
+
+Redirected model routes are `extension/cmteh/catalog/inventory_guard.{addProduct,editProduct,copyProduct,deleteProduct,addVariant,editVariant,addOptionValue}` in Admin and `extension/cmteh/catalog/inventory_guard.{editQuantity,editOptionQuantity}` plus `extension/cmteh/checkout/inventory_guard.addHistory` in Catalog. Controller batch redirect is `extension/cmteh/event/cmteh_catalog.inventoryDelete`, with explicit logged user + native `modify catalog/product` guard; it retains native deletion logic after whole-batch preflight. No global ACL bypass/new permission grants. Native stock readonly summary links to existing `extension/cmteh/module/cmteh_catalog.inventory` only for existing `access extension/cmteh/module/cmteh_catalog`; the form's descriptive fields remain editable. Native URL helper receives an argument array containing current session user_token and native product_id, with its raw-JavaScript URL flag enabled; JSON_HEX_AMP safely serializes raw ampersands for JSON-to-DOM href assignment without literal `&amp;` query keys.
+
+CMTEH `CatalogAdmin::deleteRecord` checks managed history before routes/relations/deletion. Existing CMTEH controller deletes one record per confirmed request (no second unguarded CMTEH batch API). Existing `CatalogWrites` deliberately does not update quantity; actual `CatalogImport::preview/apply` regression confirms metadata imports cannot reset balances/reserves/versions/native mirror. NativeCatalog no longer derives stored legacy availability from the managed compatibility mirror; ticket04 owns effective public availability.
+
+## Checks and evidence
+
+`python opencart/dev/runtime.py --runtime-dir D:/codex/temp/cmteh-warehouse-dev-20261111 --port 3190 compose exec -T web php /workspace/tests/native-inventory-integration.php` — **24 PASS**, exit 0, actual installed OpenCart Loader/Factory/Event/models + native Cart User/isolated synthetic user groups + real MySQL8.4/PHP8.3.
+
+Same command with `--runtime-dir D:/codex/temp/cmteh-warehouse-mysql57-20261111 --port 3191` — **24 PASS**, exit 0, MySQL5.7.44/PHP8.3.36. Not actual target PHP8.2 or final immutable candidate/host verification. Both sites received only explicitly coordinated owned-file copies plus four frozen Inventory core files/CatalogInput; no whole-package refresh or partial ticket03/04 copy. Tests require installed paths via Reflection and matching SHA256 for 17 owned/stable dependencies. Test runner is workspace-mounted; app classes are exclusively installed paths (no workspace fallback).
+
+RED before guard code: actual installed native `editProduct` wrote posted 999 over explicitly managed 10; assertion `Stale native full form preserves warehouse available` failed. GREEN additionally covers native projection after redirected loader, copy zero/no inventory, direct/mixed-batch deletion, native ACL denial, unchanged legacy full form/direct setters, native two-process stale form blocked on real product mutex then preserved newly reserved available=6, metadata save/import, CMTEH deletion, foreign native transaction refusal, direct option setter, order before-hook spy never called for managed, legacy hook path preserved, later-before-event exception/shutdown rollback, user-group ACL bytes unchanged.
+
+PHP syntax: all nine owned PHP product files + integration script PASS. `node --check` readonly-form script PASS; affected `git diff --check` PASS. No host/config/mail/live-user/real-stock changes. Local fixtures use fresh `ngt_<12hex>_` tables, synthetic users/groups, private temporary NDJSON and child processes; all are removed by suite cleanup.
+
+## Coordinated installed file SHA256 (both runtimes)
+
+| Relative to extension/cmteh | SHA256 |
+|---|---|
+| system/InventoryNativeGuard.php | 1ceffecc31dad729c54a87a41b78f90444e1381d9b7c7783c16b922a3c4dbf10 |
+| admin/model/catalog/inventory_guard.php | 938ef514c7385ad82b0c1d022c2d467d326303feb142c26b62d07718494aa3fb |
+| catalog/model/catalog/inventory_guard.php | 3a90cd071578b1ea44db1919de2fb681de8ca25b5c58bc1b8f0f49c75451e2d7 |
+| catalog/model/checkout/inventory_guard.php | 73ed9fdd7562d520596e0d8094c894d171303ddf32e96522cc494854e4a91314 |
+| catalog/controller/event/cmteh_inventory.php | 171a4d25822e085d746eb3e6e59b14fc03cb8083bbccc06314a07c3317756eb1 |
+| admin/controller/event/cmteh_catalog.php | 75bd396e37712f5073cf37f45df6b7f6cf85d7fa4c3a5513ee541ddbd6bfe9fb |
+| admin/controller/module/cmteh.php | 3a223cbabb3fdbc24104e36dce780c65a5e9bd13f88ab7e39d4c4382addcf260 |
+| admin/view/javascript/cmteh_inventory_guard.js | fae3db63e63aa7a589bd2a8a04b1d1ceb33d12a044093c26129e2be3e589532f |
+| system/CatalogAdmin.php | 53bcc060886614a384ca13cb078bb660a09d8f143ac4282d8d2e5a9e3207457d |
+| system/NativeCatalog.php | ea0850508b05371e4a25a03dcaac32943c1d7c9596d76cbcf2db13c7c2813204 |
+
+UI/browser readonly summary, final full candidate, actual target PHP8.2, existing release/host/recovery safeguards and the one whole-change independent review remain ticket05/root gates. No self-review loop, commits or deployment performed by ticket02.
+
+Integration ownership boundary: ticket03 tests its static staging-DDL migration explicitly, without constructor DDL. Ticket05 owns mandatory Import migrator wiring and the integrated authorized-migrator check before the full candidate. Ticket02 installer is independent from InventoryImport; current installer hash matches the prior 24-PASS receipt. Installed-module PHP syntax PASS after this boundary adjustment; only the module was recopied to3190/3191, with no repeated unchanged domain suite.
+
+Native summary link correction: the initial code incorrectly named a nonexistent standalone inventory route. Confirmed ticket03 entry method is `cmteh_catalog.inventory`. Narrow installed Event fixture `php /workspace/tests/native-inventory-integration.php --form-only` failed before the fix on the expected route assertion, then **3 PASS** on3190 after correction: actual emitted form JSON uses the existing method/native product ID, URL-helper token encoding and JSON ampersands decode correctly, and missing catalog access produces no link. Installed event PHP syntax, updated fixture PHP syntax, and unchanged JS syntax PASS. Only this event file was recopied to3190/3191; domain files unchanged. Per root's explicit owner-policy ruling, root reruns only the affected `--form-only`; the final immutable-candidate strict gate checks the integrated package. Current integration runner SHA256 `e33941cf920e04a03c5bd2549e3a72777dadaec06229d53ff3df51cc310d19bc`.
+
+Prior 24-PASS ×2 receipt: runner SHA256 `b106d0b4bab00147eda07b1d807e252523781440f602848a941736238d514aa1`; event file SHA256 `cef7fb85d6065e0eb37f66a4cd236e7fe54fd7443bb080b41e3767138a6d1efc`; installer SHA256 `3a223cbabb3fdbc24104e36dce780c65a5e9bd13f88ab7e39d4c4382addcf260`. All domain/wrapper hashes and the installer remain exactly those in the table above. The later form-link change has separate narrow evidence above, so the earlier full native runs are not misrepresented as having executed that later line.
+
+
+Rootclosure02: installed form-only3PASS exit0, actualeventdata route/product/tokenencoding+ACL checked. Priornative24×2 checks reused withmatching source receipts; do notbroadrepeatforhref-onlychange. MigrationImportwiring deferredMANDATORYto05, noconstructorDDL/noop.

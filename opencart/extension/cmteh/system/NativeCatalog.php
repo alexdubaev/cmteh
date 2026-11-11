@@ -210,7 +210,9 @@ final class NativeCatalog
             $data['native_price_status'] = $priceStatus;
         }
         $availability = $previous['availability'] ?? null;
-        if (!$previous || (array_key_exists('native_availability', $data) && $data['native_availability'] === $availability)) {
+        $ready=$this->run('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[$this->prefix.'cmteh_inventory_product'])->fetchColumn();
+        $managed=$ready && $this->run('SELECT 1 FROM '.$this->table('cmteh_inventory_product').' WHERE product_id=?',[$id])->fetchColumn();
+        if (!$managed && (!$previous || (array_key_exists('native_availability', $data) && $data['native_availability'] === $availability))) {
             $availability = (int) $row['quantity'] > 0 ? 'in_stock' : null;
             $data['native_availability'] = $availability;
         }

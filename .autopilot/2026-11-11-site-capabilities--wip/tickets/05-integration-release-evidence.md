@@ -2,7 +2,7 @@
 
 **Требования:** G01, G02, G03, G04, G05, G06, G07, G08, G09
 **Зависит от:** 02, 03, 04
-**Зона:** `opencart/dev/release_checks.py` · `opencart/bin/verify-local` · `opencart/tests/inventory-recovery.php` · `opencart/admin-guide.md` · `docs/warehouses.md` · `docs/admin-capabilities-2026-11-11.md`
+**Зона:** `opencart/extension/cmteh/admin/controller/module/cmteh.php` · `opencart/dev/release_checks.py` · `opencart/bin/verify-local` · `opencart/tests/inventory-recovery.php` · `opencart/admin-guide.md` · `docs/warehouses.md` · `docs/admin-capabilities-2026-11-11.md`
 **Волна:** 3
 **Ревью:** нет — одна независимая проверка всей реализации по политике владельца
 **Модель:** обычная
@@ -30,3 +30,7 @@
 ## Исполнение
 
 Read finalfiles fromprior tickets; don'trerunbroadchecks alreadygreenunless changed/failure/unresolvedrisk. Roothandles packagecandidate rawbytealignment and later GitHub/actualhostdeployment; coordinate precisely. Productcodefixfromtestfailure belongsownerworker via root, no unrelatedrefactor.
+
+## D01 — обязательный integrationwire
+
+Послеготового03 подключить require/static InventoryImport::migrate($pdo,DB_PREFIX) сразу после InventorySchema::migrate в существующем authorizedmodulemigrator. Только здесь peerdependencies всеcommitted; никакого class_exists/skip/noop и constructorDDL. Проверитьactual fresh moduleinstall/upgrade создал previewtable без измененияACL/старыхданных. Ticket02domain/guardcode не переписывать.

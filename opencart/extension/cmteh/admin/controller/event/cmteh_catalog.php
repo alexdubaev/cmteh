@@ -11,6 +11,61 @@ use Throwable;
 
 final class CmtehCatalog extends Controller
 {
+    public function guardProductModel(string &$route,array &$args): void
+    {
+        require_once DIR_EXTENSION . 'cmteh/system/InventoryNativeGuard.php';
+        if (!$this->registry->has('cmteh_inventory_native')) $this->registry->set('cmteh_inventory_native',new \Cmteh\InventoryNativeGuard($this->db,DB_PREFIX));
+        $method=substr($route,strrpos($route,'.')+1);
+        if (in_array($method,['addProduct','editProduct','copyProduct','deleteProduct','addVariant','editVariant','addOptionValue'],true)) {
+            $route='extension/cmteh/catalog/inventory_guard.'.$method;
+        }
+    }
+
+    public function guardProductDelete(string &$route,array &$args): void
+    {
+        if ($this->user->isLogged() && $this->user->hasPermission('modify','catalog/product')) $route='extension/cmteh/event/cmteh_catalog.inventoryDelete';
+    }
+
+    public function inventoryDelete(): void
+    {
+        require_once DIR_EXTENSION . 'cmteh/system/InventoryNativeGuard.php';
+        if (!$this->user->isLogged() || !$this->user->hasPermission('modify','catalog/product')) {
+            http_response_code(403); $this->response->setOutput('{"error":"Недостаточно прав"}'); return;
+        }
+        try {
+            if (($this->request->server['REQUEST_METHOD']??'')!=='POST') throw new \Cmteh\InventoryException('invalid_input','Требуется POST.',405);
+            $ids=[];
+            foreach ((array)($this->request->post['selected']??[]) as $id) {
+                if (!is_scalar($id) || !ctype_digit((string)$id) || (int)$id<1 || (int)$id>2147483647) throw new \Cmteh\InventoryException('invalid_input','Некорректный список товаров.');
+                $ids[]=(int)$id;
+            }
+            $route='catalog/product.deleteProduct'; $args=[]; $this->guardProductModel($route,$args);
+            $guard=$this->registry->get('cmteh_inventory_native');
+            $guard->run($ids,function(array $states): void {
+                \Cmteh\InventoryNativeGuard::rejectManaged($states);
+                $this->factory->controller('catalog/product')->delete();
+            });
+            foreach ($ids as $id) { $route='catalog/product.deleteProduct'; $args=[$id]; $output=null; $this->synchronize($route,$args,$output); }
+        } catch (\Cmteh\InventoryException $error) {
+            http_response_code($error->status);
+            $this->response->addHeader('Content-Type: application/json; charset=utf-8');
+            $this->response->setOutput(json_encode(['error'=>$error->getMessage()],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+        }
+    }
+
+    public function inventoryForm(string &$route,array &$data): void
+    {
+        $id=(int)($this->request->get['product_id']??0);
+        if ($id<1 || !$this->user->isLogged()) return;
+        $ready=$this->db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='".$this->db->escape(DB_PREFIX.'cmteh_inventory_product')."'")->num_rows;
+        if (!$ready || !$this->db->query('SELECT product_id FROM `'.DB_PREFIX.'cmteh_inventory_product` WHERE product_id='.$id)->num_rows) return;
+        $stock=$this->db->query('SELECT COALESCE(SUM(on_hand),0) AS on_hand,COALESCE(SUM(reserved),0) AS reserved,COALESCE(SUM(on_hand-reserved),0) AS available FROM `'.DB_PREFIX.'cmteh_inventory_balance` WHERE product_id='.$id)->row;
+        $link=$this->user->hasPermission('access','extension/cmteh/module/cmteh_catalog')
+            ? $this->url->link('extension/cmteh/module/cmteh_catalog.inventory',['user_token'=>$this->session->data['user_token'],'product_id'=>$id],true) : '';
+        $json=json_encode($stock+['url'=>$link],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR);
+        $data['footer']=($data['footer']??'').'<script type="application/json" id="cmteh-inventory-guard">'.$json.'</script><script src="../extension/cmteh/admin/view/javascript/cmteh_inventory_guard.js"></script>';
+    }
+
     public function guardCategoryDelete(string &$route, array &$args): void
     {
         if ($route !== 'catalog/category.delete' || !$this->user->isLogged()
@@ -88,6 +143,8 @@ final class CmtehCatalog extends Controller
 
     public function synchronize(string &$route = '', array &$args = [], mixed &$output = null): void
     {
+        if ($this->registry->has('cmteh_inventory_native') && $this->registry->get('cmteh_inventory_native')->active()) return;
+        if ($this->registry->has('cmteh_inventory_native') && $this->registry->get('cmteh_inventory_native')->projectionDeferred()) return;
         if (!isset(self::ROUTES[$route]) || !$this->user->isLogged()) {
             return;
         }

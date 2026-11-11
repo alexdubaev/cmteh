@@ -83,6 +83,11 @@ final class Cmteh extends Controller
                 ]);
             }
         }
+        foreach ($this->inventoryEvents() as $code => [$trigger,$action,$priority]) {
+            if (!$this->model_setting_event->getEventByCode($code)) $this->model_setting_event->addEvent([
+                'code'=>$code,'description'=>'СМ ТЕХНО: защита складского учёта','trigger'=>$trigger,'action'=>$action,'status'=>true,'sort_order'=>$priority,
+            ]);
+        }
         foreach ($this->adminEvents() as $code => [$trigger, $action]) {
             // Re-register our own hooks to repair stale versions without touching other events.
             $this->model_setting_event->deleteEventByCode($code);
@@ -143,6 +148,7 @@ final class Cmteh extends Controller
         foreach (array_keys($this->nativeCatalogEvents()) as $code) {
             $this->model_setting_event->deleteEventByCode($code);
         }
+        foreach (array_keys($this->inventoryEvents()) as $code) $this->model_setting_event->deleteEventByCode($code);
         foreach (array_keys($this->adminEvents()) as $code) {
             $this->model_setting_event->deleteEventByCode($code);
         }
@@ -174,6 +180,24 @@ final class Cmteh extends Controller
                     "admin/controller/catalog/$model.$method/after", $handler . '.reportSyncFailure',
                 ];
             }
+        }
+        return $events;
+    }
+
+    private function inventoryEvents(): array
+    {
+        $admin='extension/cmteh/event/cmteh_catalog';
+        $catalog='extension/cmteh/event/cmteh_inventory';
+        $events=[
+            'cmteh_inventory_delete_batch'=>['admin/controller/catalog/product.delete/before',$admin.'.guardProductDelete',-10000],
+            'cmteh_inventory_native_form'=>['admin/view/catalog/product_form/before',$admin.'.inventoryForm',1000],
+            'cmteh_inventory_order_guard'=>['catalog/model/checkout/order.addHistory/before',$catalog.'.guardOrder',-10000],
+        ];
+        foreach (['addProduct','editProduct','copyProduct','deleteProduct','addVariant','editVariant','addOptionValue'] as $method) {
+            $events['cmteh_inventory_native_'.$method]=['admin/model/catalog/product.'.$method.'/before',$admin.'.guardProductModel',-10000];
+        }
+        foreach (['editQuantity','editOptionQuantity'] as $method) {
+            $events['cmteh_inventory_native_'.$method]=['catalog/model/catalog/product.'.$method.'/before',$catalog.'.guardQuantity',-10000];
         }
         return $events;
     }
@@ -221,5 +245,7 @@ final class Cmteh extends Controller
             require_once $system . 'Quote.php';
             (new \Cmteh\Quote($pdo, DB_PREFIX))->migrate();
         }
+        require_once $system . 'InventorySchema.php';
+        \Cmteh\InventorySchema::migrate($pdo,DB_PREFIX);
     }
 }

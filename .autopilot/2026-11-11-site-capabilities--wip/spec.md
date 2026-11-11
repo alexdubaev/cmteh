@@ -49,6 +49,8 @@
 - Existing CMTEH catalog access/modify служит складским read/writeACL (тот же пользователь уже имеет права на каталог/остатки); отдельные stocknativeguards не выдают новыхgrouppermissions и не изменяютadminauth. Новые роли не создаются автоматически.
 - Пустые реальные склады, цены и сроки заполняются владельцем через UI/импорт; незаполненное явно показано, неfakefixtures. Текущий телефон/почта/карта/UX сохраняются.
 
+D01 (обнаружено02/03): importpreview имеет собственную additive staging-таблицу. Её explicit migrator подключается в интеграционном05 после готовности Import service; final authorized module migration вызывает оба сервиса. Промежуточный02 не ссылается на отсутствующийpeer-класс. No read/constructor DDL, mandatoryfreshinstallcheck сохраняется.
+
 ## Границы и швы
 
 См. interfaces.md. Файлы отчётов scouts — доказательства exactseams, не замена контрактам. Конкретные механизмы loader/DB guards проверяются installednative integration.
