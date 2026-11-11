@@ -102,6 +102,20 @@ try {
   assert.equal(warehouseHttp.status(),200,'Admin warehouse-create POST should return HTTP 200');
   await page.getByText(`${warehouseCode} · Synthetic XLSX warehouse ${nonce}`,{exact:false}).first().waitFor();
   const targetWarehouse=fixture('--warehouse-id',nonce).warehouse_id;
+  const manualText={name:'Synthetic A & B <warehouse> &amp;',city:'Synthetic <city> & C',delivery_term:'2 & 3 <days>',address:'Private "address" & depot',note:'Private <script>window.__warehouseUnsafe=1</script> &amp;'};
+  for(let edit=0;edit<2;edit++) {
+    const editForm=page.locator('form').filter({has:page.locator('input[name="inventory_action"][value="inventory.warehouse.save"]')}).filter({has:page.locator(`input[name="warehouse_id"][value="${product.a}"]`)});
+    await editForm.evaluate(form=>{form.closest('details').open=true;});
+    if(edit===0) for(const [field,value] of Object.entries(manualText)) await editForm.locator(`[name="${field}"]`).fill(value);
+    else for(const [field,value] of Object.entries(manualText)) assert.equal(await editForm.locator(`[name="${field}"]`).inputValue(),value,`Reloaded ${field} must preserve literal text and entities`);
+    const [saved]=await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),editForm.evaluate(form=>form.requestSubmit())]);
+    assert.equal(saved.status(),200,'Manual warehouse text save should return HTTP 200');
+    await page.goto(inventoryUrl);
+    const reloaded=page.locator('form').filter({has:page.locator('input[name="inventory_action"][value="inventory.warehouse.save"]')}).filter({has:page.locator(`input[name="warehouse_id"][value="${product.a}"]`)});
+    for(const [field,value] of Object.entries(manualText)) assert.equal(await reloaded.locator(`[name="${field}"]`).inputValue(),value,`Saved ${field} must decode exactly one native Request layer`);
+    assert.equal(await page.evaluate(()=>window.__warehouseUnsafe),undefined,'Literal markup must stay escaped on output');
+  }
+  console.log('PASS real native HTTP manual text save/re-edit preserves ampersands, literal entities and escaped markup');
   const preImport=fixture('--state',String(product.pid),String(product.a));
   assert.equal(preImport.product_count,before.product_count,'Manual warehouse creation must not create products');
   assert.equal(preImport.warehouse_count,before.warehouse_count+1,'The UI should add only the explicitly requested warehouse');

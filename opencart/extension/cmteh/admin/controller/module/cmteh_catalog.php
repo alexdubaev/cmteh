@@ -608,6 +608,9 @@ final class CmtehCatalog extends Controller
         $importPage = max(1,min(1000,(int)$this->request->get('import_page','int')));
         $action = $isPost && is_string($this->request->post['inventory_action']??null) ? $this->request->post['inventory_action'] : '';
         $form = $isPost ? $this->request->post : [];
+        // Native Request::clean HTML-encodes POST strings; domain text and error drafts need the original values.
+        foreach ($form as &$value) if (is_string($value)) $value = htmlspecialchars_decode($value, ENT_COMPAT);
+        unset($value);
         if(!$isPost&&is_string($this->request->get['import_preview_id']??null)&&is_string($this->request->get['import_digest']??null)) {
             $preview=$importer->storedPreview($this->request->get['import_preview_id'],$this->request->get['import_digest'],$actor,$importPage);
         }
@@ -624,8 +627,7 @@ final class CmtehCatalog extends Controller
                         elseif ($extension==='xlsx') {
                             $encoded=$form['xlsx_rows']??'';
                             if(!is_string($encoded)||$encoded==='') throw new \Cmteh\InventoryException('invalid_input','Не удалось безопасно прочитать лист XLSX.');
-                            // OpenCart Request::clean applies htmlspecialchars(ENT_COMPAT) to POST strings.
-                            $decoded=json_decode(htmlspecialchars_decode($encoded,ENT_COMPAT),true,32,JSON_THROW_ON_ERROR);
+                            $decoded=json_decode($encoded,true,32,JSON_THROW_ON_ERROR);
                             if(!is_array($decoded)||!array_is_list($decoded)) throw new \Cmteh\InventoryException('invalid_input','Структура XLSX preview неверна.');
                             $rows=$decoded;
                             \Cmteh\InventoryImport::validateXlsxFile((string)$file['tmp_name'],isset($rows[0]['source_id']));
