@@ -3,3 +3,4 @@
 *.jpg binary
 *.jpeg binary
 *.webp binary
+opencart/extension/cmteh/system/seed-cleanup.json -text

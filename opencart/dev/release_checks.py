@@ -35,8 +35,98 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+INSTALLED_SUITES = {
+    "seed-cleanup-integration.php": ["system/Database.php", "system/SeedCleanup.php"],
+    "admin-business-integration.php": ["system/Lead.php", "system/Quote.php", "system/AdminBusiness.php"],
+}
+
+# These two release-critical suites must resolve their relative imports to the
+# installed candidate, not the checkout mounted at /workspace. Fail closed on
+# missing members, changed bytes and links outside the fixed installed roots.
+INSTALLED_SUITE_GUARD = r'''
+$spec=json_decode(base64_decode($argv[1],true),true,512,JSON_THROW_ON_ERROR);
+$root='/var/www/html/extension/cmteh'; $private='/var/www/cmteh-verification';
+if(realpath($root)!==$root || is_link($root) || is_link($root.'/system')) throw new RuntimeException('Installed extension path mismatch');
+if(!is_dir($private) && !mkdir($private,0700)) throw new RuntimeException('Private verifier directory unavailable');
+if(realpath($private)!==$private || is_link($private)) throw new RuntimeException('Private verifier path mismatch');
+$test=$private.'/tests/'.$spec['name'];
+if(!preg_match('/^(seed-cleanup|admin-business)-integration\.php$/D',$spec['name'])) throw new RuntimeException('Unknown installed suite');
+if($spec['test_path']!==$test) throw new RuntimeException('Private test source path mismatch');
+foreach($spec['members'] as $member=>$expected) {
+    if(!preg_match('~^system/[A-Za-z0-9_-]+\.(php|json)$~D',$member)) throw new RuntimeException('Unsafe candidate member');
+    $path=$root.'/'.$member;
+    if(!is_file($path) || is_link($path) || realpath($path)!==$path || !hash_equals($expected,hash_file('sha256',$path))) throw new RuntimeException('Installed candidate member mismatch: '.$member);
+}
+$source='/workspace/tests/'.$spec['name'];
+if(!is_file($source) || is_link($source) || realpath($source)!==$source || !hash_equals($spec['test_sha256'],hash_file('sha256',$source))) throw new RuntimeException('Workspace test input mismatch');
+if(!is_dir($private.'/tests') && !mkdir($private.'/tests',0700)) throw new RuntimeException('Private tests unavailable');
+if(realpath($private.'/tests')!==$private.'/tests' || is_link($private.'/tests')) throw new RuntimeException('Private test directory mismatch');
+$extension=$private.'/extension';
+if(!file_exists($extension) && !is_link($extension) && !symlink('/var/www/html/extension',$extension)) throw new RuntimeException('Installed dependency link unavailable');
+if(!is_link($extension) || readlink($extension)!=='/var/www/html/extension' || realpath($extension)!=='/var/www/html/extension') throw new RuntimeException('Installed dependency link mismatch');
+if(is_link($test)) throw new RuntimeException('Private test cannot be a symlink');
+if(!file_exists($test) && !copy($source,$test)) throw new RuntimeException('Exact private test copy unavailable');
+if(!is_file($test) || realpath($test)!==$test || !hash_equals($spec['test_sha256'],hash_file('sha256',$test))) throw new RuntimeException('Private test bytes mismatch');
+foreach($spec['entries'] as $entry) require_once $root.'/'.$entry;
+$classes=[];
+foreach(array_merge(get_declared_classes(),get_declared_traits()) as $class) {
+    if(!str_starts_with($class,'Cmteh\\')) continue;
+    $path=realpath((new ReflectionClass($class))->getFileName());
+    if(!is_string($path) || !str_starts_with($path,$root.'/system/')) throw new RuntimeException('Reflected class source path mismatch');
+    $member=substr($path,strlen($root)+1);
+    if(!isset($spec['members'][$member]) || !hash_equals($spec['members'][$member],hash_file('sha256',$path))) throw new RuntimeException('Reflected class source hash mismatch');
+    $classes[$class]=['path'=>$path,'sha256'=>hash_file('sha256',$path)];
+}
+echo json_encode(['suite'=>$spec['name'],'test_path'=>$test,'test_sha256'=>$spec['test_sha256'],'candidate_sha256'=>$spec['candidate_sha256'],'classes'=>$classes,'members'=>$spec['members']],JSON_THROW_ON_ERROR);
+'''
+
+
+def installed_suite_spec(runtime, name):
+    require(name in INSTALLED_SUITES, "Unknown installed candidate suite.")
+    candidate = runtime.directory / "cmteh.ocmod.zip"
+    require(candidate.is_file() and not candidate.is_symlink(), "Exact candidate archive is unavailable.")
+    with ZipFile(candidate) as archive:
+        names = archive.namelist()
+        require(len(names) == len(set(names)), "Duplicate candidate member.")
+        members = {member: hashlib.sha256(archive.read(member)).hexdigest() for member in names
+                   if re.fullmatch(r"system/[A-Za-z0-9_-]+\.(php|json)", member)}
+    require(all(entry in members for entry in INSTALLED_SUITES[name])
+            and "system/seed-cleanup.json" in members, "Required installed candidate members are missing.")
+    test = ROOT / "tests" / name
+    require(test.is_file() and not test.is_symlink(), "Exact suite input is unavailable.")
+    return {"name": name, "entries": INSTALLED_SUITES[name], "members": members,
+            "candidate_sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+            "test_path": "/var/www/cmteh-verification/tests/" + name,
+            "test_sha256": hashlib.sha256(test.read_bytes()).hexdigest()}
+
+
+def installed_suite_guard(runtime, spec):
+    payload = base64.b64encode(json.dumps(spec).encode()).decode("ascii")
+    return json.loads(runtime.docker("exec", "-T", "web", "php", "-r", INSTALLED_SUITE_GUARD,
+                                     payload, capture=True).stdout)
+
+
 def run_php_suite(runtime, name):
-    runtime.docker("exec", "-T", "web", "php", "/workspace/tests/" + name)
+    if name not in INSTALLED_SUITES:
+        runtime.docker("exec", "-T", "web", "php", "/workspace/tests/" + name)
+        return
+    spec = installed_suite_spec(runtime, name)
+    proof = installed_suite_guard(runtime, spec)
+    try:
+        result = runtime.docker("exec", "-T", "web", "php", spec["test_path"], capture=True)
+    except subprocess.CalledProcessError as error:
+        print(re.sub(r'user_token=[^&\s"<>]+', 'user_token=[REDACTED]', (error.stdout or "") + (error.stderr or "")))
+        raise
+    require(installed_suite_guard(runtime, spec) == proof, "Installed candidate changed during the suite.")
+    print(result.stdout, end="", flush=True)
+    evidence = runtime.directory / "evidence"
+    evidence.mkdir(exist_ok=True)
+    proof["result"] = "PASS"
+    proof["pass_lines"] = sum(line.startswith("PASS") and not line.startswith("PASS cleanup integration ")
+                              for line in result.stdout.splitlines())
+    (evidence / (name.removesuffix(".php") + "-installed.json")).write_text(
+        json.dumps(proof, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"PASS installed candidate suite: {name}; {proof['pass_lines']} assertions; reflected installed sources match archive", flush=True)
 
 
 def lint(runtime):
@@ -351,9 +441,9 @@ def admin_navigation(runtime):
         event_count = runtime.docker("exec", "-T", "db", "sh", "-ec",
                                     'export MYSQL_PWD="$(cat /runtime/db-root-password)"; '
                                     'mysql -uroot -NB cmteh_dev -e "SELECT COUNT(*) FROM oc_event '
-                                    "WHERE code IN ('cmteh_admin_menu','cmteh_admin_language') AND status=1\"",
+                                    "WHERE code IN ('cmteh_admin_menu','cmteh_admin_language','cmteh_admin_header','cmteh_admin_dashboard') AND status=1\"",
                                     capture=True).stdout.strip()
-        require(event_count == "2", "Repeat upgrade duplicated or failed to activate admin events.")
+        require(event_count == "4", "Repeat upgrade duplicated or failed to activate admin events.")
         for route, words in (
             ("catalog/product", ["Товары", "Название товара", "Фильтр"]),
             ("catalog/product.form", ["Добавить товар", "Описание", "Мета-заголовок"]),
@@ -380,7 +470,7 @@ def admin_navigation(runtime):
             (manager, LEADS, LEADS, CATALOG), (operator, CATALOG, CATALOG, LEADS),
         ):
             code, page = session.request(session.action(route))
-            menu = re.search(r'<li id="menu-cmteh".*?</li>\s*</ul>', page, re.S)
+            menu = re.search(r'<nav id="column-left".*?</nav>', page, re.S)
             require(code == 200 and menu and expected in menu[0] and forbidden not in menu[0],
                     "Direct menu does not follow the role's existing access permissions.")
         require(operator.request(operator.action(LEADS))[0] in (401, 403), "Catalog role can access leads.")
@@ -647,7 +737,7 @@ def collect_browser(runtime, tooling, reference, evidence):
                         "CMTEH_ADMIN_CMS_SCENARIO": "full",
                         "CMTEH_ADMIN_USERNAME": username,
                         "CMTEH_ADMIN_PASSWORD_FILE": str(password_file)}
-    for name in ("storefront.mjs", "admin-cms.mjs", "capture.mjs"):
+    for name in ("storefront.mjs", "admin-cms.mjs", "admin-shell.mjs", "capture.mjs"):
         subprocess.run(["node", str(browser_dir / name)], env=env, check=True)
 
     pairs = []

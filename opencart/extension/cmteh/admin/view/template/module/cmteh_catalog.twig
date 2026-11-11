@@ -269,7 +269,7 @@
           <thead><tr><th scope="col">Запись</th><th scope="col">Адрес</th><th scope="col">Статус</th><th scope="col">OpenCart</th></tr></thead>
           <tbody>
           {% for row in rows %}
-            <tr><td><a href="{{ row.href|escape }}">{{ (row.title ?: row.id)|escape }}</a></td><td>{{ row.slug|escape }}</td><td>{{ row.status == 'published' ? 'Опубликовано' : (row.status == 'archived' ? 'В архиве' : 'Черновик') }}</td><td>{% if row.native_href %}<a href="{{ row.native_href|escape }}">Штатная форма</a>{% endif %}</td></tr>
+            <tr><td>{% if row.href %}<a href="{{ row.href|escape }}">{{ (row.title ?: row.id)|escape }}</a>{% else %}{{ (row.title ?: row.id)|escape }} <span class="text-muted">(штатная запись №{{ row.native_id }}, не подключена к витрине)</span>{% endif %}</td><td>{{ row.slug|escape }}</td><td>{{ row.unmapped ? 'Не подключена к витрине' : (row.status == 'published' ? 'Опубликовано' : (row.status == 'archived' ? 'В архиве' : 'Черновик')) }}</td><td>{% if row.native_href %}<a href="{{ row.native_href|escape }}">Штатная форма</a>{% endif %}</td></tr>
           {% else %}
             <tr><td colspan="4">Записи не найдены. Измените поиск или создайте новую запись.</td></tr>
           {% endfor %}

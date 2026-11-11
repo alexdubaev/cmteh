@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html dir="{{ direction }}" lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>{{ title }}</title>
+  <base href="{{ base }}"/>
+  {% if description %}
+    <meta name="description" content="{{ description }}"/>
+  {% endif %}
+  {% if keywords %}
+    <meta name="keywords" content="{{ keywords }}"/>
+  {% endif %}
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+  <link href="{{ bootstrap }}" rel="stylesheet" media="screen"/>
+  <link href="{{ icons }}" rel="stylesheet" type="text/css"/>
+  <link href="{{ stylesheet }}" rel="stylesheet" type="text/css"/>
+  <script src="{{ jquery }}" type="text/javascript"></script>
+  <script type="text/javascript" src="view/javascript/common.js"></script>
+  {% if icon %}
+    <link rel="icon" href="{{ icon }}" type="image/png">
+  {% endif %}
+  {% for style in styles %}
+    <link type="text/css" href="{{ style.href }}" rel="{{ style.rel }}" media="{{ style.media }}"/>
+  {% endfor %}
+  {% for link in links %}
+    <link href="{{ link.href }}" rel="{{ link.rel }}"/>
+  {% endfor %}
+  {% for script in scripts %}
+    <script type="text/javascript" src="{{ script.href }}"></script>
+  {% endfor %}
+  <style>
+    #column-left { z-index: 999; }
+    #nav-requests .nav-link { padding-left: 15px; padding-right: 15px; line-height: 30px; font-size: 22px; }
+    @media (min-width: 992px) { #nav-requests .nav-link { line-height: 50px; } }
+    @media (max-width: 767.98px) {
+      #header .container-fluid { min-height: 60px; flex-wrap: nowrap; gap: 4px; padding: 0 12px; }
+      #header .navbar-brand { flex: 0 0 auto; margin: 0 auto 0 0; font-size: 15px; white-space: nowrap; }
+      #header .navbar-nav { flex: 0 0 auto; flex-direction: row; flex-wrap: nowrap; align-items: center; }
+      #header .navbar-nav > li > .nav-link { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 8px; line-height: 1; }
+      #header #nav-profile img { width: 28px; height: 28px; }
+      #header #button-menu { flex: 0 0 44px; width: 44px; height: 44px; padding: 8px; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+<div id="alert"></div>
+<div id="container">
+  <header id="header" class="navbar navbar-expand navbar-light bg-light">
+    <div class="container-fluid">
+      <a href="{{ home }}" class="navbar-brand fw-bold" style="color:#263238;border-bottom:3px solid #f4ce17">СМ ТЕХНО</a>
+      {% if logged %}
+        <button type="button" id="button-menu" class="btn btn-link d-inline-block d-lg-none"><i class="fa-solid fa-bars"></i></button>
+        <ul class="nav navbar-nav">
+          {% if cmteh_requests %}<li id="nav-requests" class="nav-item"><a href="{{ cmteh_requests }}" class="nav-link" aria-label="Обращения" title="Обращения"><i class="fa-solid fa-inbox"></i></a></li>{% endif %}
+          <li id="nav-language" class="nav-item dropdown">{{ language }}</li>
+          <li id="nav-profile" class="nav-item dropdown">
+            <a href="#" data-bs-toggle="dropdown" class="nav-link dropdown-toggle"><img src="{{ image }}" alt="{{ cmteh_username|escape }}" title="{{ cmteh_username|escape }}" class="rounded-circle"/><span class="d-none d-md-inline d-lg-inline">&nbsp;&nbsp;&nbsp;{{ cmteh_username|escape }} <i class="fa-solid fa-caret-down fa-fw"></i></span></a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a href="{{ profile }}" class="dropdown-item"><i class="fa-solid fa-user-circle fa-fw"></i> {{ text_profile }}</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><h6 class="dropdown-header">{{ text_store }}</h6></li>
+              {% for store in stores %}
+                <a href="{{ store.href }}" target="_blank" class="dropdown-item">{{ store.name }}</a>
+              {% endfor %}
+              <li><hr class="dropdown-divider"></li>
+            </ul>
+          </li>
+          <li id="nav-logout" class="nav-item"><a href="{{ logout }}" class="nav-link"><i class="fa-solid fa-sign-out"></i> <span class="d-none d-md-inline">{{ text_logout }}</span></a></li>
+        </ul>
+      {% endif %}
+    </div>
+  </header>

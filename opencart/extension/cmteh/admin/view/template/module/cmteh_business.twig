@@ -1,0 +1,40 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header"><div class="container-fluid"><h1>{{ heading_title|escape }}</h1></div></div>
+  <div class="container-fluid">
+    <nav class="d-flex gap-2 overflow-auto mb-3 pb-1" aria-label="Обращения">{% for link in navigation %}<a class="btn btn-outline-primary d-flex align-items-center flex-shrink-0" style="white-space:nowrap;min-height:44px" href="{{ link.href }}">{{ link.name|escape }}</a>{% endfor %}</nav>
+    {% if view == 'capabilities' %}
+      {% include 'extension/cmteh/admin/view/template/module/cmteh_capabilities.twig' %}
+    {% else %}
+      <p>Обращения — запросы на расчёт. Контакты показаны по каждому обращению без объединения людей. Состояние уведомления не означает стадию продажи.</p>
+      <form method="get" action="{{ action|escape }}" class="card card-body mb-3">
+        <input type="hidden" name="route" value="{{ route|escape }}"><input type="hidden" name="user_token" value="{{ user_token|escape }}"><input type="hidden" name="view" value="{{ view|escape }}">
+        <div class="row g-3">
+          <div class="col-12 col-lg-4"><label for="business-search" class="form-label">Номер, имя, телефон, email или компания</label><input id="business-search" name="search" maxlength="200" value="{{ filters.search|escape }}" class="form-control"></div>
+          <div class="col-6 col-lg-2"><label for="business-from" class="form-label">С даты (UTC)</label><input id="business-from" type="date" name="from" value="{{ filters.from|escape }}" class="form-control"></div>
+          <div class="col-6 col-lg-2"><label for="business-to" class="form-label">По дату (UTC)</label><input id="business-to" type="date" name="to" value="{{ filters.to|escape }}" class="form-control"></div>
+          <div class="col-6 col-lg-2"><label for="business-type" class="form-label">Тип</label><select id="business-type" name="type" class="form-select"><option value="">Все типы</option value="lead" {% if filters.type == 'lead' %}selected{% endif %}>Заявка</option><option value="quote" {% if filters.type == 'quote' %}selected{% endif %}>Расценка</option></select></div>
+          <div class="col-6 col-lg-2"><label for="business-status" class="form-label">Уведомление</label><select id="business-status" name="status" class="form-select"><option value="">Все состояния</option>{% for key,label in status_labels %}<option value="{{ key|escape }}" {% if filters.status == key %}selected{% endif %}>{{ label|escape }}</option>{% endfor %}</select></div>
+          <div class="col-12"><button class="btn btn-primary" type="submit">Применить</button></div>
+        </div>
+      </form>
+      {% for source in unavailable %}<div class="alert alert-warning">Источник «{{ source == 'lead' ? 'Заявки' : 'Расценки' }}» недоступен: необходимые таблицы отсутствуют. Итоги относятся только к доступным данным.</div>{% endfor %}
+      {% include 'extension/cmteh/admin/view/template/module/cmteh_business_summary.twig' with {'summary':summary} %}
+      {% if view == 'sources' %}<p>Источник — URL, указанный при отправке обращения. Это не подтверждённая атрибуция кампании. URL показаны текстом; пустые значения учтены отдельно.</p>{% endif %}
+      {% if view == 'reports' %}<p>Позиции и количество учитываются только из структурированных заявок. Списки и оригиналы расценок не разбираются для статистики; смотрите их в карточке.</p>{% endif %}
+      <div class="card mb-3"><div class="table-responsive"><table class="table table-bordered table-hover mb-0" id="business-table">
+        <thead><tr>
+          {% if view == 'sources' %}<th>Указанный URL</th><th>Тип</th><th>Обращений</th>
+          {% elseif view == 'reports' %}<th>Дата (UTC)</th><th>Тип</th><th>Уведомление</th><th>Обращений</th><th>Позиций в заявках</th><th>Количество в заявках</th>
+          {% else %}<th>Обращение / дата (UTC)</th><th>Контакт</th><th>Компания</th><th>Позиции / количество</th><th>Уведомление</th>{% endif %}
+        </tr></thead>
+        <tbody>{% for row in rows %}<tr>
+          {% if view == 'sources' %}<td style="max-width:40rem;overflow-wrap:anywhere">{{ row.source ? row.source|escape : 'Источник не указан' }}</td><td>{{ row.type == 'lead' ? 'Заявка' : 'Расценка' }}</td><td>{{ row.requests }}</td>
+          {% elseif view == 'reports' %}<td>{{ row.day|escape }}</td><td>{{ row.type == 'lead' ? 'Заявка' : 'Расценка' }}</td><td>{{ status_labels[row.status]|default('Нет состояния')|escape }}</td><td>{{ row.requests }}</td><td>{{ row.items }}</td><td>{{ row.quantity }}</td>
+          {% else %}<td style="min-width:13rem;overflow-wrap:anywhere"><a href="{{ row.href }}">{{ row.type == 'lead' ? 'Заявка' : 'Расценка' }} № {{ row.public_id|escape }}</a><br>{{ row.created_at|escape }}</td><td style="min-width:12rem;overflow-wrap:anywhere">{{ row.name|escape }}<br>{{ row.phone|escape }}<br>{{ row.email|escape }}</td><td style="overflow-wrap:anywhere">{{ row.company|escape }}</td><td>{% if row.type == 'lead' %}{{ row.items }} / {{ row.quantity }}{% else %}{{ row.input_kind == 'file' ? 'Оригинал файла в карточке' : 'Исходный список в карточке' }}{% endif %}</td><td>{{ status_labels[row.status]|default('Нет состояния')|escape }}</td>{% endif %}
+        </tr>{% else %}<tr><td colspan="6" class="text-center p-4">Обращений по выбранным условиям нет.</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+      <nav class="d-flex flex-wrap align-items-center gap-3 mb-4" aria-label="Страницы"><span>Записей: {{ total }} · Страница {{ page }} из {{ pages }}</span>{% if previous %}<a class="btn btn-outline-primary" href="{{ previous }}">Назад</a>{% endif %}{% if next %}<a class="btn btn-outline-primary" href="{{ next }}">Далее</a>{% endif %}</nav>
+    {% endif %}
+  </div>
+</div>{{ footer }}

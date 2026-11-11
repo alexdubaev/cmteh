@@ -253,9 +253,11 @@ final class CmtehCatalog extends Controller
             ];
         }
 
-        $rows = $catalog->editRows($type, $page, $search, $status);
+        $nativeRoute = ['product'=>'catalog/product','category'=>'catalog/category','brand'=>'catalog/manufacturer'][$type] ?? '';
+        $rows = $catalog->editRows($type, $page, $search, $status,
+            $nativeRoute !== '' && $this->user->hasPermission('access', $nativeRoute));
         foreach ($rows as &$row) {
-            $row['href'] = $link(['type' => $type, 'id' => $row['id'], 'page' => $page, 'search' => $search, 'status' => $status]);
+            $row['href'] = !empty($row['unmapped']) ? '' : $link(['type' => $type, 'id' => $row['id'], 'page' => $page, 'search' => $search, 'status' => $status]);
             $row['native_href'] = $this->nativeLink($type, (int) ($row['native_id'] ?? 0), $token);
         }
 

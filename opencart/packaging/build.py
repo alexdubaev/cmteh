@@ -75,7 +75,7 @@ def build(upstream: Path, output: Path, extension_only: bool = False) -> Path:
     cli = ROOT / "bin"
     if cli.is_dir():
         for path in cli.iterdir():
-            if path.is_file() and path.name.startswith(("import", "generate", "send-leads", "send-quotes")):
+            if path.is_file() and (path.name.startswith(("import", "generate", "send-leads", "send-quotes")) or path.name == "cleanup-seed.php"):
                 files[f"cli/{path.name}"] = path
     write_zip(package, files)
     (output / f"{package.name}.sha256").write_text(f"{digest(package)}  {package.name}\n", encoding="ascii")
