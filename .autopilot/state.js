@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "site-analytics",
-  "dir": "2026-11-12-site-analytics--wip",
+  "dir": "2026-11-12-site-analytics",
   "title": "Аналитика и подтверждение прав",
   "mode": "semi",
   "depth": "normal",
@@ -11,10 +11,10 @@ window.STATE =
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": null,
+  "baseCommit": "4ecfd83",
   "startedAt": "2026-11-12T12:38:18+03:00",
-  "updatedAt": "2026-11-12T12:40:44+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-12T12:55:50+03:00",
+  "finishedAt": "2026-11-12T12:55:50+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -43,26 +43,33 @@ window.STATE =
     },
     {
       "id": "plan",
-      "status": "active",
-      "startedAt": "2026-11-12T12:40:31+03:00"
+      "status": "done",
+      "startedAt": "2026-11-12T12:40:31+03:00",
+      "finishedAt": "2026-11-12T12:40:53+03:00"
     },
     {
       "id": "build",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-12T12:40:53+03:00",
+      "finishedAt": "2026-11-12T12:49:58+03:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-12T12:49:58+03:00",
+      "finishedAt": "2026-11-12T12:52:33+03:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-12T12:52:33+03:00",
+      "finishedAt": "2026-11-12T12:55:50+03:00"
     }
   ],
   "requirements": {
     "total": 6,
-    "done": 0,
-    "inTicket": 6,
+    "done": 6,
+    "inTicket": 0,
     "inSpec": 0,
     "placeholder": 0,
     "deferred": 0,
@@ -89,12 +96,22 @@ window.STATE =
       ],
       "review": "нет",
       "model": "обычная",
-      "status": "pending",
+      "status": "done",
       "retries": 0,
-      "repairs": 0
+      "repairs": 0,
+      "startedAt": "2026-11-12T12:40:54+03:00",
+      "finishedAt": "2026-11-12T12:49:57+03:00",
+      "tests": {
+        "passed": 135,
+        "failed": 0
+      },
+      "commit": "c951384"
     }
   ],
-  "tests": null,
+  "tests": {
+    "passed": 135,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [],
     "assumptions": [],
@@ -108,7 +125,11 @@ window.STATE =
     "items": []
   },
   "concerns": [],
-  "blind": null,
+  "blind": {
+    "checked": 6,
+    "matched": 6,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-12T12:38:18+03:00",
     "2026-11-12T12:39:29+03:00",
@@ -119,9 +140,19 @@ window.STATE =
     "2026-11-12T12:40:32+03:00",
     "2026-11-12T12:40:33+03:00",
     "2026-11-12T12:40:34+03:00",
-    "2026-11-12T12:40:44+03:00"
+    "2026-11-12T12:40:44+03:00",
+    "2026-11-12T12:40:52+03:00",
+    "2026-11-12T12:40:53+03:00",
+    "2026-11-12T12:40:54+03:00",
+    "2026-11-12T12:49:57+03:00",
+    "2026-11-12T12:49:58+03:00",
+    "2026-11-12T12:52:33+03:00",
+    "2026-11-12T12:52:34+03:00",
+    "2026-11-12T12:55:48+03:00",
+    "2026-11-12T12:55:49+03:00",
+    "2026-11-12T12:55:50+03:00"
   ],
-  "rev": 13,
+  "rev": 23,
   "waiting": null,
   "waits": [],
   "log": [
@@ -199,38 +230,101 @@ window.STATE =
       "g": "G3",
       "ok": true,
       "problems": 0
+    },
+    {
+      "t": "2026-11-12T12:40:53+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T12:40:54+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T12:49:57+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 135,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-12T12:49:58+03:00",
+      "k": "stage",
+      "id": "review",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T12:52:33+03:00",
+      "k": "stage",
+      "id": "final",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T12:52:34+03:00",
+      "k": "add",
+      "key": "report",
+      "n": 1
+    },
+    {
+      "t": "2026-11-12T12:55:48+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 6,
+      "matched": 6
+    },
+    {
+      "t": "2026-11-12T12:55:49+03:00",
+      "k": "tests",
+      "passed": 135,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-12T12:55:50+03:00",
+      "k": "finish",
+      "result": "Четыре общих поля реализованы; source/package acceptance PASS, фактический deploy во внешнем handoff"
     }
   ],
   "reqList": [
     {
       "id": "R01",
       "text": "«Настройки сайта → Аналитика и подтверждение прав»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R02",
       "text": "«Яндекс Метрика — номер счётчика»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R03",
       "text": "«Google Analytics 4 — идентификатор измерения»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R04",
       "text": "«Яндекс Вебмастер — код подтверждения»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R05",
       "text": "«Google Search Console — код подтверждения»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R06",
       "text": "«одна админка для v1 v2 ... разница будет только визуальная»",
-      "status": "in-ticket"
+      "status": "done"
     }
   ],
   "gates": {
@@ -251,7 +345,16 @@ window.STATE =
       "ok": true,
       "at": "2026-11-12T12:40:44+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-12T12:55:48+03:00",
+      "checked": 6,
+      "matched": 6
     }
   },
-  "result": null
+  "result": "Четыре общих поля реализованы; source/package acceptance PASS, фактический deploy во внешнем handoff",
+  "report": [
+    "Независимое ревью c951384 и подготовленных code-only helpers: FIX NOW 0; выкладка ещё не выполнена."
+  ]
 }
