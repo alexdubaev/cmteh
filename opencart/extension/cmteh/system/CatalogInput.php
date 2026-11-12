@@ -31,6 +31,22 @@ final class CatalogInput
         return $value;
     }
 
+    /** Public identifiers only; also used at the storefront read boundary. */
+    public static function siteAnalytics(string $field, mixed $value): string
+    {
+        [$pattern, $hint] = match ($field) {
+            'yandex_metrika_id' => ['~^[1-9][0-9]{0,14}$~D', 'Яндекс Метрика: введите положительный номер счётчика (до 15 цифр)'],
+            'google_analytics_id' => ['~^G-[A-Z0-9]{1,32}$~D', 'Google Analytics 4: введите идентификатор G-… (латинские заглавные буквы и цифры)'],
+            'yandex_verification' => ['~^[a-fA-F0-9]{16}$~D', 'Яндекс Вебмастер: введите 16 шестнадцатеричных символов кода подтверждения'],
+            'google_site_verification' => ['~^[A-Za-z0-9_-]{1,256}$~D', 'Google Search Console: введите только код подтверждения (буквы, цифры, _ и -)'],
+            default => throw new InvalidArgumentException('Неизвестное поле аналитики'),
+        };
+        if (!is_string($value) || strlen($value) > 256) throw new InvalidArgumentException($hint);
+        $value = trim($value);
+        if ($value !== '' && !preg_match($pattern, $value)) throw new InvalidArgumentException($hint);
+        return $value;
+    }
+
     public static function normalize(string $value): string
     {
         return preg_replace('/[^A-Z0-9А-ЯЁ]+/u', '', mb_strtoupper(trim($value))) ?? '';

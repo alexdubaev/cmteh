@@ -26,6 +26,23 @@ try {
  $c->save('page',['id'=>'contacts','slug'=>'contacts','title'=>'Contacts','status'=>'published']);
  $mapView=fn()=> (new Cmteh\StorefrontPages($c,'http://127.0.0.1:3170'))->view('/contacts',[]);
  check($mapView()['site']['yandex_map_src']==='','No map is supplied by default');
+ $analytics=['yandex_metrika_id'=>'12345678','google_analytics_id'=>'G-TEST1234','yandex_verification'=>'abcdef0123456789','google_site_verification'=>'Synthetic_Verification-123'];
+ $c->saveFromAdmin('site',['id'=>'site']+$analytics);
+ foreach ($analytics as $field=>$value) check(($c->editRecord('site','site')[$field]??null)===$value && ($mapView()['site'][$field]??null)===$value,'Analytics save reload and public projection: '.$field);
+ $beforeAnalytics=$c->editRecord('site','site');
+ foreach (['yandex_metrika_id'=>['0','-1','1e9',str_repeat('9',17),['123']], 'google_analytics_id'=>['UA-123','G-','G-test','G-TEST<script>'], 'yandex_verification'=>['<meta>',str_repeat('a',17)], 'google_site_verification'=>['<script>','abc def','https://evil.test',str_repeat('a',257)]] as $field=>$invalid) {
+   foreach ($invalid as $index=>$value) {
+     rejects(fn()=> $c->saveFromAdmin('site',['id'=>'site','phone'=>'Must roll back',$field=>$value]),'Invalid analytics rejected: '.$field.' '.$index);
+     check($c->editRecord('site','site')===$beforeAnalytics,'Analytics rejection is atomic: '.$field.' '.$index);
+     rejects(fn()=> $c->save('site',array_replace($beforeAnalytics,[$field=>$value])),'Import analytics rejected: '.$field.' '.$index);
+   }
+ }
+ $legacyAnalytics=array_replace($beforeAnalytics,array_fill_keys(array_keys($analytics),'<script>'));
+ $pdo->prepare('UPDATE `'.$prefix.'cmteh_content` SET data=? WHERE type=? AND source_id=?')->execute([json_encode($legacyAnalytics,JSON_THROW_ON_ERROR),'site','site']);
+ foreach ($analytics as $field=>$value) check(($mapView()['site'][$field]??null)==='','Legacy analytics fails closed: '.$field);
+ $c->saveFromAdmin('site',['id'=>'site']+array_fill_keys(array_keys($analytics),''));
+ foreach ($analytics as $field=>$value) check($c->editRecord('site','site')[$field]==='' && $mapView()['site'][$field]==='','Analytics clearing: '.$field);
+ check($c->editRecord('site','site')['address']==='Local test office','Analytics preserves unrelated site fields');
  $widget='https://yandex.ru/map-widget/v1/?ll=37.617%2C55.755&z=12';
  $frame='https://api-maps.yandex.ru/frame/v1/-/CZxcTEST';
  foreach ([$widget, $frame, '<iframe src="'.$frame.'" width="560" height="400"></iframe>',

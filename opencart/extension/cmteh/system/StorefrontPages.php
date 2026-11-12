@@ -85,6 +85,13 @@ final class StorefrontPages
             $site['yandex_map_src'] = '';
         }
         unset($site['yandex_map_embed']);
+        foreach (['yandex_metrika_id', 'google_analytics_id', 'yandex_verification', 'google_site_verification'] as $field) {
+            try {
+                $site[$field] = CatalogInput::siteAnalytics($field, $site[$field] ?? '');
+            } catch (InvalidArgumentException) {
+                $site[$field] = '';
+            }
+        }
         $home = self::htmlFields($page === 'home' ? $record : ($this->catalog->content('home') ?? []));
         $home['hero_image_url'] = EditorialDefaults::imageUrl($home['hero_image_path'] ?? null)
             ?? $this->seo->assetUrl($home['hero_image'] ?? null);

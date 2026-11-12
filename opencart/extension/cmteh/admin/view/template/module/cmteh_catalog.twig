@@ -156,7 +156,14 @@
                   {% if edit_id %}<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="confirm-slug" name="confirm_slug_change" value="1"><label class="form-check-label" for="confirm-slug">Подтверждаю изменение адреса и прямое перенаправление 301 со старого URL</label></div>{% endif %}
                 </div>
               {% endif %}
+              {% set analytics_help = {
+                yandex_metrika_id: ['Положительный номер счётчика, до 15 цифр. Без Webvisor и отслеживания форм.', 'https://www.yandex.ru/support/metrica/ru/code/counter-initialize'],
+                google_analytics_id: ['Идентификатор G-…: заглавные латинские буквы и цифры.', 'https://developers.google.com/analytics/devguides/collection/ga4/tag-options'],
+                yandex_verification: ['Только код content из метатега: 16 символов 0–9, a–f.', 'https://yandex.ru/support/webmaster/ru/service/rights'],
+                google_site_verification: ['Только код content из метатега: буквы, цифры, _ и -. До 256 символов.', 'https://support.google.com/webmasters/answer/9008080']
+              } %}
               {% for item in fields %}
+                {% if item.field == 'yandex_metrika_id' %}<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto fs-6 px-2">Аналитика и подтверждение прав</legend><p class="form-text">Необязательные поля. Вставляйте только ID или код, без HTML. Очистите поле, чтобы отключить подключение.</p>{% endif %}
                 <div class="mb-3">
                   <label class="form-label" for="field-{{ item.field|escape }}">{{ item.label|escape }}</label>
                   {% if item.select %}
@@ -172,8 +179,10 @@
                   {% else %}
                     <input class="form-control" type="{% if item.control in ['number', 'integer'] %}number{% else %}text{% endif %}"{% if item.control == 'number' %} min="0" step="0.0001"{% endif %} id="field-{{ item.field|escape }}" name="{{ item.field|escape }}" value="{{ item.value|escape }}">
                   {% endif %}
+                  {% if analytics_help[item.field] is defined %}<p class="form-text">{{ analytics_help[item.field][0]|escape }} <a href="{{ analytics_help[item.field][1]|escape }}" target="_blank" rel="noopener noreferrer">Справка сервиса</a></p>{% endif %}
                   {% if item.field == 'yandex_map_embed' %}<p class="form-text">В Яндекс Картах выберите «Поделиться» → «Виджет с картой» (iframe), в Конструкторе — «Получить код карты» → iframe. Вставьте код или ссылку виджета. После сохранения останется только ссылка. Очистите поле, чтобы убрать карту со страницы контактов.</p>{% endif %}
                 </div>
+                {% if item.field == 'google_site_verification' %}</fieldset>{% endif %}
               {% endfor %}
               {% if type == 'navigation' %}
                 <label class="form-label d-block">Внутренняя страница, категория или бренд

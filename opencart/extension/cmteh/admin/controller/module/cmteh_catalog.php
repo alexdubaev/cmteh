@@ -35,6 +35,10 @@ final class CmtehCatalog extends Controller
         'description' => ['Описание', 'rich'], 'content' => ['Текст публикации', 'rich'], 'excerpt' => ['Анонс', 'textarea'],
         'company_name' => ['Компания', 'text'], 'phone' => ['Телефон', 'text'], 'email' => ['Email', 'text'],
         'address' => ['Адрес', 'text'], 'working_hours' => ['Режим работы', 'text'], 'hero_title' => ['Заголовок обложки', 'text'],
+        'yandex_metrika_id' => ['Яндекс Метрика — номер счётчика', 'text'],
+        'google_analytics_id' => ['Google Analytics 4 — идентификатор измерения', 'text'],
+        'yandex_verification' => ['Яндекс Вебмастер — код подтверждения', 'text'],
+        'google_site_verification' => ['Google Search Console — код подтверждения', 'text'],
         'yandex_map_embed' => ['Яндекс Карта офиса', 'textarea'],
         'hero_text' => ['Текст обложки', 'textarea'], 'label' => ['Подпись пункта меню', 'text'], 'url' => ['Адрес ссылки', 'text'],
         'location' => ['Область меню', ['header' => 'Шапка', 'footer' => 'Подвал', 'legal' => 'Правовая информация']],
@@ -115,6 +119,7 @@ final class CmtehCatalog extends Controller
         ],
         'navigation' => ['label', 'location', 'open_in_new_tab'],
         'site' => [
+            'yandex_metrika_id', 'google_analytics_id', 'yandex_verification', 'google_site_verification',
             'company_name', 'logo', 'phone', 'email', 'city', 'address', 'working_hours', 'yandex_map_embed',
             'legal_name', 'legal_address', 'inn', 'kpp', 'ogrn', 'vat_info', 'footer_text', 'footer_disclaimer',
             'footer_brand_label', 'footer_sections_title', 'footer_contacts_title', 'footer_copyright',
