@@ -38,3 +38,13 @@
 ## Ограничения
 
 Это локальная визуальная/функциональная приёмка на synthetic fixtures. Настоящие письма не отправляются. Серверный релиз, host/recovery gate и подключение выбранного дизайна к рабочей админке не входят в текущий локальный запуск.
+
+## Финальная синхронизация — актуальный baseline
+
+Предыдущие126filepackage proofs выше относятся к T01/baseline9edb5fa. Внешняя параллельная работа PR26 изменила origin/main до8a5ada0 и обновила V1 checkout. Наш прогон не писал в V1: синхронизация сделана только в своей ветке/V2 runtime. T02 добавил3строки совместимости нового общего head contract, без изменения default V1 source относительно актуального origin/main.
+
+Текущий default package127files, SHA bcc029517fa3419682f2ca9cd1d6b6a0692085a44d6ad64213edf8e407933ac4. Evidence: evidence/v2-head-sync.json.5safety+24HTTP/API/assets PASS;2затронутыхexistingPHP/MySQLsuites155PASSlines; syntheticheadregression и exactsettingsrestore/defaultOFF PASS. Body/CSS hashes идентичны до/после, поэтому прежние визуальные captures соответствуют текущему visual source.
+
+Doosan source SVG whitespace-only normalization после T02: XMLcontent unchanged, новый asset GET совпадает с source SHA14fd0574a6797879fb6a74f17d3e3e464e1861f1fb33d2b0ee088dcca5d80b20; исходный URL/hash сохранены в attribution. Никакого visual/semantic изменения, default package не затронут. Productsource ddb5f0d. Финальный G4 проверяет этот source отдельно от первоначального41773a3.
+
+Итоговый G4 PASS: fresh clone/fresh DB на3163, finalsource ddb5f0d,5safety+24HTTP/API/assets+127exactdefaultpackage+3realMySQLsuites; userChromeCUA search→product→cart/qty→acceptedlocallead, exactlist, email-onlyquote,2warehouses→2cartlines, brands/delivery. G4 browser fileupload/mobile не повторялись; эти сценарии реально проверены лидом ранее и соответствуют неизменным body/CSS/business JS. Productionadminbinding/deploy NOTRUN по scope. Свои3163контейнеры остановлены без удаленияvolumes,3162оставленrunning. Полный verdict — G4-final.md.

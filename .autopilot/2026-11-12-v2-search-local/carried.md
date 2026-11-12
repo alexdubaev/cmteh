@@ -38,4 +38,3 @@
 - 311dca6 — определения V1/V2 в AGENTS.md.
 - bea9474 — warehouse RFQ rollback fixture для non-strict MySQL.
 - 4b955aa — inventory rollback fault fixture для non-strict MySQL.
-

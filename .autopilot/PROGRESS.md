@@ -1,11 +1,16 @@
 <!-- autopilot:progress -->
-# СМ ТЕХНО — аналитика и общая админка
+# СМ ТЕХНО — локальная поисковая V2
 
-Последняя source-acceptance: `.autopilot/2026-11-12-site-analytics/`, продукт c951384. Четыре необязательных поля в Настройки сайта → Аналитика и подтверждение прав; общий site backend/layout для оформления V1/V2. G4 clean clone MySQL135 + nativebrowser + installed127hash PASS; один review FIXNOW0. Реальные значения пусты. Фактическая публикация — D:/codex/_handoffs/cmteh-site-analytics-result-2026-11-12.md; локальная приёмка не доказывает deploy. Предыдущая складская выкладка подтверждена D:/codex/_handoffs/cmteh-warehouses-result-2026-11-11.md.
+Последняя сборка: `.autopilot/2026-11-12-v2-search-local/`, product ddb5f0d. V2 http://127.0.0.1:3162/ работает на synthetic fixtures, выбранный визуал и основные пользовательские сценарии проверены в браузере владельца. T01/T02 PASS, один fresh review без замечаний; финальный clean-clone G4 PASS14/14 в local scope. V1 этот прогон не менял. Принятый параллельно PR26/analytics включён в V2; текущее127filepackage bcc02951… соответствует origin/main8a5ada0. Собственные G4 контейнеры3163 остановлены, основной3162 работает.
+
+Предыдущая analytics source-acceptance: `.autopilot/2026-11-12-site-analytics/`, c951384, четыре общих поля, прежний G4/MySQL/nativebrowser127hash PASS; host result — D:/codex/_handoffs/cmteh-site-analytics-result-2026-11-12.md. Складской host result — D:/codex/_handoffs/cmteh-warehouses-result-2026-11-11.md. Эти handoff относятся к другим выпускам, текущая V2 приёмка не доказывает deploy.
 
 ## Договорились — не пересматривать
 
-- Одна админка/общие данные для V1 и будущего выбранного оформления V2. Четыре site strings yandex_metrika_id/google_analytics_id/yandex_verification/google_site_verification; пустые выключены. V2 checkout/runtime не менялись и не публиковались.
+- V1 — текущий сайт https://test.cmteh.ru/, source D:/codex/cmteh. V2 — локальный presentation overlay в D:/codex/CMTEH.RU/V2-search, runtime D:/codex/temp/cmteh-v2-search-20261112, port3162. При правках явно соблюдать названную версию; не переносить изменения между ними без указания.
+- «админка она будет одна для v1 v2… разница будет только визуальная… посмотрю какой мне больше нравится и мы его на админку привяжем». Общий backend/CMS и существующие функции сохранены. Сейчас V2 на отдельной синтетической DB/private storage; реальные V1 DB/admin не подключались. Выбор дизайна и последующее подключение — отдельный шаг владельца.
+- Выбранная V2 главная: поиск по центру, полутоновый чертёж экскаватора,11монохромных логотипов, компактная серая ссылка «Проценить список или файл». Крупный цветной блок отклонён. Только локальный запуск; V2 в интернет не публиковать и V1 не заменять без отдельного указания.
+- Четыре общих site strings yandex_metrika_id/google_analytics_id/yandex_verification/google_site_verification; пустые выключены. V2 читает тот же head contract. В локальной приёмке реальные значения не заполнялись и provider requests не отправлялись.
 - Только базовые счётчики и meta-подтверждение этого выпуска. Custom конверсии/цели/новая consent-система и внешний аккаунт не подключались; дополнительные автоматические измерения GA4 задаются провайдером.
 
 - Только склады в текущем выпуске: «Да нам нужны склады, остальное оставим на будущее». R01–R42 прежнего отчёта остаются будущими работами.
@@ -16,10 +21,12 @@
 - Прежние RFQ/quote, native ACL и UX сохранены. Сырой список не добавляется в корзину; проверка exactSKU/ведущихнулей/порядка/дублей. info@cmteh.ru, владелец подтвердил Inbox и исходный CSV; почтовую приёмку не переоткрывать.
 - Только quotequeuecron; старыйLeadSMTP отключён. Leadmarker3, inventorymarker1, отдельная importpreviewсхема. Constructors/read не мигрируют. Новые12hooksдоinventoryreadiness; нацелевомхосте безwholeupgrade/перезаписи67старыхhooks/автогрантовACL.
 - Старый бинарный rollback допускается Opsguard только при полном отсутствии inventorytables. После DDL только совместимый code-only recovery с текущей БД; oldDBrestore/loweringmarkers запрещены. Новый incident требует нового GO.
-- Seed-cleanup.json сохраняет точные подписанные rawbytes cb85…; unchangedTEXTacceptedoverlays неприменимы к изменённым warehouseфайлам. Последний архив126files/outera8520763/nestedb78dbe14 получен из cleancloneLF без overlays.
+- Seed-cleanup.json сохраняет точные подписанные rawbytes cb85…; unchangedTEXTacceptedoverlays неприменимы к изменённым warehouseфайлам. Исторический складской архив доanalytics:126files/outera8520763/nestedb78dbe14, cleancloneLF без overlays; текущий upstream послеPR26 имеет127files/bcc02951….
 - Quote/campaign/readmodels не равны коммерческим заказам/покупателям/конверсиям; сохранённый page_url декларируемый. Публичных кабинетов/оплаты нет. Карта офиса — только trustedYandexiframeURL; фактический адрес/код владелец пока не предоставил.
 
 ## Не доделано
+
+- V2: владелец ещё не выбрал окончательное оформление; привязка выбранного варианта к рабочей админке/данным и серверная публикация в этот локальный запрос не входили. Реестр запусков — D:/codex/CMTEH.RU/versions.json; команды — opencart/designs/v2-search/README.md.
 
 - Будущие R01–R42: публичные аккаунты, коммерческие заказы/оплата/возвраты, CRMстадии/ответственные, consentрассылок, купоны/партнёры, полноценная аналитика и прочие направления — docs/admin-capabilities-2026-11-11.md.
 - Реальный ассортимент/фото/склады/цены и реквизиты/карта заполняет владелец; 1Ссинхронизация не запрошена. Productionпереход/нагрузка/квотыREG.RU/индексация требуют отдельной задачи.

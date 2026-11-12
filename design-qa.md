@@ -5,7 +5,7 @@ final result: passed
 ## Visual truth and evidence
 
 - Source: selected «Чистый поиск» board, `C:/Users/Alexandr/.codex/generated_images/01a1caaf-1a30-75b0-80b4-8fcd81fb769b/exec-3b0ca6c1-5754-4e98-9c87-42f94330bd91.png`.
-- Evidence directory: `.autopilot/2026-11-12-v2-search-local--wip/evidence/` (the run loses `--wip` when Autopilot lands).
+- Evidence directory: `.autopilot/2026-11-12-v2-search-local/evidence/` (the run loses `--wip` when Autopilot lands).
 - `reference-board.png`: 1672×941. `reference-home.png`: 1043×788, source crop `(31,79,1074,867)`.
 - Implementation: http://127.0.0.1:3162/ ; `home-reference-size-final.png`: 1043×788 at CSS viewport 1043×788, density 1×, homepage with an empty search field and closed menus.
 - Full-view comparisons: `compare-home-matched-initial.png` and `compare-home-matched-final.png`, both 1668×630. Each pairs the same 1043×788 source/render at the same uniform approximately 0.8 scale. Source and implementation were opened together in each comparison, rather than judged from separate views.

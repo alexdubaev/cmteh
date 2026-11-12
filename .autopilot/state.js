@@ -2,7 +2,7 @@ window.STATE =
 {
   "version": 2,
   "slug": "v2-search-local",
-  "dir": "2026-11-12-v2-search-local--wip",
+  "dir": "2026-11-12-v2-search-local",
   "title": "СМ ТЕХНО V2 — поисковая версия",
   "mode": "semi",
   "depth": "normal",
@@ -13,8 +13,8 @@ window.STATE =
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
   "baseCommit": "84c2c27",
   "startedAt": "2026-11-12T12:28:07+03:00",
-  "updatedAt": "2026-11-12T13:09:26+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-12T13:32:16+03:00",
+  "finishedAt": "2026-11-12T13:32:16+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -51,7 +51,7 @@ window.STATE =
       "id": "build",
       "status": "done",
       "startedAt": "2026-11-12T12:34:06+03:00",
-      "finishedAt": "2026-11-12T13:07:14+03:00"
+      "finishedAt": "2026-11-12T13:09:26+03:00"
     },
     {
       "id": "review",
@@ -61,8 +61,9 @@ window.STATE =
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-11-12T13:09:26+03:00"
+      "status": "done",
+      "startedAt": "2026-11-12T13:09:26+03:00",
+      "finishedAt": "2026-11-12T13:32:16+03:00"
     }
   ],
   "requirements": {
@@ -107,18 +108,48 @@ window.STATE =
       "model": "сильная",
       "status": "done",
       "startedAt": "2026-11-12T12:34:07+03:00",
+      "finishedAt": "2026-11-12T13:07:13+03:00",
       "retries": 0,
       "repairs": 0,
-      "finishedAt": "2026-11-12T13:07:13+03:00",
       "tests": {
         "passed": 29,
         "failed": 0
       },
       "commit": "41773a3"
+    },
+    {
+      "id": "02",
+      "title": "Совместимость V2 с обновлённой общей админкой",
+      "requirements": [
+        "R07",
+        "G14"
+      ],
+      "blockedBy": [
+        "01"
+      ],
+      "wave": 2,
+      "zone": [
+        "opencart/designs/v2-search/templates/layout.twig",
+        "opencart/designs/v2-search/README.md",
+        "design-qa.md",
+        "D:/codex/CMTEH.RU/versions.json"
+      ],
+      "review": "нет",
+      "model": "сильная",
+      "status": "done",
+      "startedAt": "2026-11-12T13:14:55+03:00",
+      "retries": 0,
+      "repairs": 0,
+      "finishedAt": "2026-11-12T13:22:02+03:00",
+      "tests": {
+        "passed": 30,
+        "failed": 0
+      },
+      "commit": "6b3fd68"
     }
   ],
   "tests": {
-    "passed": 29,
+    "passed": 30,
     "failed": 0
   },
   "debt": {
@@ -138,7 +169,11 @@ window.STATE =
     ]
   },
   "concerns": [],
-  "blind": null,
+  "blind": {
+    "checked": 14,
+    "matched": 14,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-12T12:28:07+03:00",
     "2026-11-12T12:30:15+03:00",
@@ -156,9 +191,19 @@ window.STATE =
     "2026-11-12T12:37:30+03:00",
     "2026-11-12T13:07:13+03:00",
     "2026-11-12T13:07:14+03:00",
-    "2026-11-12T13:09:26+03:00"
+    "2026-11-12T13:09:26+03:00",
+    "2026-11-12T13:14:52+03:00",
+    "2026-11-12T13:14:53+03:00",
+    "2026-11-12T13:14:54+03:00",
+    "2026-11-12T13:14:55+03:00",
+    "2026-11-12T13:15:34+03:00",
+    "2026-11-12T13:15:35+03:00",
+    "2026-11-12T13:22:02+03:00",
+    "2026-11-12T13:29:35+03:00",
+    "2026-11-12T13:29:36+03:00",
+    "2026-11-12T13:32:16+03:00"
   ],
-  "rev": 21,
+  "rev": 32,
   "waiting": null,
   "waits": [],
   "log": [
@@ -286,6 +331,75 @@ window.STATE =
       "k": "stage",
       "id": "final",
       "act": "start"
+    },
+    {
+      "t": "2026-11-12T13:14:52+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-12T13:14:53+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-12T13:14:54+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T13:14:55+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-12T13:15:34+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-12T13:15:35+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-12T13:22:02+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 30,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-12T13:29:35+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 14,
+      "matched": 14
+    },
+    {
+      "t": "2026-11-12T13:29:36+03:00",
+      "k": "tests",
+      "passed": 30,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-12T13:32:16+03:00",
+      "k": "finish",
+      "result": "V2 запущена локально с согласованной поисковой главной; один backend/admin, 14 требований и clean-clone G4 приняты; V1 не изменялась этим прогоном"
     }
   ],
   "reqList": [
@@ -376,11 +490,17 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-12T12:37:29+03:00",
+      "at": "2026-11-12T13:15:35+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-12T13:29:35+03:00",
+      "checked": 14,
+      "matched": 14
     }
   },
-  "result": null,
+  "result": "V2 запущена локально с согласованной поисковой главной; один backend/admin, 14 требований и clean-clone G4 приняты; V1 не изменялась этим прогоном",
   "report": [
     "G14: одна существующая админка и бизнес-логика; V2 сейчас локальный визуальный preview. Подключение выбранного оформления к общей рабочей системе после выбора владельца."
   ]

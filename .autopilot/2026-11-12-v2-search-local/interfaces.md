@@ -38,6 +38,13 @@ G14, уточнение владельца во время разработки:
 - Browser/design acceptance выполнена в пользовательском Yandex/Chrome через CUA, выбранная главная сравнена в одном pairedimage1043x788, итогpassed; временные viewport reset. Иконки — Feather, рисунок image_gen, бренды реальные assets. CodeSHA41773a3.
 - One fresh whole-branch review: FIX NOW none, REPORT none;5ownershiptests rerun by reviewer PASS. Глубокие unrelated checks не повторялись.
 
+## Построено T02 — совместимость с актуальной общей админкой
+
+- Accepted upstream8a5ada0 содержит четыре общих site strings: yandex_metrika_id, google_analytics_id, yandex_verification, google_site_verification. V2 layout потребляет их теми же тремя строками head markup, что актуальная default layout. Пустые поля выключены, дополнительной admin/backend/schema нет.
+- Установленный default package теперь127files, SHA bcc029517fa3419682f2ca9cd1d6b6a0692085a44d6ad64213edf8e407933ac4. Это отличается от исторического126filewarehouse baseline и честно записано в v2-head-sync.json.
+- SyntheticnativeCMSHTTPregression REDдоfixmissingverificationmeta, PASSпосле3linefix; exactsite-rowrestore/default-off. Provider JS не выполнялся, внешних запросов0. Existingadmin-catalog+catalogintegration:155PASSlines. BodySHA cd0155952d14d5684a083c3349739c82751888348b73803b603b246344d27593 и9CSS hashes идентичны до/после, screenshots T01 актуальны.
+- T02code6b3fd68, затем mechanicalDoosanSVGwhitespace-only ddb5f0d: XMLcontent идентичен; sourceasset+HTTPsha14fd0574a6797879fb6a74f17d3e3e464e1861f1fb33d2b0ee088dcca5d80b20. Полный candidate gitdiffcheck прошёл, appearance не менялась.
+
 ## Договорились ранее — исходный текст
 
 Полный текст «Договорились» из carried.md включён ниже автоматически, без изменения. Он относится к прежней принятой бизнес-системе, которую V2 переиспользует.
@@ -53,5 +60,3 @@ G14, уточнение владельца во время разработки:
 - Старый бинарный rollback допускается Opsguard только при полном отсутствии inventorytables. После DDL только совместимый code-only recovery с текущей БД; oldDBrestore/loweringmarkers запрещены. Новый incident требует нового GO.
 - Seed-cleanup.json сохраняет точные подписанные rawbytes cb85…; unchangedTEXTacceptedoverlays неприменимы к изменённым warehouseфайлам. Последний архив126files/outera8520763/nestedb78dbe14 получен из cleancloneLF без overlays.
 - Quote/campaign/readmodels не равны коммерческим заказам/покупателям/конверсиям; сохранённый page_url декларируемый. Публичных кабинетов/оплаты нет. Карта офиса — только trustedYandexiframeURL; фактический адрес/код владелец пока не предоставил.
-
-
