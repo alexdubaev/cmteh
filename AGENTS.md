@@ -2,6 +2,21 @@
 
 This file applies to the standalone storefront repository.
 
+## V1 and V2 — owner-agreed version names
+
+All agents must use these names consistently:
+
+- **V1 — текущий сайт**: the existing site at https://test.cmteh.ru/ with its current design and functionality. The existing local source checkout is `D:/codex/cmteh`.
+- **V2 — поисковая версия**: a separate local copy at `D:/codex/CMTEH.RU/V2-search`. The owner has authorized a local launch only. Record its actual local URL and status in `D:/codex/CMTEH.RU/versions.json` after starting it; do not invent an address before verification.
+- The current search-homepage task targets **V2**. A request naming V1 or V2 applies only to that version. Do not apply or transfer changes to both without an explicit instruction. If a new request's target cannot be determined from its text and active context, clarify it before changing a version.
+- V2 work must preserve V1's files, appearance, data and running environment. Shared source changes must retain V1's existing default behavior unless the owner explicitly authorizes changing it.
+- V2 uses a separate local runtime, port, test database and private storage. Do not copy production secrets or customer data. Publishing V2 or replacing V1 requires a separate owner instruction.
+- Preserve existing search, catalog, brands, product and warehouse offers, cart, list/file quote workflows and information pages. V2 changes presentation, not the available business functionality.
+- V2's accepted homepage has search as the main element, a subtle grayscale excavator technical drawing, partner logos below search, and a compact gray link **«Проценить список или файл»**. The large colorful list-upload banner was rejected.
+- The working application is OpenCart under `opencart/extension/cmteh`; the root Next.js application is a reference, not the deployed application.
+
+Keep these definitions in this repository so agents in fresh clones and worktrees receive the same version boundaries. Local paths identify the owner's current workspace; consult the version registry for actual runtime addresses.
+
 ## Primary rule
 
 The storefront is **headless and design-swappable**.
