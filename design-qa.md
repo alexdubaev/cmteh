@@ -44,11 +44,19 @@ The full paired view makes search, supporting action and brands readable at the 
 
 ## Deterministic checks and limits
 
-`python opencart/dev/v2-check.py --runtime-dir D:/codex/temp/cmteh-v2-search-20261112 --port 3162` passed: five ownership tests, smoke checks, 24 HTTP/API/assets checks, three existing PHP/MySQL suites (catalog, warehouse offers and quote), and the unchanged 126-file default extension archive. A repeat start preserved 17 product records, two warehouses and exact warehouse-fixture identities before the later temporary stress fixture.
+Before the shared-head synchronization below, `python opencart/dev/v2-check.py --runtime-dir D:/codex/temp/cmteh-v2-search-20261112 --port 3162` passed: five ownership tests, smoke checks, 24 HTTP/API/assets checks, three existing PHP/MySQL suites (catalog, warehouse offers and quote), and the then-current unchanged 126-file default extension archive. A repeat start preserved 17 product records, two warehouses and exact warehouse-fixture identities before the later temporary stress fixture.
 
-After the presentation fixes, `--http-only` passed the narrow safety/HTTP/package recheck; unchanged business suites were not rerun. Subsequent optical changes were checked by overlay refresh and asset GETs. Full and narrow evidence are separate files in the own runtime's `evidence/` directory. Default extension SHA-256 remains `b78dbe14f9132c7a6a4164a1eb79d665fcd9f3488064b09b3f470e59c5dae442`.
+After the presentation fixes, `--http-only` passed the narrow safety/HTTP/package recheck; unchanged business suites were not rerun. Subsequent optical changes were checked by overlay refresh and asset GETs. Full and narrow evidence are separate files in the own runtime's `evidence/` directory. That historical default extension SHA-256 was `b78dbe14f9132c7a6a4164a1eb79d665fcd9f3488064b09b3f470e59c5dae442`; the current package is recorded below.
 
 This is local V2 acceptance on isolated synthetic data. It is not a production release/recovery gate or proof of deployment. V1 source/runtime and its real admin/database were not modified or connected. V1/V2 remain presentation options for one existing backend/admin; binding the selected design to the real system is a separate owner decision.
+
+## Shared head synchronization — accepted baseline 8a5ada0
+
+PR26 added shared native-CMS analytics/ownership settings. V2 now consumes exactly the same three server-provided head blocks as the default layout. No admin/API/schema/business changes were made. The own local runtime at port 3162 was refreshed from this accepted base; fixture identities were preserved. No V1 checkout/runtime or real admin/database was modified or connected.
+
+The focused HTTP regression failed before the change because the Yandex verification meta was absent. It now passes for both verification metas and the conditional local analytics loader using synthetic values saved through the existing CMS model. Exact original site-row restoration and the default-off state pass. Returned HTML was inspected only over HTTP; provider scripts were never executed or requested.
+
+Current checks: 5 ownership safety tests, 24 HTTP/API/assets checks, `admin-catalog-integration.php` and `catalog-integration.php` passed. The current exact default archive has **127 files**, SHA-256 `bcc029517fa3419682f2ca9cd1d6b6a0692085a44d6ad64213edf8e407933ac4`; the 126-file evidence above is historical, for the previous base. Unchanged warehouse/quote suites and browser journeys were not repeated. Pre/post rendered homepage body and every loaded CSS file have identical hashes, so the accepted visual captures remain applicable. Evidence and retained HTTP regression: `D:/codex/temp/cmteh-v2-search-20261112/evidence/v2-head-sync.json` and `D:/codex/temp/cmteh-v2-search-20261112/head-sync-check.py`. Local preview remains running.
 
 ## Follow-up polish
 

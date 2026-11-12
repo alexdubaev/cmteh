@@ -6,6 +6,8 @@
 
 ## Запуск на этом компьютере
 
+Общая база синхронизирована с принятым `origin/main` `8a5ada0` (PR26). V2 читает те же проверенные сервером поля analytics/verification, что default layout: два verification meta и условный локальный загрузчик `analytics.js`. Собственных настроек или валидации нет. В этом preview счётчики выключены; синтетическая HTTP-проверка временно задаёт тестовые значения через существующий CMS model и точно восстанавливает запись, не исполняя скрипты и не обращаясь к провайдерам. Подключения к реальной админке V1 нет.
+
 Из `D:/codex/CMTEH.RU/V2-search`:
 
 ```text
@@ -39,6 +41,8 @@ python opencart/dev/v2-check.py --runtime-dir D:/codex/temp/cmteh-v2-search-2026
 Это затронутый локальный checkset: ownership safety, настоящее HTTP-rendering/API, существующие catalog/warehouse/quote PHP/MySQL suites, неизменность исходников и точных файлов default V1 extension archive. Он не заменяет строгий production verifier, host acceptance или recovery. После CSS/Twig fix для узкой повторной проверки есть `--http-only`; это явно не повтор всего набора. Визуальную проверку 1440/1024/390px и пользовательские сценарии выполняет лид в браузере владельца, не в отдельном Playwright browser.
 
 ## Устройство
+
+После синхронизации проверены 5 ownership safety tests, 24 HTTP/API/assets checks, существующие `admin-catalog-integration.php` и `catalog-integration.php`. Default archive совпадает с актуальными исходниками по всем 127 файлам; SHA-256 `bcc029517fa3419682f2ca9cd1d6b6a0692085a44d6ad64213edf8e407933ac4`. Прежний 126-file archive относится к старой базе. Новый head regression прошёл после воспроизведения отсутствующего verification meta до правки. Rendered body и все CSS сохранили прежние SHA-256; прежняя визуальная приёмка остаётся применима. Подробности: `D:/codex/temp/cmteh-v2-search-20261112/evidence/v2-head-sync.json`.
 
 Исходный `opencart/extension/cmteh` не меняется. Launcher устанавливает стандартный архив в отдельный локальный OpenCart, затем копирует эти templates в его `storefront/v2`, assets — в `assets/v2-search`, а runtime `layout.twig` становится тонким include V2. Все рабочие страницы и бизнес-JS берутся из стандартного extension. Обычный production installer не включает эту папку и не переключает V1.
 

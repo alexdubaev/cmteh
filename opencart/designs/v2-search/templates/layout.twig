@@ -18,6 +18,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · V2</title>
+  {% if site.yandex_verification|default('') %}<meta name="yandex-verification" content="{{ site.yandex_verification }}">{% endif %}
+  {% if site.google_site_verification|default('') %}<meta name="google-site-verification" content="{{ site.google_site_verification }}">{% endif %}
+  {% if site.yandex_metrika_id|default('') or site.google_analytics_id|default('') %}<script defer src="{{ assets }}analytics.js?v=20261112-1" data-yandex-metrika-id="{{ site.yandex_metrika_id }}" data-google-analytics-id="{{ site.google_analytics_id }}"></script>{% endif %}
   {% if meta.description|default('') %}<meta name="description" content="{{ meta.description }}">{% endif %}
   {% if meta.canonical|default('') %}<link rel="canonical" href="{{ meta.canonical }}"><meta property="og:url" content="{{ meta.canonical }}">{% endif %}
   {% if meta.robots|default('') %}<meta name="robots" content="{{ meta.robots }}">{% endif %}
