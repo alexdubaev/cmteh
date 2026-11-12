@@ -1,0 +1,3 @@
+# Узкая разведка
+Рабочий код opencart/extension/cmteh. В site content JSON, новых таблиц/миграций не требуется. CatalogAdmin::saveFromAdmin whitelist; CatalogWrites::sanitizeContent валидирует импорт/сохранение. StorefrontPages::view формирует общие site данные; layout.twig общий head/body. cmteh_catalog controller FIELDS/TYPE_FIELDS и cmteh_catalog.twig строят форму, существующий site ACL сохраняется. Встроенные OpenCart analytics не подключены к headless layout.
+Проверки: admin-catalog-integration.php реальные изолированные MySQL tables, HTTP/browser с локальным native runtime. root scripts/verify-local.mjs относится к reference Next и требует CMS_SOURCE_ROOT. Не запускать полную двухверсионную warehouse matrix заново.
