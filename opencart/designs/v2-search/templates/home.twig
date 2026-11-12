@@ -1,0 +1,20 @@
+{% autoescape 'html' %}
+{% set partners = model.home_brands|default(model.brands|default([])) %}
+<section class="v2-search-home" aria-labelledby="v2-home-title">
+  <img class="v2-excavator" src="{{ assets }}v2-search/images/excavator-drawing.webp" alt="" width="1536" height="1024" aria-hidden="true">
+  <div class="v2-home-content">
+    <a class="v2-home-brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img src="{{ site.logo_url }}" alt="{{ company }}" width="330" height="129" fetchpriority="high">{% else %}<strong>{{ company|default('') }}</strong>{% endif %}</a>
+    {% set headline = home.hero_title|default('') %}
+    <h1 id="v2-home-title">{{ headline and headline != 'Запчасти для спецтехники' ? headline : 'Поиск запчастей для спецтехники' }}</h1>
+    {% include templates ~ 'v2/search.twig' %}
+    <p class="v2-search-example">Например: <a href="/catalog?q=1R-1808">1R-1808</a></p>
+    <a class="v2-quote-link" href="/parts-list"><img src="{{ assets }}v2-search/images/file-text.svg" width="23" height="23" alt="" aria-hidden="true"><span>Проценить список или файл</span><img src="{{ assets }}v2-search/images/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"></a>
+    {% if partners %}
+      <nav class="v2-partners" aria-label="Бренды запчастей">
+        {% set brandFiles = {'caterpillar': 'brand-caterpillar.svg', 'komatsu': 'brand-komatsu.svg', 'volvo': 'brand-volvo.svg', 'hitachi': 'brand-hitachi.png', 'jcb': 'brand-jcb.svg', 'doosan': 'brand-doosan.svg', 'john-deere': 'brand-john-deere.png', 'cnh': 'brand-cnh.png', 'claas': 'brand-claas.svg', 'perkins': 'brand-perkins.png', 'sany': 'brand-sany.svg'} %}
+        {% for brand in partners %}<a href="/brand/{{ brand.slug|url_encode }}" class="v2-partner" aria-label="Запчасти {{ brand.name }}">{% if brand.image_url|default('') %}<img src="{{ brand.image_url }}" alt="{{ brand.name }}" width="120" height="40">{% elseif brandFiles[brand.slug]|default('') %}<img src="{{ assets }}v2-search/images/{{ brandFiles[brand.slug] }}" alt="{{ brand.name }}" width="120" height="40">{% else %}<span>{{ brand.name }}</span>{% endif %}</a>{% endfor %}
+      </nav>
+    {% endif %}
+  </div>
+</section>
+{% endautoescape %}

@@ -1,0 +1,25 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+<header class="site-header v2-header" id="site-header" tabindex="-1">
+  <div class="shell header-inner">
+    {% if page != 'home' %}<a class="brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="160" height="62">{% else %}{{ company|default('Главная') }}{% endif %}</a>{% endif %}
+    <div class="v2-header-links">
+      <details class="catalog-menu">
+        <summary>Каталог</summary>
+        <div class="catalog-menu-panel">
+          <section><strong>Категории</strong><a href="/catalog">Все товары</a>{% for category in categories %}<a href="/category/{{ category.slug|url_encode }}">{% if category.parent_slug|default('') %}<span aria-hidden="true">↳ </span>{% endif %}{{ category.title }}</a>{% endfor %}</section>
+          <section><strong>Бренды</strong><a href="/brands">Все бренды</a>{% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}</section>
+        </div>
+      </details>
+      <a href="/brands">Бренды</a>
+    </div>
+    <div class="header-actions">
+      <a class="v2-list-top" href="/parts-list">Отправить список</a>
+      <a class="request-link" href="/request" aria-label="Корзина" data-cart-link="Корзина"><img class="request-icon" src="{{ assets }}images/cart-icon-black.webp" alt="" width="20" height="20" aria-hidden="true"><span class="request-label">Корзина</span><b data-cart-count hidden></b></a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-navigation" aria-label="Открыть меню"><img src="{{ assets }}v2-search/images/menu.svg" alt="" width="22" height="22"></button>
+    </div>
+  </div>
+  <nav id="main-navigation" class="main-nav" aria-label="Основная навигация"><div class="shell main-nav-inner">{% for item in headerNav %}{{ ui.nav(item) }}{% endfor %}{% if tel %}<a href="{{ tel }}">{{ site.phone }}</a>{% endif %}{% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}<a href="/contacts" data-open-quick>Быстрый запрос</a></div></nav>
+  {% if page != 'home' %}<div class="shell v2-inner-search">{% include templates ~ 'v2/search.twig' %}</div>{% endif %}
+</header>
+{% endautoescape %}
