@@ -1,0 +1,9 @@
+{
+  "source_id": "v2-stress-20261112",
+  "title_characters": 160,
+  "sku_characters": 52,
+  "photo": false,
+  "status": "unpublished after lead browser capture",
+  "private_input": "v2-long-title.ndjson",
+  "cleanup": "confirmed CLI unpublish; public URL404; record retained"
+}

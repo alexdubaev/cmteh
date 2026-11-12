@@ -1,6 +1,6 @@
 # 01 — Работающая локальная поисковая версия V2
 
-**Требования:** R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12
+**Требования:** R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, R12, G14
 **Зависит от:** —
 **Зона:** `opencart/designs/v2-search/` · `opencart/dev/v2-local.py` · `opencart/dev/v2-check.py` · `opencart/tests/v2-local-test.py` · `design-qa.md` · `D:/codex/CMTEH.RU/versions.json`
 **Волна:** 1
@@ -33,6 +33,7 @@
 - [ ] Документированная команда поднимает отдельный loopback runtime и применяет только V2 presentation overlay; повторный запуск не затирает или не дублирует данные. Default production extension/package остаётся неизменным; V1 source/runtime не тронуты.
 - [ ] Реальный HTTP/DB affected checkset проходит. Короткий safety test launcher отвергает путь V1/checkout и подтверждает свой runtime. Никаких plaintext secrets/настоящей почты. Реестр версий содержит фактический URL/команды/пути.
 - [ ] Лид подтверждает desktop1440/tablet1024/mobile390, no overflow, длинные значения и отсутствие фото, рабочие search → product/warehouse → cart и text/file quote сценарии в пользовательском браузере. Результат открыт пользователю; screenshots + design-qa.md содержат фактические evidence. Исполнитель до browser-acceptance честно оставляет эти пункты на проверку лида.
+- [ ] Одна существующая админка/бизнес-логика для обоих вариантов оформления: никакой новой admin implementation/schema; V2 принимает те же CMS/view models. README объясняет сначала выбор визуала, затем подключение выбранного оформления к существующей админке; real V1 DB сейчас не подключается.
 
 ## Проверка
 

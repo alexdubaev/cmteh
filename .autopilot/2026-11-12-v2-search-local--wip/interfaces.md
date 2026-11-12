@@ -12,6 +12,8 @@
 
 ## Презентация V2
 
+G14, уточнение владельца во время разработки: одна админка/бизнес-логика, два оформления. Не создавать вторую управляемую админку или схему контента. Сначала локальный визуал и выбор владельца, затем отдельный шаг подключения выбранного оформления к существующей системе. Не подключать real V1 DB/admin сейчас; disposable local native admin — только техническая test infrastructure.
+
 Владеет `opencart/designs/v2-search/`: Twig templates, CSS, изображения, source attribution и инструкции. Вход — существующий view context `page`, `model`, `site`, `navigation`, `meta`, `jsonLd`, `params`. Не изменяет сами данные. Экспорт — runtime layout template, который использует существующие storefront working-page partials и JS.
 
 Локальный launcher копирует overlay из checkout в собственный installed webroot, только после безопасного local runtime start. Default production extension остаётся byte-identical. Обновление/runtime refresh повторно применяет V2 overlay явно, не по глобальному состоянию и не от пользовательских HTTP parameters. Существующие `#header-article-search`, `#article-search`, `#search-options`, search-popover, data-cart-* и list-file/warehouse hooks сохраняются ровно один раз на странице.
@@ -27,6 +29,14 @@
 - Поведение — существующие PHP/MySQL integration/HTTP tests, узко по search/catalog/list/warehouse и native source. Browser interactions выполняет лид в CUA. Нет новых тестов ради markup/count; safety test local launcher полезен только для отказа выбирать V1/runtime path.
 - Швы: реальный HTTP на отдельном loopback origin, установленная Twig rendering, существующие JSON APIs, existing storage/cart module. В acceptance report записать фактические команды и результаты.
 - Сравнить checkout source/package default V1 с accepted origin/main; исключить новые `designs/`/dev docs из production installer. Никаких ослаблений strict verifier, никаких fabricated PASS.
+
+## Построено T01
+
+- `python opencart/dev/v2-local.py --runtime-dir PATH --port PORT [--upstream ZIP] start|refresh|stop|check`; runtime basename обязан начинаться с `cmteh-v2-search-`, директория вне checkout, ownership marker связывает checkout/порт. Current runtime D:/codex/temp/cmteh-v2-search-20261112, loopback3162.
+- `python opencart/dev/v2-check.py --runtime-dir PATH --port PORT [--http-only]`:5safetytests+24HTTP/API/assets+126exactdefaultpackagefiles; полный affected mode дополнительно3existingPHP/MySQL suites. Это не strict production verifier.
+- Repeatstart сохраняет fixtureidentities; `refresh` только presentation overlay. Production extension/package unchanged SHA b78dbe14f9132c7a6a4164a1eb79d665fcd9f3488064b09b3f470e59c5dae442.
+- Browser/design acceptance выполнена в пользовательском Yandex/Chrome через CUA, выбранная главная сравнена в одном pairedimage1043x788, итогpassed; временные viewport reset. Иконки — Feather, рисунок image_gen, бренды реальные assets. CodeSHA41773a3.
+- One fresh whole-branch review: FIX NOW none, REPORT none;5ownershiptests rerun by reviewer PASS. Глубокие unrelated checks не повторялись.
 
 ## Договорились ранее — исходный текст
 

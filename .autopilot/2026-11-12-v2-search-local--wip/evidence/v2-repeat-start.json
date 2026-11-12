@@ -1,0 +1,13 @@
+{
+  "result": "PASS",
+  "before": {
+    "products": 17,
+    "warehouses": 2
+  },
+  "after": {
+    "products": 17,
+    "warehouses": 2
+  },
+  "fixture_identity_preserved": true,
+  "origin": "http://127.0.0.1:3162"
+}
