@@ -148,6 +148,13 @@
 .v2-storefront .parts-list-page .quote-form { padding: 0; border: 0; }
 @media (min-width: 821px) {
   .v2-home .menu-toggle { margin-left: -14px; }
+  .v2-home-brand { width: 250px; }
+  .v2-home-brand img { height: 98px; }
+  .v2-search-home .v2-search { width: min(100%, 68vw); max-width: 800px; }
+  .v2-search-home .search-box { min-height: 52px; padding: 3px 4px 3px 16px; gap: 14px; }
+  .v2-search-home .search-icon { width: 20px; height: 20px; flex-basis: 20px; }
+  .v2-search-home .search-box input { font-size: 18px; }
+  .v2-search-home .search-box button { min-width: 96px; font-size: 16px; padding: 8px 18px; }
 }
 @media (max-width: 1100px) {
   .v2-storefront .shell, .v2-storefront .v2-header .header-inner { width: calc(100% - 56px); }
