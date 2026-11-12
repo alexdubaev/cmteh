@@ -1,0 +1,13 @@
+{
+  "scope": "local V2 presentation recheck; integration suites not rerun",
+  "result": "PASS",
+  "origin": "http://127.0.0.1:3162",
+  "counts": {
+    "safety": 5,
+    "http": 24,
+    "integration_suites": 0,
+    "package": 126
+  },
+  "browser": "separate CUA acceptance by lead",
+  "extension_sha256": "b78dbe14f9132c7a6a4164a1eb79d665fcd9f3488064b09b3f470e59c5dae442"
+}

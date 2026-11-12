@@ -1,0 +1,16 @@
+{% autoescape 'html' %}
+<div id="article-search" class="v2-search">
+  <div class="search-wrap">
+    <form class="search-box" action="/catalog" method="get" role="search">
+      <img class="search-icon" src="{{ assets }}v2-search/images/search.svg" width="24" height="24" alt="" aria-hidden="true">
+      <input id="header-article-search" name="q" value="{{ page == 'catalog' ? params.q|default('') : '' }}" placeholder="{{ home.hero_search_placeholder|default('Введите артикул или OEM-номер') }}" aria-label="Поиск запчастей" minlength="2" maxlength="64" aria-expanded="false" aria-autocomplete="list" aria-controls="search-options" role="combobox" autocomplete="off">
+      <button type="submit">{{ home.hero_search_button_text|default('Найти') }}</button>
+    </form>
+    <div class="search-popover" hidden>
+      <div class="search-popover-title"></div>
+      <div id="search-options" role="listbox" aria-label="Поисковые подсказки"></div>
+      <button class="search-all" type="button" hidden>Показать все результаты →</button>
+    </div>
+  </div>
+</div>
+{% endautoescape %}

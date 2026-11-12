@@ -1,0 +1,12 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+<footer class="site-footer v2-footer">
+  <div class="shell v2-footer-row">
+    {% if site.footer_copyright|default('') %}<span>{{ site.footer_copyright }}</span>{% elseif company %}<span>© {{ 'now'|date('Y') }} {{ company }}</span>{% endif %}
+    <nav class="v2-footer-nav" aria-label="Информация">{% for item in footerNav %}{{ ui.nav(item) }}{% endfor %}</nav>
+    {% if tel %}<a class="v2-footer-phone" href="{{ tel }}">{{ site.phone }}</a>{% else %}<a href="/contacts">Контакты</a>{% endif %}
+  </div>
+  {% if legalNav or site.social_links|default([]) %}<div class="shell v2-footer-meta">{% if legalNav %}<nav class="footer-legal" aria-label="Правовая информация">{% for item in legalNav %}{{ ui.nav(item) }}{% endfor %}</nav>{% endif %}{% for link in site.social_links|default([]) %}{% set socialUrl = ui.href(link.url|default('')) %}{% if socialUrl and link.label|default('') %}<a href="{{ socialUrl }}" rel="noopener noreferrer">{{ link.label }}</a>{% endif %}{% endfor %}</div>{% endif %}
+  {% if site.sections|default([]) %}<div class="shell">{% include templates ~ 'sections.twig' with {sections: site.sections} %}</div>{% endif %}
+</footer>
+{% endautoescape %}

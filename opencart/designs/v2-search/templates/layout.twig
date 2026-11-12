@@ -1,0 +1,69 @@
+{% autoescape 'html' %}
+{% set assets = '/extension/cmteh/catalog/view/assets/' %}
+{% set templates = 'extension/cmteh/catalog/view/template/storefront/' %}
+{% set screens = {home: 'home', catalog: 'catalog', brands: 'brands', brand: 'collection', category: 'collection', product: 'product', articles: 'articles', article: 'article', page: 'content', request: 'request', 'parts-list': 'parts-list', not_found: 'error', error: 'error'} %}
+{% set brands = model.brands|default([]) %}
+{% set categories = model.categories|default([]) %}
+{% set headerNav = navigation.header ?? navigation|default([])|filter(item => item.location|default('') == 'header') %}
+{% set footerNav = navigation.footer ?? navigation|default([])|filter(item => item.location|default('') == 'footer') %}
+{% set legalNav = navigation.legal ?? navigation|default([])|filter(item => item.location|default('') == 'legal') %}
+{% set home = model.home ?? (page == 'home' ? model.content|default({}) : {}) %}
+{% set company = site.company_name|default('') %}
+{% set digits = site.phone|default('')|replace({' ': '', '+': '', '(': '', ')': '', '-': '', '.': '', ' ': '', ' ': ''}) %}
+{% set tel = digits matches '/^[0-9]+$/' ? 'tel:' ~ (site.phone starts with '+' ? '+' : '') ~ digits : '' %}
+{% set title = meta.title|default(company) %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · V2</title>
+  {% if site.yandex_verification|default('') %}<meta name="yandex-verification" content="{{ site.yandex_verification }}">{% endif %}
+  {% if site.google_site_verification|default('') %}<meta name="google-site-verification" content="{{ site.google_site_verification }}">{% endif %}
+  {% if site.yandex_metrika_id|default('') or site.google_analytics_id|default('') %}<script defer src="{{ assets }}analytics.js?v=20261112-1" data-yandex-metrika-id="{{ site.yandex_metrika_id }}" data-google-analytics-id="{{ site.google_analytics_id }}"></script>{% endif %}
+  {% if meta.description|default('') %}<meta name="description" content="{{ meta.description }}">{% endif %}
+  {% if meta.canonical|default('') %}<link rel="canonical" href="{{ meta.canonical }}"><meta property="og:url" content="{{ meta.canonical }}">{% endif %}
+  {% if meta.robots|default('') %}<meta name="robots" content="{{ meta.robots }}">{% endif %}
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:type" content="{{ page == 'article' ? 'article' : 'website' }}">
+  {% if meta.description|default('') %}<meta property="og:description" content="{{ meta.description }}">{% endif %}
+  {% if meta.image|default('') %}<meta property="og:image" content="{{ meta.image }}">{% endif %}
+  <link rel="stylesheet" href="{{ assets }}theme.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}globals.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}home-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}catalog-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}request-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
+  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261112-1">
+  <script type="module" src="{{ assets }}storefront.mjs?v=20261111-1"></script>
+  <script type="module" src="{{ assets }}request.mjs?v=20261111-1"></script>
+  <script type="module" src="{{ assets }}parts-list.mjs?v=20261111-1"></script>
+  {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
+  {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
+</head>
+<body class="v2-storefront v2-{{ page }}">
+  <a class="skip-link" href="#main-content" tabindex="0">К основному содержимому</a>
+  {% include templates ~ 'v2/header.twig' %}
+  <main id="main-content" tabindex="-1">
+    {% include templates ~ (page == 'home' ? 'v2/home' : screens[page]|default('error')) ~ '.twig' %}
+  </main>
+  {% include templates ~ 'v2/footer.twig' %}
+  <nav class="mobile-actions" aria-label="Связаться с компанией">
+    <a class="mobile-action mobile-action-call" href="{{ tel ?: '/contacts' }}" aria-label="{{ tel ? 'Позвонить' : 'Контакты' }}">
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h3.2l1.6 4.2-2 1.7a15 15 0 0 0 6.8 6.8l1.7-2 4.2 1.6V19c0 1.1-.9 2-2 2C10 21 3 14 3 5.5c0-1.1.9-2 2-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ tel ? 'Позвонить' : 'Контакты' }}</span>
+    </a>
+    <a class="mobile-action mobile-action-request" href="/contacts" data-open-quick>
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h17v13h-17zM4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Запрос</span>
+    </a>
+  </nav>
+  <a class="back-to-top" href="#site-header" data-back-to-top aria-label="Наверх" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 14 7-7 7 7M12 8v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Наверх</span></a>
+  <dialog class="quick-dialog" aria-labelledby="quick-dialog-title" data-quick-dialog>
+    <button class="quick-dialog-close" type="button" data-close-quick aria-label="Закрыть форму"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    {% include templates ~ 'lead-form.twig' with {leadType: 'quick', compact: true} %}
+    <a class="quick-fallback" href="/contacts">Связаться через страницу контактов</a>
+  </dialog>
+</body>
+</html>
+{% endautoescape %}
