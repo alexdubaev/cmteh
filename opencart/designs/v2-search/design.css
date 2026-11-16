@@ -22,6 +22,10 @@
 }
 .v2-storefront .shell { width: min(calc(100% - 80px), 1280px); }
 .v2-storefront main { min-height: 0; flex: 1; }
+.v2-storefront main.v2-expanding { flex: 0 0 auto; overflow: clip; overflow-anchor: none; }
+/* Keep the home search's destination stable while the outer frame contracts. */
+.v2-home main.v2-expanding { overflow: visible; }
+.v2-home main.v2-expanding > .v2-search-home { flex: none; height: var(--v2-reveal-height); }
 .v2-stage { position: relative; isolation: isolate; display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .v2-home .v2-header .brand { display: none; }
 .v2-home-search-slot { width: 100%; }
