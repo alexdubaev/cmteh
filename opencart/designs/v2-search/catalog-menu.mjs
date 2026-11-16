@@ -103,3 +103,15 @@ if (tabs) {
   document.addEventListener('v2:navigated', stop);
   reduced.addEventListener('change', stop);
 }
+
+// The right-hand navigation reuses the same before-paint reveal. Its existing
+// controller continues to own toggling, focus, Escape and outside clicks.
+const navigation = document.querySelector('.v2-header .main-nav');
+const navigationButton = document.querySelector('.v2-header .menu-toggle');
+if (navigation && navigationButton) {
+  const instant = () => navigation.classList.remove('v2-menu-motion');
+  navigationButton.addEventListener('pointerdown', () => navigation.classList.add('v2-menu-motion'), { passive: true });
+  document.addEventListener('keydown', instant, true);
+  window.addEventListener('resize', instant, { passive: true });
+  document.addEventListener('v2:navigated', instant);
+}
