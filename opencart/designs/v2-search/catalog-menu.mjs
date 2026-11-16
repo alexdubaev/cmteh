@@ -6,17 +6,18 @@ if (tabs) {
   const buttons = [...tabs.querySelectorAll('[role="tab"]')];
   const panels = buttons.map(button => document.getElementById(button.getAttribute('aria-controls')));
   const viewport = menu.querySelector('.v2-catalog-viewport');
-  const panel = menu.querySelector('.catalog-menu-panel');
   const indicator = tabs.querySelector('.v2-catalog-indicator');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const animations = new Set();
-  let selected = 0, pointer = false, clearHeight;
-  const easing = 'cubic-bezier(.22,1,.36,1)';
+  let selected = 0, pointer = false, clearHeight, outgoing;
+  const easing = 'cubic-bezier(.2,.75,.25,1)';
 
   function stop() {
     for (const animation of animations) animation.cancel();
     animations.clear();
     clearHeight?.();
+    outgoing?.remove();
+    outgoing = null;
   }
   function animate(element, frames, options) {
     if (reduced.matches || !element.animate) return;
@@ -31,6 +32,19 @@ if (tabs) {
     const height = viewport.getBoundingClientRect().height;
     const marker = getComputedStyle(indicator).transform;
     stop();
+    const moving = motion && menu.open && !reduced.matches && Boolean(viewport.animate);
+    if (moving) {
+      // Visual-only outgoing copy: keep the previous list present while the new
+      // one fades in, without duplicate IDs, focus targets or accessible panels.
+      outgoing = panels[previous].cloneNode(true);
+      outgoing.removeAttribute('id');
+      outgoing.removeAttribute('role');
+      outgoing.removeAttribute('aria-labelledby');
+      outgoing.setAttribute('aria-hidden', 'true');
+      outgoing.inert = true;
+      outgoing.classList.add('v2-catalog-outgoing');
+      viewport.append(outgoing);
+    }
     selected = index;
     for (let i = 0; i < buttons.length; i++) {
       buttons[i].setAttribute('aria-selected', String(i === index));
@@ -39,21 +53,23 @@ if (tabs) {
     }
     tabs.dataset.active = String(index);
     viewport.scrollTop = 0;
-    if (!motion || !menu.open || reduced.matches || !viewport.animate) return;
+    if (!moving) return;
     const target = viewport.getBoundingClientRect().height;
     viewport.classList.add('is-switching');
     const finish = () => {
       if (clearHeight !== finish) return;
       clearHeight = null;
       viewport.classList.remove('is-switching');
+      outgoing?.remove();
+      outgoing = null;
       sizing.cancel();
     };
     clearHeight = finish;
-    const sizing = animate(viewport, [{ height: `${height}px` }, { height: `${target}px` }], { duration: 240, easing, fill: 'both' });
+    const sizing = animate(viewport, [{ height: `${height}px` }, { height: `${target}px` }], { duration: 300, easing, fill: 'both' });
     sizing.finished.then(finish, finish);
-    animate(indicator, [{ transform: marker }, { transform: getComputedStyle(indicator).transform }], { duration: 240, easing });
-    animate(panels[index], [{ opacity: 0, transform: `translateX(${index > previous ? 8 : -8}px)` }, { opacity: 1, transform: 'none' }],
-      { duration: 180, delay: 25, easing, fill: 'backwards' });
+    animate(indicator, [{ transform: marker }, { transform: getComputedStyle(indicator).transform }], { duration: 300, easing });
+    animate(outgoing, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+    animate(panels[index], [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'backwards' });
   }
 
   for (let i = 0; i < buttons.length; i++) {
@@ -64,7 +80,7 @@ if (tabs) {
   menu.classList.add('is-enhanced');
   select(0);
   tabs.hidden = false;
-  menu.addEventListener('pointerdown', () => { pointer = true; }, { passive: true });
+  menu.addEventListener('pointerdown', () => { pointer = true; menu.classList.add('v2-menu-motion'); }, { passive: true });
   tabs.addEventListener('keydown', event => {
     const current = buttons.indexOf(event.target);
     if (current < 0) return;
@@ -78,12 +94,10 @@ if (tabs) {
     select(next);
     buttons[next].focus();
   });
-  menu.addEventListener('toggle', () => {
-    stop();
-    if (menu.open && pointer && !reduced.matches) animate(panel,
-      [{ opacity: 0, transform: 'translateY(-5px)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing });
-  });
-  document.addEventListener('keydown', () => { pointer = false; stop(); }, true);
+  // Opening is a CSS animation applied with [open], before its first paint.
+  // The native toggle event is deferred and is too late to start a fade-in.
+  menu.addEventListener('toggle', stop);
+  document.addEventListener('keydown', () => { pointer = false; menu.classList.remove('v2-menu-motion'); stop(); }, true);
   window.addEventListener('resize', stop, { passive: true });
   window.addEventListener('pagehide', stop);
   document.addEventListener('v2:navigated', stop);

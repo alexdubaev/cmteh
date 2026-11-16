@@ -63,6 +63,8 @@
   background: #fff; padding: 14px; display: block; max-height: calc(100dvh - 100px); overflow: auto;
 }
 .v2-header .catalog-menu[open] .catalog-menu-panel { animation: none; }
+.v2-header .catalog-menu[open].v2-menu-motion .catalog-menu-panel { animation: v2CatalogOpen 280ms cubic-bezier(.2,.75,.25,1) both; }
+@keyframes v2CatalogOpen { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .v2-header .catalog-menu-panel a { color: #333941; font-size: 14px; }
 .v2-header .catalog-menu-panel strong { font-size: 13px; color: #7a808b; }
 .v2-catalog-chevron { transition: transform 180ms ease; }
@@ -75,13 +77,17 @@
 .v2-header .v2-catalog-tabs > button[aria-selected="true"] { color: #20252b; font-weight: 600; }
 .v2-header .v2-catalog-group { gap: 0; }
 .v2-header .catalog-menu.is-enhanced .v2-catalog-group-title { display: none; }
-.v2-catalog-viewport { max-height: calc(100dvh - 190px); overflow-y: auto; overscroll-behavior: contain; }
+.v2-catalog-viewport { position: relative; max-height: calc(100dvh - 190px); overflow-y: auto; overscroll-behavior: contain; }
 .v2-catalog-viewport.is-switching { overflow: hidden; }
+.v2-catalog-outgoing { position: absolute; inset: 0 0 auto; pointer-events: none; }
 .v2-catalog-links { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 6px; }
 .v2-header .v2-catalog-links > a { min-width: 0; min-height: 40px; padding: 9px 10px; border-radius: 7px; line-height: 1.35; overflow-wrap: anywhere; }
 .v2-header .v2-catalog-links > a:hover { background: #f4f5f7; color: #17191c; }
 .v2-header .v2-catalog-links > a:first-child { grid-column: 1 / -1; margin-bottom: 5px; font-weight: 600; }
-@media (prefers-reduced-motion: reduce) { .v2-catalog-chevron { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .v2-catalog-chevron { transition: none; }
+  .v2-header .catalog-menu[open].v2-menu-motion .catalog-menu-panel { animation: none; }
+}
 .v2-header .header-actions { margin-left: auto; display: flex; gap: 26px; }
 .v2-header .v2-list-top { text-decoration: underline; text-underline-offset: 3px; }
 .v2-storefront .request-link {
