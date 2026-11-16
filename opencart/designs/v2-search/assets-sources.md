@@ -45,13 +45,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Generated excavator
+## Original generated excavator (superseded 2026-11-16)
 
 `images/excavator-drawing.webp`: 1536×1024, built-in image_gen; inspected for composition and absence of text/branding. Pure white background; medium gray linework, intended CSS opacity around 0.1. Pillow format conversion only, quality 92, method 6. Original PNG: `C:/Users/Alexandr/.codex/generated_images/01a1cf1c-2332-7591-b9ce-4ec6f4504d6d/exec-5a42bfb6-3dfd-4847-b728-345f5901dd60.png`.
 
 Exact generation prompt:
 
 Use case: illustration-story. Asset type: standalone decorative website background technical drawing, landscape 1536x1024. Draw one complete tracked hydraulic excavator in neutral gray engineering linework on pure white background. Composition: side profile excavator facing right, tracked undercarriage and engine body in lower-left quarter, cab at left, long boom arches up toward top-right, stick and bucket descending at far right. The excavator spans almost the full canvas, keep broad central area mostly white/empty for a search interface overlay. Thin precise mechanical outlines, believable tracked excavator geometry with hydraulic cylinders, track rollers and panel seams, line drawing only with no solid fills, no shading, no scene or ground. Use clear medium-gray lines with sufficient contrast; website will later display at 10% opacity. No text, no labels, no dimensions, no branding, no logo, no watermark, no grids. This is only the background excavator drawing, do not draw any webpage/UI, search bar or buttons.
+
+## Current detailed excavator — 2026-11-16
+
+The owner selected the detailed three-quarter-view concept, then requested a mechanically aligned bucket: side wall towards the viewer and teeth facing the cab. Built-in `image_gen` edited the supplied concept; the engine and tracked assemblies remain detailed. This is decorative artwork, not a service/engineering document.
+
+Current `images/excavator-drawing.webp`: 1536×1024, 272644 bytes; SHA-256 `283aa923e08083babfef0028b47599f43856baf13ffb58b4475aaf0457e0715b`. Pillow WebP format conversion only, quality 88, method 6. Original generated PNG and exact edit prompt are recorded in `excavator-artwork.json`; the initial concept and its prompt are retained in the owner's local `design-concepts` directory. CSS opacity is 0.095 (desktop), 0.065 (mobile), following the owner's request to mute the first preview further. No other artwork or brand mark changed.
 
 ## Validation
 
