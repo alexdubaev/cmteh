@@ -109,6 +109,7 @@ mkdir -p "$templates/v2" "$assets"
 cp -a "$source/templates/." "$templates/v2/"
 cp "$source/entry.twig" "$templates/layout.twig"
 cp "$source/design.css" "$assets/design.css"
+cp "$source/parallax.mjs" "$assets/parallax.mjs"
 if [ -d "$source/images" ]; then cp -a "$source/images" "$assets/"; fi
 """)
     print("PASS: V2 presentation applied to its own local installed copy.")

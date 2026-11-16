@@ -20,7 +20,7 @@ python opencart/dev/v2-local.py --runtime-dir D:/codex/temp/cmteh-v2-search-2026
 
 Если Docker сообщает об исчерпании стандартных address pools, не удаляйте чужие сети. После проверки существующих Docker-сетей и маршрутов задайте штатный `CMTEH_DOCKER_SUBNET` со свободной приватной /28 при первом запуске. Существующий runtime сохраняет её в `network.json`. Для данного экземпляра использована `10.231.93.0/28`; для другой чистой копии нужна другая свободная подсеть. Повторный запуск текущего экземпляра не требует переменной.
 
-Для применения только новых Twig/CSS/изображений без миграций и импорта:
+Для применения только новых Twig/CSS/JS/изображений без миграций и импорта:
 
 ```text
 python opencart/dev/v2-local.py --runtime-dir D:/codex/temp/cmteh-v2-search-20261112 --port 3162 refresh
@@ -41,6 +41,8 @@ python opencart/dev/v2-check.py --runtime-dir D:/codex/temp/cmteh-v2-search-2026
 Это затронутый локальный checkset: ownership safety, настоящее HTTP-rendering/API, существующие catalog/warehouse/quote PHP/MySQL suites, неизменность исходников и точных файлов default V1 extension archive. Он не заменяет строгий production verifier, host acceptance или recovery. После CSS/Twig fix для узкой повторной проверки есть `--http-only`; это явно не повтор всего набора. Визуальную проверку 1440/1024/390px и пользовательские сценарии выполняет лид в браузере владельца, не в отдельном Playwright browser.
 
 ## Устройство
+
+Фон главной обновлён 2026-11-16: подробный экскаватор в три четверти, ковш боком и зубьями к кабине. После замечания владельца фон приглушён до opacity 0.095 на компьютере и 0.065 на телефоне. Декоративный `parallax.mjs` подключается только на главной V2: указатель смещает рисунок максимум на ±9/±6px, прокрутка — до 10px. Плавное движение останавливается в покое, в скрытой вкладке и при `prefers-reduced-motion`; на touch нет реакции на указатель. Отдельный слой обрезает только фон, не поисковые подсказки. Новых зависимостей, доступа к датчикам, настроек админки или бизнес-изменений нет.
 
 После синхронизации проверены 5 ownership safety tests, 24 HTTP/API/assets checks, существующие `admin-catalog-integration.php` и `catalog-integration.php`. Default archive совпадает с актуальными исходниками по всем 127 файлам; SHA-256 `bcc029517fa3419682f2ca9cd1d6b6a0692085a44d6ad64213edf8e407933ac4`. Прежний 126-file archive относится к старой базе. Новый head regression прошёл после воспроизведения отсутствующего verification meta до правки. Rendered body и все CSS сохранили прежние SHA-256; прежняя визуальная приёмка остаётся применима. Подробности: `D:/codex/temp/cmteh-v2-search-20261112/evidence/v2-head-sync.json`.
 
