@@ -100,12 +100,16 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 42px; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: 7px;
 }
-.v2-storefront .v2-header .main-nav { display: none; }
+.v2-storefront .v2-header .main-nav { display: none; transition: none; animation: none; }
 .v2-storefront .v2-header .main-nav.is-open {
   display: block; position: absolute; top: 82px; right: 40px; left: auto; bottom: auto;
   width: min(350px, calc(100% - 48px)); margin: 0; padding: 14px; border: 1px solid var(--line-strong);
   border-radius: 12px; background: #fff; box-shadow: 0 12px 36px #1c263b12;
   max-height: calc(100dvh - 100px); overflow: auto;
+  visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .v2-storefront .v2-header .main-nav.is-open.v2-menu-motion { animation: v2CatalogOpen 280ms cubic-bezier(.2,.75,.25,1) both; }
 }
 .v2-header .main-nav-inner { display: grid; width: 100%; gap: 2px; }
 .v2-header .main-nav a { padding: 8px 10px; color: #252930; font-size: 14px; border-radius: 6px; }
