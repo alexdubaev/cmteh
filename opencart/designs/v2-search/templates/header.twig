@@ -2,7 +2,7 @@
 {% import templates ~ 'ui.twig' as ui %}
 <header class="site-header v2-header" id="site-header" tabindex="-1">
   <div class="shell header-inner">
-    {% if page != 'home' %}<a class="brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="160" height="62">{% else %}{{ company|default('Главная') }}{% endif %}</a>{% endif %}
+    <a class="brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="160" height="62">{% else %}{{ company|default('Главная') }}{% endif %}</a>
     <div class="v2-header-links">
       <details class="catalog-menu">
         <summary>Каталог</summary>
@@ -20,6 +20,5 @@
     </div>
   </div>
   <nav id="main-navigation" class="main-nav" aria-label="Основная навигация"><div class="shell main-nav-inner">{% for item in headerNav %}{{ ui.nav(item) }}{% endfor %}{% if tel %}<a href="{{ tel }}">{{ site.phone }}</a>{% endif %}{% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}<a href="/contacts" data-open-quick>Быстрый запрос</a></div></nav>
-  {% if page != 'home' %}<div class="shell v2-inner-search">{% include templates ~ 'v2/search.twig' %}</div>{% endif %}
 </header>
 {% endautoescape %}
