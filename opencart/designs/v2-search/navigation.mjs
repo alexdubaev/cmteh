@@ -150,7 +150,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
 
-  async function navigate(url, { restoreId, restoreState, motion = false } = {}) {
+  async function navigate(url, { restoreId, restoreState, motion = false, openSingleResult = false } = {}) {
     pending?.abort();
     clearLoading();
     saveCurrent();
@@ -194,6 +194,14 @@ if (main && search && input && dock && status && supported(new URL(location.href
         return;
       }
       content.querySelector('#article-search')?.remove();
+      // A submitted search with one complete result opens the same V2 product
+      // sheet as a suggestion. Never choose from a truncated/ambiguous result set.
+      if (openSingleResult && kind === 'catalog' && content.dataset.v2SingleResult) {
+        const productUrl = new URL(content.dataset.v2SingleResult, finalUrl);
+        if (supported(productUrl) && pageKind(productUrl) === 'product') {
+          return navigate(productUrl, { motion });
+        }
+      }
       const saved = old || restoreState || {};
       const view = {
         id: restoreId || nextId(), url: finalUrl, kind, nodes: [...content.childNodes],
@@ -230,12 +238,12 @@ if (main && search && input && dock && status && supported(new URL(location.href
     }
   }
 
-  function searchFor(value) {
+  function searchFor(value, { allResults = false } = {}) {
     const query = value.trim();
     rememberQuery(query);
     const url = new URL('/catalog', location.origin);
     if (query) url.searchParams.set('q', query);
-    navigate(url, { motion: pointerAction });
+    navigate(url, { motion: pointerAction, openSingleResult: Boolean(query) && !allResults });
   }
 
   document.addEventListener('pointerdown', () => { pointerAction = true; }, { capture: true, passive: true });
@@ -265,7 +273,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     if (queryButton && search.contains(queryButton)) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      searchFor(queryButton.matches('.history-item') ? queryButton.querySelector('strong').textContent : input.value);
+      searchFor(queryButton.matches('.history-item') ? queryButton.querySelector('strong').textContent : input.value,
+        { allResults: queryButton.matches('.search-all') });
       return;
     }
     const link = event.target.closest('a[href]');
