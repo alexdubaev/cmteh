@@ -5,10 +5,17 @@
     <a class="brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="160" height="62">{% else %}{{ company|default('Главная') }}{% endif %}</a>
     <div class="v2-header-links">
       <details class="catalog-menu">
-        <summary>Каталог</summary>
+        <summary>Каталог <svg class="v2-catalog-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
         <div class="catalog-menu-panel">
-          <section><strong>Категории</strong><a href="/catalog">Все товары</a>{% for category in categories %}<a href="/category/{{ category.slug|url_encode }}">{% if category.parent_slug|default('') %}<span aria-hidden="true">↳ </span>{% endif %}{{ category.title }}</a>{% endfor %}</section>
-          <section><strong>Бренды</strong><a href="/brands">Все бренды</a>{% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}</section>
+          <div class="v2-catalog-tabs" role="tablist" aria-label="Раздел каталога" hidden>
+            <span class="v2-catalog-indicator" aria-hidden="true"></span>
+            <button type="button" role="tab" id="v2-tab-categories" aria-controls="v2-panel-categories" aria-selected="true">Категории</button>
+            <button type="button" role="tab" id="v2-tab-brands" aria-controls="v2-panel-brands" aria-selected="false" tabindex="-1">Бренды</button>
+          </div>
+          <div class="v2-catalog-viewport">
+            <section class="v2-catalog-group" id="v2-panel-categories"><strong class="v2-catalog-group-title">Категории</strong><div class="v2-catalog-links"><a href="/catalog">Все товары</a>{% for category in categories %}<a href="/category/{{ category.slug|url_encode }}">{% if category.parent_slug|default('') %}<span aria-hidden="true">↳ </span>{% endif %}{{ category.title }}</a>{% endfor %}</div></section>
+            <section class="v2-catalog-group" id="v2-panel-brands"><strong class="v2-catalog-group-title">Бренды</strong><div class="v2-catalog-links"><a href="/brands">Все бренды</a>{% for brand in brands %}<a href="/brand/{{ brand.slug|url_encode }}">{{ brand.name }}</a>{% endfor %}</div></section>
+          </div>
         </div>
       </details>
       <a href="/brands">Бренды</a>

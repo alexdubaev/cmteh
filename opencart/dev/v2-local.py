@@ -112,6 +112,7 @@ cp "$source/design.css" "$assets/design.css"
 cp "$source/parallax.mjs" "$assets/parallax.mjs"
 cp "$source/navigation.mjs" "$assets/navigation.mjs"
 cp "$source/view-controls.mjs" "$assets/view-controls.mjs"
+cp "$source/catalog-menu.mjs" "$assets/catalog-menu.mjs"
 if [ -d "$source/images" ]; then cp -a "$source/images" "$assets/"; fi
 """)
     print("PASS: V2 presentation applied to its own local installed copy.")
