@@ -1,0 +1,92 @@
+{% autoescape 'html' %}
+{% import templates ~ 'ui.twig' as ui %}
+{% set product = model.product|default({}) %}
+{% set brand = brands|filter(item => item.name == product.brand)|first %}
+{% set heading = model.heading|default(product.heading|default(product.title ~ ' ' ~ product.brand ~ ' ' ~ product.sku)) %}
+{% set photos = [] %}
+{% set mainPhoto = product.main_image_url|default('') ?: ui.asset(product.main_image|default('')) %}
+{% if mainPhoto %}{% set photos = [{url: mainPhoto, alt_text: product.title}] %}{% endif %}
+{% for image in product.images|default([]) %}
+  {% set photo = image.image_url|default('') ?: ui.asset(image.image|default('')) %}
+  {% if photo and photo not in photos|map(item => item.url) %}{% set photos = photos|merge([{url: photo, alt_text: image.alt_text|default('')}]) %}{% endif %}
+{% endfor %}
+{% set codes = {'oem': 'OEM-номер', 'mpn': 'Номер производителя', 'supplier': 'Номер поставщика', 'previous': 'Прежний номер', 'superseded': 'Заменённый номер', 'external': 'Дополнительный номер', 'barcode': 'Штрихкод'} %}
+{% set relationLabels = {'analog': 'Аналог', 'oem_cross': 'Перекрёстный OEM-номер', 'compatible': 'Совместимая позиция', 'superseded_by': 'Замена'} %}
+{% set managed = product.inventory_managed|default(false) %}
+<div class="shell page-shell v2-product-shell">
+  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span>{% if brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span>/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span>/</span>{% endif %}<span>{{ product.sku }}</span></div>
+  <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}">
+    <header class="v2-product-heading">
+      <h1>{{ heading }}</h1>
+      <div class="v2-product-labels">
+        {% if product.brand %}<span>{{ product.brand }}</span>{% endif %}
+        {% if ui.part(product.part_type|default('')) %}<span>{{ ui.part(product.part_type) }}</span>{% endif %}
+        <span class="{{ product.availability_status == 'in_stock' ? 'ok' : '' }}">{{ ui.status(product.availability_status) }}</span>
+        <div class="v2-product-sku">Артикул: <strong>{{ product.sku }}</strong>{{ ui.copy(product.sku) }}</div>
+      </div>
+    </header>
+    <div class="v2-product-main">
+      <div class="v2-product-media">
+        {% if photos %}{% set first = photos|first %}
+          <div class="product-gallery">
+            <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
+            {% if photos|length > 1 %}<div class="product-thumbs" aria-label="Галерея товара">{% for image in photos|slice(0, 8) %}<button class="{{ loop.first ? 'active' : '' }}" type="button" data-gallery-src="{{ image.url }}" aria-label="Показать изображение {{ loop.index }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}"><img src="{{ image.url }}" alt="{{ image.alt_text|default(product.title ~ ', изображение ' ~ loop.index) }}" width="160" height="120" loading="lazy" decoding="async"></button>{% endfor %}</div>{% endif %}
+          </div>
+        {% else %}<div class="v2-product-no-photo" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(32) }}<span>Фото не предоставлено</span></div>{% endif %}
+      </div>
+      <section class="v2-product-facts" aria-label="Описание и характеристики">
+        {% if product.short_description|default(site.product_missing_description|default('')) %}<p class="v2-product-summary">{{ product.short_description|default(site.product_missing_description) }}</p>{% endif %}
+        <h2 class="v2-product-section-title">Характеристики</h2>
+        <dl class="v2-spec-list">
+          <div><dt>Бренд</dt><dd>{{ product.brand ?: '—' }}</dd></div><div><dt>Артикул</dt><dd>{{ product.sku }}</dd></div>
+          {% if product.mpn|default('') %}<div><dt>Номер производителя</dt><dd>{{ product.mpn }}</dd></div>{% endif %}
+          <div><dt>Категория</dt><dd>{% if product.category|default(null) %}<a href="/category/{{ product.category.slug|url_encode }}">{{ product.category.title }}</a>{% else %}—{% endif %}</dd></div>
+          {% for spec in product.specification_items|default([]) %}<div><dt>{{ spec.name }}</dt><dd>{{ spec.value }}{% if spec.unit|default('') %} {{ spec.unit }}{% endif %}</dd></div>{% else %}{% for name, value in product.specifications|default({}) %}<div><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}{% endfor %}
+        </dl>
+        {% if product.full_description_html|default('') %}<div class="v2-product-description prose">{{ product.full_description_html|raw }}</div>{% elseif not product.short_description|default('') and site.product_no_detail_text|default('') %}<p>{{ site.product_no_detail_text }}</p>{% endif %}
+      </section>
+      <aside class="v2-product-buy" aria-label="Цена и покупка">
+        {% if managed %}
+          <section id="warehouse-offers" class="v2-warehouse-offers" aria-labelledby="warehouse-offers-title">
+            <h2 id="warehouse-offers-title">Предложения по складам</h2>
+            {% if product.offers %}<div class="v2-offer-columns" aria-hidden="true"><span>Склад</span><span>Наличие · срок</span><span>Цена</span><span></span></div>{% endif %}
+            {% for offer in product.offers %}
+              <article class="v2-offer-row">
+                <div><h3>{{ offer.warehouse.name }}</h3>{% if offer.warehouse.city %}<small>{{ offer.warehouse.city }}</small>{% endif %}</div>
+                <div class="v2-offer-terms"><span class="{{ offer.availability_status == 'in_stock' ? 'ok' : '' }}">{{ ui.status(offer.availability_status) }}</span><small>Срок: {{ offer.delivery_term ?: 'Уточнит менеджер' }}</small></div>
+                <strong class="v2-offer-price">{{ offer.price is not null ? offer.price|replace({'.': ','}) ~ ' ₽' : 'По запросу' }}<small>за шт.</small></strong>
+                <div class="v2-offer-action"><button class="button secondary" type="button"{% if offer.availability_status != 'in_stock' %} disabled{% endif %}
+                  data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}" data-product-id="{{ product.id }}"
+                  data-offer-id="{{ offer.offer_id }}" data-offer-version="{{ offer.offer_version }}" data-warehouse-code="{{ offer.warehouse.code }}"
+                  data-warehouse-name="{{ offer.warehouse.name }}" data-warehouse-city="{{ offer.warehouse.city }}" data-delivery-term="{{ offer.delivery_term }}" data-price="{{ offer.price }}"
+                  aria-label="Добавить {{ product.sku }}, склад {{ offer.warehouse.name }}">В корзину</button><span class="request-announcement" role="status" aria-live="polite"></span></div>
+              </article>
+            {% else %}<p>Опубликованных предложений пока нет. Уточните поставку у менеджера.</p>{% endfor %}
+            {% if product.offers_partial %}<p class="v2-product-note">Показана часть складских предложений. Остальные условия уточните у менеджера.</p>{% endif %}
+            <p class="v2-product-note">Заявка не резервирует товар; условия подтвердит менеджер.</p>
+          </section>
+        {% else %}<div class="v2-product-price">{{ ui.price(product) }}</div><div class="v2-product-primary">{{ ui.add(product, true) }}</div>{% endif %}
+        <div class="v2-product-actions"><a class="button secondary" href="/request">Открыть корзину</a><a href="/parts-list">Проценить список или файл</a></div>
+        {% if (not managed and site.product_delivery_title|default('')) or site.product_documents_title|default('') %}<div class="v2-product-trust">
+          {% if not managed and site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
+          {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
+        </div>{% endif %}
+      </aside>
+    </div>
+    {% set documents = product.documents|default([])|filter(item => ui.asset(item.file|default(''))) %}
+    <div class="v2-product-extra">
+      {% if product.codes|default([]) %}<section><h2>Дополнительные коды</h2><div class="v2-product-codes">{% for code in product.codes %}<div><strong>{{ code.code }}</strong><span>{{ codes[code.code_type]|default('Дополнительный номер') }}</span></div>{% endfor %}</div></section>{% endif %}
+      <section><h2>Файлы товара</h2>{% if documents %}<div class="v2-product-documents">{% for document in documents %}<a href="{{ ui.asset(document.file) }}" target="_blank" rel="noopener noreferrer">{{ document.title|default('Документ ' ~ loop.index) }} ↗</a>{% endfor %}</div>{% else %}<span class="v2-product-note">Нет файлов</span>{% endif %}</section>
+    </div>
+    {% set related = {} %}
+    {% for relation in product.relations|default([]) %}{% if relation.product.slug != product.slug %}{% set entry = related[relation.product.slug]|default({product: relation.product, kinds: []}) %}{% set kinds = relation.relation_type in entry.kinds ? entry.kinds : entry.kinds|merge([relation.relation_type]) %}{% set related = related|merge({(relation.product.slug): {product: relation.product, kinds: kinds}}) %}{% endif %}{% endfor %}
+    {% for kind in ['analog', 'other'] %}{% set analogous = kind == 'analog' %}{% set entries = related|filter(entry => ('analog' in entry.kinds) == analogous) %}
+      {% if entries %}<section class="v2-product-related"><div class="v2-related-heading"><h2>{{ analogous ? 'Аналоги из каталога' : 'Связанные позиции' }}</h2>{% set intro = analogous ? site.product_analog_intro|default('') : site.product_relation_intro|default('') %}{% if intro %}<p>{{ intro }}</p>{% endif %}</div>
+        <div class="v2-related-grid">{% for relation in entries %}<div class="v2-related-entry"><div class="v2-relation-types">{% for type in relation.kinds %}<span>{{ relationLabels[type]|default('Связь в каталоге') }}</span>{% endfor %}</div>{{ ui.card(relation.product) }}</div>{% endfor %}</div>
+      </section>{% endif %}
+    {% endfor %}
+    {% set other = model.related|default([])|filter(item => item.slug != product.slug and item.slug not in related|keys) %}
+    {% if other %}<section class="v2-product-related"><div class="v2-related-heading"><h2>{{ product.category|default(null) ? 'Другие товары категории' : 'Другие товары каталога' }}</h2></div><div class="v2-related-grid">{% for item in other|slice(0, 4) %}{{ ui.card(item) }}{% endfor %}</div></section>{% endif %}
+  </article>
+</div>
+{% endautoescape %}

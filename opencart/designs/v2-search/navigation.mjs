@@ -118,9 +118,9 @@ if (main && search && input && dock && status && supported(new URL(location.href
       if (bounds.width && bounds.height) animate(search, [
         { transformOrigin: '0 0', transform: `translate(${previousBounds.left - bounds.left}px, ${previousBounds.top - bounds.top}px) scale(${previousBounds.width / bounds.width},${previousBounds.height / bounds.height})` },
         { transformOrigin: '0 0', transform: 'none' },
-      ], { duration: 240, easing: 'cubic-bezier(.22,1,.36,1)' });
-      animate(main, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 210, delay: 35, easing: 'cubic-bezier(.22,1,.36,1)' });
+      ], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' });
+      animate(main, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 360, delay: 65, fill: 'backwards', easing: 'cubic-bezier(.22,1,.36,1)' });
     }
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
