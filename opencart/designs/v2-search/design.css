@@ -130,7 +130,7 @@
   -webkit-mask-image: radial-gradient(circle 220px at var(--detail-x, -500px) var(--detail-y, -500px), #000 0%, #000 20%, transparent 100%);
   mask-image: radial-gradient(circle 220px at var(--detail-x, -500px) var(--detail-y, -500px), #000 0%, #000 20%, transparent 100%);
 }
-.v2-excavator-detail .v2-excavator { opacity: .065; }
+.v2-excavator-detail .v2-excavator { opacity: .12; }
 .v2-excavator-detail.is-active { opacity: 1; }
 @media (min-width: 641px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .v2-excavator-detail { display: block; }
