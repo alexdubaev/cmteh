@@ -1,12 +1,11 @@
 {% autoescape 'html' %}
 {% set partners = model.home_brands|default(model.brands|default([])) %}
 <section class="v2-search-home" aria-labelledby="v2-home-title">
-  <div class="v2-excavator-layer" aria-hidden="true"><img class="v2-excavator" src="{{ assets }}v2-search/images/excavator-drawing.webp?v=20261116-2" alt="" width="1536" height="1024" decoding="async"></div>
   <div class="v2-home-content">
     <a class="v2-home-brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img src="{{ site.logo_url }}" alt="{{ company }}" width="330" height="129" fetchpriority="high">{% else %}<strong>{{ company|default('') }}</strong>{% endif %}</a>
     {% set headline = home.hero_title|default('') %}
     <h1 id="v2-home-title">{{ headline and headline != 'Запчасти для спецтехники' ? headline : 'Поиск запчастей для спецтехники' }}</h1>
-    {% include templates ~ 'v2/search.twig' %}
+    <div class="v2-home-search-slot" data-v2-search-home>{% include templates ~ 'v2/search.twig' %}</div>
     <p class="v2-search-example">Например: <a href="/catalog?q=1R-1808">1R-1808</a></p>
     <a class="v2-quote-link" href="/parts-list"><img src="{{ assets }}v2-search/images/file-text.svg" width="23" height="23" alt="" aria-hidden="true"><span>Проценить список или файл</span><img src="{{ assets }}v2-search/images/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"></a>
     {% if partners %}

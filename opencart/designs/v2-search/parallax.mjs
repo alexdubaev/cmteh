@@ -1,5 +1,5 @@
 // Decorative V2 background only: no perpetual animation, device sensors or UI movement.
-const hero = document.querySelector('.v2-search-home');
+const hero = document.querySelector('.v2-stage');
 const drawing = hero?.querySelector('.v2-excavator');
 
 if (drawing) {
