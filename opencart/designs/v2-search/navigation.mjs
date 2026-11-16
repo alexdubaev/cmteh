@@ -20,7 +20,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const views = new Map();
   const animations = new Set();
-  let sequence = 0, pending, loadingTimer, scrollTimer, pointerAction = false;
+  let sequence = 0, pending, loadingTimer, scrollTimer, clearReveal, pointerAction = false;
   const nextId = () => `${Date.now()}-${++sequence}`;
   const metadata = root => [...root.querySelectorAll(headSelector)].map(node => node.cloneNode(true));
   const currentState = view => ({ ...(history.state && typeof history.state === 'object' ? history.state : {}),
@@ -81,6 +81,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   function stopAnimations() {
     for (const animation of animations) animation.cancel();
     animations.clear();
+    clearReveal?.();
   }
   reduced.addEventListener('change', () => { if (reduced.matches) stopAnimations(); });
 
@@ -89,6 +90,45 @@ if (main && search && input && dock && status && supported(new URL(location.href
     const animation = element.animate(frames, options);
     animations.add(animation);
     animation.finished.catch(() => {}).finally(() => animations.delete(animation));
+    return animation;
+  }
+
+  function reveal(view, previousSearch, previousHeight, fromHome) {
+    const bounds = search.getBoundingClientRect();
+    const height = main.getBoundingClientRect().height;
+    const easing = 'cubic-bezier(.22,1,.36,1)';
+    const duration = 500;
+    if (!main.animate || !bounds.width || !height) return;
+
+    // Expand a frame over fully laid-out content: type and controls never scale.
+    // The height participates in flow, so the footer follows the opening sheet.
+    const opening = view.kind !== 'home';
+    const startHeight = opening && fromHome ? 64 : previousHeight;
+    const side = opening && fromHome ? Math.max(0, (main.clientWidth - Math.min(previousSearch.width, bounds.width)) / 2) : 0;
+    main.style.setProperty('--v2-reveal-height', `${height}px`);
+    main.classList.add('v2-expanding');
+    const finish = () => {
+      if (clearReveal !== finish) return;
+      clearReveal = null;
+      main.classList.remove('v2-expanding');
+      main.style.removeProperty('--v2-reveal-height');
+      frame?.cancel();
+    };
+    clearReveal = finish;
+    const frame = animate(main, [
+      { height: `${startHeight}px`, clipPath: opening ? `inset(0px ${side}px 0px ${side}px round 16px)` : 'none' },
+      { height: `${height}px`, clipPath: opening ? 'inset(0px 0px 0px 0px round 0px)' : 'none' },
+    ], { duration, easing, fill: 'both' });
+    frame.finished.then(finish, finish);
+
+    if (bounds.height) animate(search, [
+      { transformOrigin: '0 0', transform: `translate(${previousSearch.left - bounds.left}px, ${previousSearch.top - bounds.top}px) scale(${previousSearch.width / bounds.width},${previousSearch.height / bounds.height})` },
+      { transformOrigin: '0 0', transform: 'none' },
+    ], { duration, easing });
+    const content = opening ? [...main.children] : [...main.querySelector('.v2-home-content').children].filter(node => !node.matches('[data-v2-search-home]'));
+    for (const element of content) animate(element,
+      [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 320, delay: 70, fill: 'backwards', easing });
   }
 
   function clearLoading() {
@@ -101,6 +141,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
 
   function show(view, { restore = false, motion = false } = {}) {
     const previousBounds = search.getBoundingClientRect();
+    const previousHeight = main.getBoundingClientRect().height;
+    const fromHome = current.kind === 'home';
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
     if (current.kind === 'parts-list') partsParking.replaceChildren(...partsNodes);
@@ -138,15 +180,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     if (target !== input) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
     if (target === input) input.setSelectionRange(input.value.length, input.value.length);
-    if (motion && !reduced.matches) {
-      const bounds = search.getBoundingClientRect();
-      if (bounds.width && bounds.height) animate(search, [
-        { transformOrigin: '0 0', transform: `translate(${previousBounds.left - bounds.left}px, ${previousBounds.top - bounds.top}px) scale(${previousBounds.width / bounds.width},${previousBounds.height / bounds.height})` },
-        { transformOrigin: '0 0', transform: 'none' },
-      ], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' });
-      animate(main, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 360, delay: 65, fill: 'backwards', easing: 'cubic-bezier(.22,1,.36,1)' });
-    }
+    // Restored deep scroll positions stay immediate rather than being clipped.
+    if (motion && !reduced.matches && (!restore || view.scroll === 0)) reveal(view, previousBounds, previousHeight, fromHome);
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
 
@@ -159,7 +194,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     const old = restoreId && views.get(restoreId);
     // Fetch product pages again on Back/Forward: warehouse prices/offer versions are live.
     if (old && old.kind !== 'product' && routeKey(old.url) === routeKey(url)) {
-      show(old, { restore: true });
+      show(old, { restore: true, motion });
       pending = null;
       return;
     }
@@ -247,7 +282,10 @@ if (main && search && input && dock && status && supported(new URL(location.href
   }
 
   document.addEventListener('pointerdown', () => { pointerAction = true; }, { capture: true, passive: true });
-  document.addEventListener('keydown', () => { pointerAction = false; }, true);
+  document.addEventListener('keydown', () => { pointerAction = false; stopAnimations(); }, true);
+  window.addEventListener('resize', stopAnimations, { passive: true });
+  window.addEventListener('wheel', stopAnimations, { passive: true });
+  window.addEventListener('touchstart', stopAnimations, { passive: true });
   input.addEventListener('input', () => {
     // Editing a new query supersedes any product still loading from an earlier choice.
     pending?.abort();
@@ -290,7 +328,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     const url = new URL(location.href);
     if (!supported(url)) { location.reload(); return; }
     if (routeKey(url) === routeKey(current.url) && url.hash !== current.url.hash) return;
-    navigate(url, { restoreId: event.state?.v2View || nextId(), restoreState: event.state?.v2Navigation });
+    navigate(url, { restoreId: event.state?.v2View || nextId(), restoreState: event.state?.v2Navigation, motion: pointerAction });
   });
   window.addEventListener('pagehide', () => { pending?.abort(); stopAnimations(); });
 }
