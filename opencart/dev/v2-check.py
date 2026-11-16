@@ -45,7 +45,7 @@ def check(runtime, owner, integration=True):
     counts["http"] += 1
     for name in ("storefront.mjs", "cart.mjs", "request.mjs", "parts-list.mjs", "v2-search/design.css",
                  "v2-search/images/excavator-drawing.webp", "v2-search/images/search.svg", "v2-search/parallax.mjs",
-                 "v2-search/navigation.mjs", "v2-search/view-controls.mjs"):
+                 "v2-search/navigation.mjs", "v2-search/view-controls.mjs", "v2-search/catalog-menu.mjs"):
         status, body = runtime.request("/extension/cmteh/catalog/view/assets/" + name)
         require(status == 200 and len(body) > 20, "Missing installed asset: " + name)
         counts["http"] += 1
