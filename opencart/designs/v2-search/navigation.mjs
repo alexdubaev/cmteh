@@ -9,8 +9,11 @@ const dock = document.querySelector('#v2-search-dock');
 const status = document.querySelector('#v2-navigation-status');
 const headSelector = 'meta[name="description"],meta[name="robots"],link[rel="canonical"],meta[property^="og:"],script[type="application/ld+json"]';
 const supported = url => url.origin === location.origin && !url.username && !url.password
-  && (url.pathname === '/' || url.pathname === '/catalog' || /^\/product\/[^/]+$/.test(url.pathname));
-const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catalog' ? 'catalog' : 'product';
+  && (url.pathname === '/' || url.pathname === '/catalog' || /^\/product\/[^/]+$/.test(url.pathname)
+    // Parameterized links keep the existing server/module prefill and recovery behavior.
+    || (url.pathname === '/parts-list' && !url.search));
+const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catalog' ? 'catalog'
+  : url.pathname === '/parts-list' ? 'parts-list' : 'product';
 const routeKey = url => url.pathname + url.search;
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {
@@ -30,6 +33,26 @@ if (main && search && input && dock && status && supported(new URL(location.href
   history.replaceState(currentState(current), '', location.href);
   history.scrollRestoration = 'manual';
   views.set(current.id, current);
+
+  // Keep the original form alive, including FileList, results and in-flight work.
+  // Its unchanged module owns validation, draft storage and quote idempotency.
+  const partsParking = document.createElement('div');
+  partsParking.hidden = true;
+  partsParking.inert = true;
+  main.after(partsParking);
+  let partsNodes = current.kind === 'parts-list' ? current.nodes : null;
+  let partsReady = partsNodes ? Promise.resolve() : null;
+  async function preparePartsList(nodes) {
+    if (!partsNodes) {
+      partsNodes = nodes;
+      partsParking.replaceChildren(...partsNodes);
+      // The head module ran before this form existed. Evaluate the same source once
+      // for V2, with the real root connected even if navigation is superseded.
+      partsReady = import('../parts-list.mjs?v=20261111-1&v2=seamless');
+    }
+    await partsReady;
+    return partsNodes;
+  }
 
   function rememberQuery(value) {
     if (!value || value.length > 64) return;
@@ -80,6 +103,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     const previousBounds = search.getBoundingClientRect();
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
+    if (current.kind === 'parts-list') partsParking.replaceChildren(...partsNodes);
+    if (view.kind === 'parts-list') view.nodes = partsNodes;
     main.replaceChildren(...view.nodes);
     for (const className of [...document.body.classList]) {
       if (className.startsWith('v2-') && className !== 'v2-storefront') document.body.classList.remove(className);
@@ -141,7 +166,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     main.setAttribute('aria-busy', 'true');
     loadingTimer = setTimeout(() => {
       if (pending !== request) return;
-      status.textContent = pageKind(url) === 'product' ? 'Открываем товар…' : 'Загружаем результаты…';
+      status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
+        : pageKind(url) === 'parts-list' ? 'Открываем список или файл…' : 'Загружаем результаты…';
       status.hidden = false;
       main.classList.add('v2-waiting');
     }, 160);
@@ -162,7 +188,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
       const kind = page.body.dataset.v2Page;
       const content = page.querySelector('#main-content');
       if (!content || !page.body.classList.contains('v2-storefront') || kind !== pageKind(finalUrl)
-          || (kind === 'home' && !content.querySelector('[data-v2-search-home]'))) {
+          || (kind === 'home' && !content.querySelector('[data-v2-search-home]'))
+          || (kind === 'parts-list' && !content.querySelector('[data-parts-list]'))) {
         location.assign(url.href);
         return;
       }
@@ -174,6 +201,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
         scroll: Number.isFinite(saved.scroll) ? Math.max(0, saved.scroll) : 0,
         focus: saved.focus === 'search' ? 'search' : null, initial: false,
       };
+      if (kind === 'parts-list') view.nodes = await preparePartsList(view.nodes);
+      if (request.signal.aborted || pending !== request) return;
       if (kind === 'catalog') view.query = finalUrl.searchParams.get('q') || '';
       if (restoreId) history.replaceState(currentState(view), '', finalUrl.href);
       else history.pushState({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } }, '', finalUrl.href);
