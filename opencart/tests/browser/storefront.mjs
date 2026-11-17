@@ -71,7 +71,9 @@ try {
     assert.equal(await page.locator('[data-result-row]').count(), 50);
     await page.getByText("В каталоге не найдено", { exact: true }).waitFor();
     assert.deepEqual(await storage(page), []);
-    await page.locator('[data-result-row]').first().getByRole('button', { name: 'В корзину' }).click();
+    const firstResult = page.locator('[data-result-row]').first();
+    await firstResult.getByRole('button', { name: 'В корзину' }).click();
+    await firstResult.getByText('Добавлено: 3 шт.', { exact: true }).waitFor();
     assert.deepEqual((await storage(page)).map(({ article, quantity, productId }) => ({ article, quantity, productId })),
       [{ article: sku, quantity: 3, productId: "mock-11" }]);
     await input.fill(Array(1001).fill(sku).join("\n"));
@@ -80,6 +82,38 @@ try {
     assert.equal(calls.length, 1);
     await page.goto('/request#import');
     assert.equal(await page.getByRole('link', { name: 'Проверить список или отправить на расценку' }).getAttribute('href'), '/parts-list');
+  });
+
+  await scenario("Редактирование списка во время проверки сбрасывает прежние замечания и ответ", async (page) => {
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const calls = [];
+    await page.route('**/api/list-check', async route => {
+      calls.push(route.request().postDataJSON().rows);
+      if (calls.length > 1) return route.continue();
+      await held;
+      await route.fulfill({ status: 400, json: { error: 'Ответ для предыдущего списка' } });
+    });
+    await page.goto('/parts-list');
+    const input = page.locator('#parts-list-text');
+    const check = page.locator('[data-check-list]');
+    const diagnostics = page.locator('[data-list-diagnostics]');
+    await input.fill('\t4\n"UNCLOSED\nRE568158;2');
+    const firstRequest = page.waitForRequest('**/api/list-check', { timeout: 5000 });
+    await check.click();
+    try {
+      assert.deepEqual((await firstRequest).postDataJSON().rows, [{ article: 'RE568158', quantity: 2 }]);
+      assert.match(await diagnostics.innerText(), /Артикул отсутствует/);
+      assert.match(await diagnostics.innerText(), /Проверьте кавычки/);
+      await input.fill('0000550380;3');
+    } finally {
+      release();
+    }
+    assert.ok(await diagnostics.isHidden());
+    await page.locator('[data-list-message]').waitFor({ state: 'hidden', timeout: 3000 });
+    await check.click();
+    await page.locator('[data-result-row] h3').getByText('1. 0000550380').waitFor();
+    assert.deepEqual(calls[1], [{ article: '0000550380', quantity: 3 }]);
   });
 
   await scenario("Расценка текста: email, потерянный ответ, повтор; файл CP1251 сохраняет оригинал", async (page) => {
@@ -163,7 +197,7 @@ try {
   await scenario("XLSX reader retries without losing original; PDF is quote-only; full cart reports overflow", async (page) => {
     let first = true;
     await page.route((url) => url.pathname.endsWith('/read-excel-file.min.js'), async (route) => {
-      assert.equal(new URL(route.request().url()).search, '?v=20261111-1');
+      assert.equal(new URL(route.request().url()).search, '?v=20261117-2');
       if (first) { first = false; await route.abort(); } else await route.continue();
     });
     await page.goto('/parts-list');
@@ -207,16 +241,18 @@ try {
     assert.deepEqual(result.remaining.map(({ productId, quantity }) => [productId, quantity]), [['offer-a', 1], ['offer-b', 4]]);
   });
 
-  await scenario("Storage replacement of a canonical offer reloads its price and submits the new ID", async (page) => {
+  await scenario("Storage replacement of a canonical offer with a long SKU reloads price by ID", async (page) => {
+    const article = 'SAME-LONG-SKU-' + 'A'.repeat(70);
     const offers = ['offer-a', 'offer-b'].map((id, index) => ({
-      id, sku: 'SAME-SKU', brand: 'Same Brand', title: 'Offer ' + id,
+      id, sku: article, brand: 'Same Brand', title: 'Offer ' + id,
       price_status: 'fixed', price: 111 + 111 * index, currency: 'RUB',
     }));
-    let searches = 0;
+    const requested = [];
     let submitted;
-    await page.route('**/api/search?*', async (route) => {
-      searches++;
-      await route.fulfill({ json: { data: offers, meta: { total: 2, partial: false } } });
+    await page.route('**/api/product-prices?*', async (route) => {
+      const ids = new URL(route.request().url()).searchParams.getAll('ids[]');
+      requested.push(ids);
+      await route.fulfill({ json: { data: Object.fromEntries(offers.filter(({ id }) => ids.includes(id)).map(offer => [offer.id, offer])) } });
     });
     await page.route('**/api/lead', async (route) => {
       submitted = route.request().postDataJSON();
@@ -225,22 +261,22 @@ try {
     await page.goto('/request');
     const sibling = await page.context().newPage();
     await sibling.goto('/contacts');
-    const replace = (id) => sibling.evaluate((productId) => {
+    const replace = (productId) => sibling.evaluate(({ article, productId }) => {
       localStorage.setItem('smtechno-request', JSON.stringify([
-        { article: 'SAME-SKU', brand: 'Same Brand', title: 'Selected offer', quantity: 2, productId },
+        { article, brand: 'Same Brand', title: 'Selected offer', quantity: 2, productId },
       ]));
-    }, id);
+    }, { article, productId });
     await replace('offer-a');
     await page.locator('.cart-price-label').getByText(/111/).waitFor();
-    const refreshed = page.waitForRequest('**/api/search?*', { timeout: 3000 });
+    const refreshed = page.waitForRequest('**/api/product-prices?*', { timeout: 3000 });
     await replace('offer-b');
     await refreshed;
     await page.locator('.cart-price-label').getByText(/222.*444/).waitFor();
-    assert.equal(searches, 2);
+    assert.deepEqual(requested, [['offer-a'], ['offer-b']]);
     await fill(page, 'Canonical Price');
     await page.locator('form[data-lead="request"]').getByRole('button', { name: 'Отправить заявку' }).click();
     await page.getByText(/Заявка принята/).waitFor();
-    assert.deepEqual(submitted.request_items, [{ article: 'SAME-SKU', quantity: 2, product_id: 'offer-b' }]);
+    assert.deepEqual(submitted.request_items, [{ article, quantity: 2, product_id: 'offer-b' }]);
   });
 
   await scenario("Недоступный модуль заявки → объяснение в короткой форме и контакты", async (page) => {
@@ -263,8 +299,11 @@ try {
     await search.press("Enter");
     await page.waitForURL("**/product/jd-re568158");
     await page.locator(".product-info").getByRole("button", { name: "В корзину", exact: true }).click();
+    await page.locator(".product-info").getByRole("button", { name: "В корзине ✓", exact: true }).waitFor();
     await page.goto("/request");
     await page.getByRole("button", { name: "Увеличить количество " + sku }).click();
+    await page.waitForFunction((article) => JSON.parse(localStorage.getItem("smtechno-request") || "[]")
+      .some((item) => item.article === article && item.quantity === 2), sku);
     assert.equal((await storage(page))[0].quantity, 2);
     await fill(page, "Алексей Тест");
     const sent = page.waitForResponse((res) => res.url().endsWith("/api/lead") && res.request().method() === "POST");

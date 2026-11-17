@@ -12,6 +12,8 @@ use Throwable;
 final class CmtehLeads extends Controller
 {
     private const ROUTE = 'extension/cmteh/module/cmteh_leads';
+    private const QUOTE_ACTIONS = ['download', 'downloadText', 'deleteText', 'retry', 'deleteAttachment'];
+    private const TEXT_EXPORTS = 'cmteh_quote_text_exports';
     private const STATUS_LABELS = [
         'pending' => 'В очереди',
         'retry' => 'Ожидает повторной отправки',
@@ -148,6 +150,17 @@ final class CmtehLeads extends Controller
         $this->response->setOutput($message);
     }
 
+    private function quoteDownload(string $filename, string $mime, string $bytes): void
+    {
+        $this->response->addHeader('Content-Type: ' . $mime);
+        $this->response->addHeader('X-Content-Type-Options: nosniff');
+        $this->response->addHeader("Content-Disposition: attachment; filename*=UTF-8''" . rawurlencode($filename));
+        $this->response->addHeader('Content-Length: ' . strlen($bytes));
+        // OpenCart response compression would change original attachment bytes/length.
+        $this->response->setCompression(0);
+        $this->response->setOutput($bytes);
+    }
+
     private function quotes(?string $id, int $page, array $query): void
     {
         try {
@@ -155,24 +168,41 @@ final class CmtehLeads extends Controller
             $service = new \Cmteh\Quote(Database::connectFromOpenCart(), DB_PREFIX);
             $query['type'] = 'quote';
             $action = $this->request->get['action'] ?? '';
-            if (!is_string($action) || !in_array($action, ['', 'download', 'retry', 'deleteAttachment'], true)) { $this->fail(400, 'Неизвестное действие.'); return; }
+            if (!is_string($action) || !in_array($action, ['', ...self::QUOTE_ACTIONS], true)) { $this->fail(400, 'Неизвестное действие.'); return; }
             if ($action !== '') {
                 if ($id === null) { $this->fail(404, 'Расценка не найдена.'); return; }
                 if ($action === 'download') {
                     if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'GET') { $this->fail(405, 'Используйте GET.'); return; }
                     $file = $service->attachment($id);
                     if ($file === null) { $this->fail(404, 'Файл не найден.'); return; }
-                    $this->response->addHeader('Content-Type: ' . $file['mime']);
-                    $this->response->addHeader('X-Content-Type-Options: nosniff');
-                    $this->response->addHeader("Content-Disposition: attachment; filename*=UTF-8''" . rawurlencode($file['filename']));
-                    $this->response->addHeader('Content-Length: ' . strlen($file['bytes']));
-                    // OpenCart response compression would change original attachment bytes/length.
-                    $this->response->setCompression(0);
-                    $this->response->setOutput($file['bytes']); return;
+                    $this->quoteDownload($file['filename'], $file['mime'], $file['bytes']); return;
                 }
                 if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') { $this->fail(405, 'Используйте POST.'); return; }
                 if (!$this->user->hasPermission('modify', self::ROUTE)) { $this->fail(403, 'Недостаточно прав для изменения расценок.'); return; }
-                $ok = $action === 'retry' ? $service->retry($id) : $service->deleteAttachment($id);
+                if ($action === 'downloadText' || $action === 'deleteText') {
+                    $exports = $this->session->data[self::TEXT_EXPORTS] ?? [];
+                    $login = hash('sha256', $query['user_token']);
+                    if ($action === 'downloadText') {
+                        $text = $service->textOriginal($id);
+                        if ($text === null) { $this->fail(404, 'Переданный текстовый список не найден.'); return; }
+                        unset($exports[$id]);
+                        $exports[$id] = ['login' => $login, 'hash' => hash('sha256', $text)];
+                        $this->session->data[self::TEXT_EXPORTS] = array_slice($exports, -50, null, true);
+                        $this->quoteDownload('quote-' . $id . '.txt', 'text/plain; charset=utf-8', $text);
+                        return;
+                    }
+                    if (($this->request->post['confirm_archive'] ?? null) !== '1') {
+                        $this->fail(400, 'Подтвердите, что сохранили скачанный список.'); return;
+                    }
+                    $receipt = $exports[$id] ?? null;
+                    if (!$receipt || !hash_equals($receipt['login'], $login)) {
+                        $this->fail(409, 'Сначала скачайте список в текущем сеансе.'); return;
+                    }
+                    $ok = $service->deleteText($id, $receipt['hash']);
+                    unset($this->session->data[self::TEXT_EXPORTS][$id]);
+                } else {
+                    $ok = $action === 'retry' ? $service->retry($id) : $service->deleteAttachment($id);
+                }
                 if (!$ok) { $this->fail(409, 'Действие недоступно для текущего состояния расценки.'); return; }
                 $this->response->redirect($this->url->link(self::ROUTE, $query + ['id' => $id])); return;
             }
@@ -184,7 +214,7 @@ final class CmtehLeads extends Controller
             if ($id !== null) {
                 $data['quote'] = $service->find($id);
                 if ($data['quote'] === null) { $this->fail(404, 'Расценка не найдена.'); return; }
-                foreach (['download', 'retry', 'deleteAttachment'] as $name) { $data[$name] = $this->url->link(self::ROUTE, $query + ['id' => $id, 'action' => $name]); }
+                foreach (self::QUOTE_ACTIONS as $name) { $data[$name] = $this->url->link(self::ROUTE, $query + ['id' => $id, 'action' => $name]); }
             } else {
                 $data += $service->list($page); $page = $data['page'];
                 foreach ($data['rows'] as &$row) { $row['href'] = $this->url->link(self::ROUTE, $query + ['id' => $row['public_id'], 'page' => $page]); } unset($row);

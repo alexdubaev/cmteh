@@ -5,6 +5,7 @@ export const MAX_ITEMS = 100;
 export const MAX_QUANTITY = 100_000;
 export const MAX_ARTICLE_LENGTH = 128;
 const UNKNOWN_BRAND = "Не указан";
+const CART_WRITE_LOCK = "smtechno-cart-write";
 let cart = [];
 let warehouseCart = [];
 let persistent = true;
@@ -56,13 +57,35 @@ export function selectedLine(product, offer, quantity = 1) {
 export function readCart() {
   if (persistent) {
     try {
-      const legacy = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-      const selected = JSON.parse(localStorage.getItem(WAREHOUSE_CART_KEY) || "[]");
-      cart = normalize(legacy);
-      warehouseCart = normalizeWarehouse(selected);
+      cart = readStoredCart(CART_KEY, normalize, cart);
+      warehouseCart = readStoredCart(WAREHOUSE_CART_KEY, normalizeWarehouse, warehouseCart);
     } catch { persistent = false; }
   }
   return [...cart, ...warehouseCart].map((item) => ({ ...item }));
+}
+
+function readStoredCart(key, normalizeValue, previous) {
+  const raw = localStorage.getItem(key);
+  try {
+    return normalizeValue(JSON.parse(raw ?? "[]"));
+  } catch {
+    // A malformed payload is local to this key. Keep reading the other cart.
+    return previous;
+  }
+}
+
+export async function withCartWrite(operation) {
+  if (!navigator.locks) return operation();
+  let acquired = false;
+  try {
+    return await navigator.locks.request(CART_WRITE_LOCK, () => {
+      acquired = true;
+      return operation();
+    });
+  } catch (error) {
+    if (acquired) throw error;
+    return operation();
+  }
 }
 
 export function writeCart(items, acknowledgement = false) {

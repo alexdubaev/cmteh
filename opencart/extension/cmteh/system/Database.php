@@ -6,9 +6,28 @@ namespace Cmteh;
 
 use PDO;
 use RuntimeException;
+use Throwable;
 
 final class Database
 {
+    /** Reuse an owning transaction, or establish a single committed view for all reads. */
+    public static function readSnapshot(PDO $pdo, callable $read): mixed
+    {
+        if ($pdo->inTransaction()) {
+            return $read();
+        }
+        $pdo->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+        $pdo->beginTransaction();
+        try {
+            $result = $read();
+            $pdo->commit();
+            return $result;
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public static function connectFromOpenCart(): PDO
     {
         $options = [

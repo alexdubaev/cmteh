@@ -42,10 +42,29 @@ function offers(mode) {
   }
 }
 
-async function makeWorkbook(article,warehouseCode,sourceId) {
-  const input={file:xlsxFile,rows:[['article','warehouse_code','quantity','price','delivery_term','source_id'],[article,warehouseCode,'9','1777.25','',sourceId]]};
-  const py=`import html,json,sys,zipfile\np=json.load(sys.stdin)\nrows=p['rows']\ncols='ABCDEFGHIJKLMNOPQRSTUVWXYZ'\ndef cell(ref,value): return '<c r="'+ref+'" t="inlineStr"><is><t>'+html.escape(value,quote=False)+'</t></is></c>'\nxml='<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+''.join('<row r="'+str(i+1)+'">'+''.join(cell(cols[j]+str(i+1),v) for j,v in enumerate(row))+'</row>' for i,row in enumerate(rows))+'</sheetData></worksheet>'\nentries={'[Content_Types].xml':'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>','_rels/.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>','xl/workbook.xml':'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>','xl/_rels/workbook.xml.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>','xl/worksheets/sheet1.xml':xml}\nwith zipfile.ZipFile(p['file'],'w',compression=zipfile.ZIP_DEFLATED) as z:\n for name,body in entries.items(): z.writestr(name,body)\n`;
-  execFileSync('python',['-c',py,xlsxFile],{cwd:root,input:JSON.stringify(input),stdio:['pipe','ignore','pipe']});
+function makeWorkbook(article, warehouseCode) {
+  const input = {file:xlsxFile, rows:[['article','warehouse_code','quantity','price','delivery_term','source_id'],[article,warehouseCode,'9','1777.25','']]};
+  const py = `import html,json,sys,zipfile
+p=json.load(sys.stdin)
+cols='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+spreadsheet='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+office_rels='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+package_rels='http://schemas.openxmlformats.org/package/2006/relationships'
+def cell(ref,value): return '<c r="'+ref+'" t="inlineStr"><is><t>'+html.escape(value,quote=False)+'</t></is></c>'
+def worksheet(rows): return '<worksheet xmlns="'+spreadsheet+'"><sheetData>'+rows+'</sheetData></worksheet>'
+rows=''.join('<row r="'+str(i+1)+'">'+''.join(cell(cols[j]+str(i+1),v) for j,v in enumerate(row))+'</row>' for i,row in enumerate(p['rows']))
+entries={
+ '[Content_Types].xml':'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+''.join('<Override PartName="/xl/worksheets/sheet'+str(i)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' for i in (1,2))+'</Types>',
+ '_rels/.rels':'<Relationships xmlns="'+package_rels+'"><Relationship Id="rId1" Type="'+office_rels+'/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+ 'xl/workbook.xml':'<workbook xmlns="'+spreadsheet+'" xmlns:r="'+office_rels+'"><sheets><sheet name="Inventory" sheetId="2" r:id="rId2"/><sheet name="Notes" sheetId="1" r:id="rId1"/></sheets></workbook>',
+ 'xl/_rels/workbook.xml.rels':'<Relationships xmlns="'+package_rels+'">'+''.join('<Relationship Id="rId'+str(i)+'" Type="'+office_rels+'/worksheet" Target="worksheets/sheet'+str(i)+'.xml"/>' for i in (1,2))+'</Relationships>',
+ 'xl/worksheets/sheet1.xml':worksheet('<row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c r="A2"><v>2</v></c></row>'),
+ 'xl/worksheets/sheet2.xml':worksheet(rows)
+}
+with zipfile.ZipFile(p['file'],'w',compression=zipfile.ZIP_DEFLATED) as z:
+ for name,body in entries.items(): z.writestr(name,body)
+`;
+  execFileSync('python',['-c',py],{cwd:root,input:JSON.stringify(input),stdio:['pipe','ignore','pipe']});
 }
 
 const roleSetup=`import json,sys\nfrom pathlib import Path\nsys.path.insert(0, str(Path('opencart/dev').resolve()))\nfrom runtime import LocalOpenCart\nfrom release_checks import create_role, MODULE, CATALOG\nr=LocalOpenCart(Path(sys.argv[1]),int(sys.argv[2]))\nr.login((r.directory/'admin-password').read_text(encoding='ascii').strip())\na=create_role(r,'Inventory XLSX happy '+sys.argv[4],[MODULE,CATALOG],[CATALOG],password_file=Path(sys.argv[3]))\nname=a.username\na.logout(); r.logout()\nprint(json.dumps({'username':name}))`;
@@ -127,11 +146,30 @@ try {
   assert.match(initialCells[4],/1000\.10/);
   assert.match(initialCells[4],/скрыто/);
 
-  await makeWorkbook('000-WOB-001',warehouseCode,`warehouse-browser-${nonce}`);
-  await page.locator('[data-inventory-file]').setInputFiles(xlsxFile);
+  makeWorkbook('000-WOB-001',warehouseCode);
+  const importInput=page.locator('[data-inventory-file]');
+  const previewButton=page.getByRole('button',{name:'Проверить и показать preview'});
+  await importInput.setInputFiles(xlsxFile);
+  let releaseReader;
+  const readerGate=new Promise(resolve=>{releaseReader=resolve;});
+  const readerBundle='**/vendor/read-excel-file.min.js';
+  const readerRequested=page.waitForRequest(readerBundle);
+  await page.route(readerBundle,async route=>{await readerGate; await route.continue();});
+  const postCount=observedPosts.length;
+  try {
+    await previewButton.click();
+    await readerRequested;
+    await importInput.setInputFiles({name:'replacement.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('Replacement workbook fixture')});
+  } finally {
+    releaseReader();
+  }
+  await page.getByText('Файл изменился во время чтения. Проверьте выбранный файл снова.').waitFor();
+  await page.unroute(readerBundle);
+  assert.equal(observedPosts.length,postCount,'Replacing the selected file while XLSX is read must not submit stale parsed rows');
+  await importInput.setInputFiles(xlsxFile);
   await page.locator('#publish-offers').check();
   const previewResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).searchParams.get('route')===route);
-  await page.getByRole('button',{name:'Проверить и показать preview'}).click();
+  await previewButton.click();
   const previewHttp=await previewResponse;
   const previewError=await page.locator('[data-inventory-focus]').innerText().catch(()=>'(no inline import result)');
   assert.equal(previewHttp.status(),200,`Actual XLSX preview POST should return HTTP 200 (${previewError})`);

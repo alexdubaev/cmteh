@@ -170,9 +170,13 @@ final class Cmteh extends Controller
     private function nativeCatalogEvents(): array
     {
         $handler = 'extension/cmteh/event/cmteh_catalog';
-        $events = ['cmteh_native_guard_category_delete' => [
-            'admin/controller/catalog/category.delete/before', $handler . '.guardCategoryDelete',
-        ]];
+        $events = [
+            'cmteh_native_guard_category_delete' => ['admin/controller/catalog/category.delete/before', $handler . '.guardCategoryDelete'],
+            'cmteh_native_guard_category_save' => ['admin/controller/catalog/category.save/before', $handler . '.guardCategoryController'],
+        ];
+        foreach ([...self::NATIVE_CATALOG_ACTIONS['category'], 'repairCategories'] as $method) {
+            $events['cmteh_native_guard_' . $method] = ['admin/model/catalog/category.' . $method . '/before', $handler . '.guardCategoryModel'];
+        }
         foreach (self::NATIVE_CATALOG_ACTIONS as $model => $methods) {
             foreach ($methods as $method) {
                 $events['cmteh_native_' . $method] = ["admin/model/catalog/$model.$method/after", $handler . '.synchronize'];
@@ -198,6 +202,7 @@ final class Cmteh extends Controller
         foreach (['addProduct','editProduct','copyProduct','deleteProduct','addVariant','editVariant','addOptionValue'] as $method) {
             $events['cmteh_inventory_native_'.$method]=['admin/model/catalog/product.'.$method.'/before',$admin.'.guardProductModel',-10000];
         }
+        $events['cmteh_native_guard_product_category']=['admin/model/catalog/product.addCategory/before',$admin.'.guardProductModel',-10000];
         foreach (['editQuantity','editOptionQuantity'] as $method) {
             $events['cmteh_inventory_native_'.$method]=['catalog/model/catalog/product.'.$method.'/before',$catalog.'.guardQuantity',-10000];
         }

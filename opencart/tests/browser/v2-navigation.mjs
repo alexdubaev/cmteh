@@ -97,6 +97,28 @@ const scenarios = {
     await page.goto('/parts-list?article=RE568158');
     await expect(page.locator('#parts-list-text')).toHaveValue('RE568158');
   },
+  'parts-results-viewport': async page => {
+    const height = 664;
+    await page.setViewportSize({ width: 390, height });
+    for (const seamless of [false, true]) {
+      await page.goto(seamless ? '/' : '/parts-list');
+      if (seamless) {
+        await page.getByRole('link', { name: 'Проценить список или файл' }).click();
+        await expect(page).toHaveURL(new URL('/parts-list', base).href);
+        const documentUrl = await page.evaluate(() => performance.getEntriesByType('navigation')[0].name);
+        assert.equal(new URL(documentUrl).pathname, '/');
+      }
+      await page.locator('#parts-list-text').fill('RE568158;2\n0000550380;3');
+      await page.locator('[data-check-list]').click();
+      const heading = page.locator('#list-results-title');
+      const action = page.locator('[data-result-row]').first().getByRole('button', { name: 'В корзину' });
+      await expect(action).toBeVisible();
+      for (const locator of [heading, action]) {
+        const bounds = await locator.boundingBox();
+        assert.ok(bounds && bounds.y >= 0 && bounds.y + bounds.height <= height, 'List result must fit in the viewport: ' + JSON.stringify(bounds));
+      }
+    }
+  },
   'cached-filters': async page => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
@@ -110,6 +132,48 @@ const scenarios = {
     await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'parts-list');
     await page.evaluate(() => history.back());
     await expect(filter).toHaveJSProperty('open', true);
+  },
+  'quick-draft': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const open = async () => {
+      const menu = page.locator('.menu-toggle');
+      if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click();
+      await page.getByRole('link', { name: 'Быстрый запрос', exact: true }).click();
+    };
+    const form = page.locator('[data-lead=quick]');
+    const name = form.getByLabel('Контактное лицо');
+    await open();
+    await name.fill('Черновик главной');
+    await page.locator('[data-close-quick]').click();
+    const search = page.locator('#article-search input[name=q]');
+    await search.fill('RE568158');
+    await search.press('Enter');
+    await expect(page).toHaveURL(new URL(product, base).href);
+    await open();
+    await expect(name).toHaveValue('');
+    await name.fill('Черновик товара');
+    await form.getByLabel('Телефон').fill('+70000000000');
+
+    let releaseReply;
+    const reply = new Promise(resolve => { releaseReply = resolve; });
+    await page.route('**/api/lead', async route => {
+      await reply;
+      await route.fulfill({ json: { id: 'synthetic-quick-draft', replayed: false } });
+    });
+    const posted = page.waitForRequest('**/api/lead', { timeout: 5000 });
+    await form.getByRole('button', { name: 'Отправить запрос' }).click();
+    try {
+      assert.equal(new URL((await posted).postDataJSON().page_url).pathname, product);
+      await page.evaluate(() => history.back());
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+      await expect(name).toHaveValue('Черновик главной');
+    } finally {
+      releaseReply();
+    }
+    await expect(form).toHaveAttribute('aria-busy', 'false');
+    await expect(name).toHaveValue('Черновик главной');
+    assert.equal(await page.evaluate(path => sessionStorage.getItem('smtechno-form-draft:quick:' + path), product), null);
   },
 };
 

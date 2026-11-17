@@ -48,8 +48,7 @@ try {
  assert.equal(await live.locator('.request-line').filter({hasText:'Synthetic warehouse A'}).locator('.qty b').innerText(),'2');
  assert.equal(await live.locator('.request-line').filter({hasText:'Synthetic warehouse B'}).locator('.qty b').innerText(),'1');
  assert.ok((await live.locator('.request-line').filter({hasText:'Synthetic warehouse A'}).innerText()).includes('2 days'));
- fixture('mutate'); await live.reload();
- await live.getByRole('button',{name:'Принять новые условия 000-WOB-001, склад Synthetic warehouse A',exact:true}).waitFor();
+ fixture('mutate');
  const form=live.locator('form[data-lead="request"]');
  await form.getByLabel('Контактное лицо').fill('Synthetic buyer');
  await form.getByLabel('Телефон').fill('+70000000000');
@@ -57,7 +56,7 @@ try {
  await form.getByRole('button',{name:'Отправить заявку',exact:true}).click();
  await form.locator('[data-lead-result][role="alert"]').getByText(/измен|склад|предложени/i).waitFor();
  assert.equal(fixture('state').leads.length,0);
- await live.getByRole('button',{name:'Принять новые условия 000-WOB-001, склад Synthetic warehouse A',exact:true}).click();
+ await live.getByRole('button',{name:'Принять новые условия 000-WOB-001, склад Synthetic warehouse A',exact:true}).click({timeout:5000});
  const calls=[];
  await live.route('**/api/lead/warehouse',async route=>{
    calls.push(route.request().postDataJSON());
@@ -136,4 +135,29 @@ try {
  console.log('PASS Older-tab hundred-row cart plus selected auxiliary row survives combined limit enforcement');
  await edge.close();
 
+ const batches=await browser.newPage({baseURL:base.href});
+ const ids=Array.from({length:12},(_,index)=>'Я'.repeat(147)+'-ID-'+index);
+ const batchesSeen=[];
+ await batches.route('**/api/warehouse-offers?*',route=>{
+   const url=new URL(route.request().url());
+   const requested=url.searchParams.getAll('ids[]');
+   batchesSeen.push(requested);
+   if(url.pathname.length+url.search.length>3500 || requested.includes(ids[0])) {
+     return route.fulfill({status:503,json:{error:'Test batch unavailable'}});
+   }
+   return route.fulfill({json:{data:Object.fromEntries(requested.map(id=>[id,{
+     managed:true,offers:[{offer_id:'1',offer_version:version,availability_status:'in_stock'}],partial:false,
+   }]))}});
+ });
+ await batches.goto('/request');
+ await batches.evaluate(async ({ ids,version })=>{
+   const {writeCart}=await import('/extension/cmteh/catalog/view/assets/cart.mjs?v=20261111-1');
+   writeCart(ids.map((productId,index)=>({productId,article:'BATCH-'+index,title:'Batch',brand:'Synthetic',quantity:1,offerId:'1',offerVersion:version,warehouseName:'Synthetic',price:'20.00'})));
+ },{ids,version});
+ await batches.locator('.request-line').filter({hasText:'BATCH-0'}).getByText(/Не удалось проверить условия/).waitFor();
+ await batches.locator('.request-line').filter({hasText:'BATCH-9'}).getByText(/20.*₽ за шт/).waitFor();
+ assert.deepEqual(batchesSeen.flat().sort(),ids.slice().sort());
+ assert.ok(batchesSeen.length>1,'Warehouse offer fetches must use bounded encoded requests');
+ await batches.close();
+ console.log('PASS Oversized warehouse GET is batched; a failed batch leaves other prices available');
 } finally {await browser.close(); if(owned) fixture('cleanup');}

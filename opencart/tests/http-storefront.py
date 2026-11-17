@@ -176,6 +176,18 @@ def main():
     request("/api/search", 405, method="POST")
     print("PASS search payload, normalization, bounds and methods")
 
+    path = "/api/product-prices?" + urlencode([("ids[]", "mock-11"), ("ids[]", "nonexistent-product")])
+    body, headers = request(path)
+    prices = json.loads(body)["data"]
+    assert headers["Cache-Control"] == "no-store" and set(prices) == {"mock-11"}
+    assert prices["mock-11"] == {"id": "mock-11", "sku": "RE568158", "slug": "jd-re568158",
+        "title": "Фильтр масляный", "brand": "John Deere", "price": 3200, "currency": "RUB",
+        "price_status": "fixed", "inventory_managed": False}
+    request("/api/product-prices?ids=mock-11", 400)
+    request("/api/product-prices?" + urlencode([("ids[]", "mock-11")] * 101), 400)
+    request(path, 405, method="POST")
+    print("PASS exact published product prices, response allowlist and bounds")
+
     _, headers = request("/api/lead", 405)
     assert headers["Allow"] == "POST"
     request("/api/lead", 403, method="POST", headers={"Origin": "http://foreign.invalid"}, data=b"{}")

@@ -11,13 +11,28 @@ use Throwable;
 
 final class CmtehCatalog extends Controller
 {
-    public function guardProductModel(string &$route,array &$args): void
+    private function nativeGuard(): \Cmteh\InventoryNativeGuard
     {
         require_once DIR_EXTENSION . 'cmteh/system/InventoryNativeGuard.php';
         if (!$this->registry->has('cmteh_inventory_native')) $this->registry->set('cmteh_inventory_native',new \Cmteh\InventoryNativeGuard($this->db,DB_PREFIX));
+        return $this->registry->get('cmteh_inventory_native');
+    }
+
+    public function guardProductModel(string &$route,array &$args): void
+    {
+        $this->nativeGuard();
         $method=substr($route,strrpos($route,'.')+1);
-        if (in_array($method,['addProduct','editProduct','copyProduct','deleteProduct','addVariant','editVariant','addOptionValue'],true)) {
+        if (in_array($method,['addProduct','editProduct','copyProduct','deleteProduct','addVariant','editVariant','addOptionValue','addCategory'],true)) {
             $route='extension/cmteh/catalog/inventory_guard.'.$method;
+        }
+    }
+
+    public function guardCategoryModel(string &$route, array &$args): void
+    {
+        $this->nativeGuard();
+        $method = substr($route, strrpos($route, '.') + 1);
+        if (in_array($method, ['addCategory', 'editCategory', 'deleteCategory', 'repairCategories'], true)) {
+            $route = 'extension/cmteh/catalog/category_guard.' . $method;
         }
     }
 
@@ -68,65 +83,84 @@ final class CmtehCatalog extends Controller
 
     public function guardCategoryDelete(string &$route, array &$args): void
     {
-        if ($route !== 'catalog/category.delete' || !$this->user->isLogged()
+        $this->guardCategoryController($route, $args);
+    }
+
+    public function guardCategoryController(string &$route, array &$args): void
+    {
+        if (!in_array($route, ['catalog/category.save', 'catalog/category.delete'], true) || !$this->user->isLogged()
             || !$this->user->hasPermission('modify', 'catalog/category')) {
             return;
         }
+        $action = $route === 'catalog/category.delete' ? 'categoryDelete' : 'categorySave';
+        $this->registry->set('cmteh_category_controller', (object) ['action' => $action, 'deletingBatch' => false]);
+        $route = 'extension/cmteh/event/cmteh_catalog.' . $action;
+    }
 
-        $error = '';
-        $status = 200;
-        if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') {
-            $error = 'Для удаления категории требуется POST.';
-            $status = 405;
-        } else {
-            $selected = (array) ($this->request->post['selected'] ?? []);
-            $ids = [];
-            foreach ($selected as $id) {
-                if (!is_scalar($id) || !ctype_digit((string) $id) || (int) $id < 1 || (int) $id > 2147483647) {
-                    $error = 'Некорректный список категорий для удаления.';
-                    break;
-                }
-                $ids[] = (int) $id;
-            }
-            if ($error === '' && $ids !== []) {
-                require_once DIR_EXTENSION . 'cmteh/system/Database.php';
-                try {
-                    // Check the entire batch before OpenCart can recursively delete its first item.
-                    $pdo = Database::connectFromOpenCart();
-                    $marks = implode(',', array_fill(0, count($ids), '?'));
-                    $query = $pdo->prepare('SELECT 1 FROM `' . DB_PREFIX . 'category` WHERE parent_id IN (' . $marks . ') LIMIT 1');
-                    $query->execute($ids);
-                    $hasChildren = $query->fetchColumn() !== false;
-                    $query = $pdo->prepare('SELECT 1 FROM `' . DB_PREFIX . 'product_to_category` WHERE category_id IN (' . $marks . ') LIMIT 1');
-                    $query->execute($ids);
-                    if ($hasChildren || $query->fetchColumn() !== false) {
-                        $error = 'Категории связаны с товарами или дочерними категориями. Сначала снимите связи. Ничего не удалено.';
-                    }
-                } catch (Throwable $exception) {
-                    $this->log->write('СМ ТЕХНО: не удалось проверить связи категорий (' . get_class($exception) . ')');
-                    $error = 'Не удалось проверить связи категорий. Ничего не удалено. Повторите попытку.';
-                }
-            }
+    public function categorySave(): void
+    {
+        if (($this->registry->get('cmteh_category_controller')->action ?? '') !== 'categorySave') {
+            $this->categoryError('Недостаточно прав.', 403);
+            return;
         }
-        if ($error !== '') {
-            // The 4.1 loader ignores before-event return values; redirect the controller instead.
-            $this->registry->set('cmteh_category_delete_denied', (object) ['error' => $error, 'status' => $status]);
-            $route = 'extension/cmteh/event/cmteh_catalog.rejectCategoryDelete';
+        try {
+            $this->factory->controller('catalog/category')->save();
+            $this->reportSyncFailure();
+        } catch (\Cmteh\InventoryException $error) {
+            $this->categoryError(['warning' => $error->getMessage()]);
         }
     }
 
-    public function rejectCategoryDelete(): void
+    public function categoryDelete(): void
     {
-        $denial = $this->registry->get('cmteh_category_delete_denied');
-        $status = $denial->status ?? 403;
-        if ($status !== 200) {
-            http_response_code($status);
+        $context = $this->registry->get('cmteh_category_controller');
+        if (($context->action ?? '') !== 'categoryDelete') {
+            $this->categoryError('Недостаточно прав.', 403);
+            return;
         }
-        if ($status === 405) {
+        if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') {
             $this->response->addHeader('Allow: POST');
+            $this->categoryError('Для удаления категории требуется POST.', 405);
+            return;
         }
+        $ids = [];
+        foreach ((array) ($this->request->post['selected'] ?? []) as $id) {
+            if (!is_scalar($id) || !ctype_digit((string) $id) || (int) $id < 1 || (int) $id > 2147483647) {
+                $this->categoryError('Некорректный список категорий для удаления.');
+                return;
+            }
+            $ids[] = (int) $id;
+        }
+        try {
+            $this->nativeGuard()->run([], function () use ($ids, $context): void {
+                $this->factory->model('extension/cmteh/catalog/category_guard')->assertDeletable($ids);
+                $context->deletingBatch = true;
+                try {
+                    $this->factory->controller('catalog/category')->delete();
+                } finally {
+                    $context->deletingBatch = false;
+                }
+            });
+        } catch (\Cmteh\InventoryException $error) {
+            $this->categoryError($error->getMessage(), $error->status);
+            return;
+        } catch (Throwable $error) {
+            $this->log->write('СМ ТЕХНО: не удалось удалить категории (' . get_class($error) . ')');
+            $this->categoryError('Не удалось удалить категории. Повторите попытку.');
+            return;
+        }
+        foreach (array_unique($ids) as $id) {
+            $route = 'catalog/category.deleteCategory'; $args = [$id]; $output = null;
+            $this->synchronize($route, $args, $output);
+        }
+        $this->reportSyncFailure();
+    }
+
+    private function categoryError(string|array $error, int $status = 200): void
+    {
+        if ($status !== 200) http_response_code($status);
         $this->response->addHeader('Content-Type: application/json; charset=utf-8');
-        $this->response->setOutput(json_encode(['error' => $denial->error ?? 'Удаление категории отклонено.'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $this->response->setOutput(json_encode(['error' => $error], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     }
 
     private const ROUTES = [

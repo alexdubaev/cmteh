@@ -6,6 +6,24 @@ require_once __DIR__ . '/../extension/cmteh/system/Inventory.php';
 require_once __DIR__ . '/../extension/cmteh/system/InventorySchema.php';
 use Cmteh\{Database,Catalog,Lead,Inventory,InventorySchema};
 function check(bool $ok,string $message):void { if(!$ok) throw new RuntimeException($message); echo "PASS: $message\n"; }
+final class AfterSelect extends PDOStatement
+{
+    protected function __construct(private string $expected, private Closure $after) {}
+
+    public function execute(?array $params = null): bool
+    {
+        $result = parent::execute($params);
+        if (str_contains($this->queryString, $this->expected)) ($this->after)();
+        return $result;
+    }
+}
+
+function observingConnection(string $sql, Closure $after): PDO
+{
+    $pdo = Database::connectFromOpenCart();
+    $pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [AfterSelect::class, [$sql, $after]]);
+    return $pdo;
+}
 $pdo=Database::connectFromOpenCart();
 if(!preg_match('~^http://(?:127\.0\.0\.1|localhost)(?::[0-9]+)?$~D',Database::siteUrl())) throw new RuntimeException('Loopback only');
 // Explicitly owned fixtures for the real loopback HTTP journey; never an installed site host.
@@ -98,13 +116,31 @@ try {
  $a=$run('warehouse.save',['expected_warehouse_version'=>0,'code'=>'SYN-A','name'=>'Synthetic A','city'=>'Synthetic city A','delivery_term'=>'2 days','address'=>'Private hidden'])['warehouse'];
  $b=$run('warehouse.save',['expected_warehouse_version'=>0,'code'=>'SYN-B','name'=>'Synthetic B','delivery_term'=>'5 days'])['warehouse'];
  $legacyBody=['request_key'=>Cmteh\LeadInput::uuid(),'name'=>'Synthetic legacy buyer','phone'=>'+70000000000','page_url'=>'http://localhost/request','request_items'=>[['product_id'=>'public-001','article'=>'00001','quantity'=>1]]];
- $legacySaved=$lead->submit(json_encode($legacyBody,JSON_THROW_ON_ERROR),'192.0.2.39',['content-type'=>'application/json']);
+ $titleUpdated=false;
+ $writer=Database::connectFromOpenCart();
+ $leadConnection=observingConnection("SELECT product_id FROM {$prefix}cmteh_product WHERE source_id IN", function () use ($writer, $prefix, &$titleUpdated): void {
+     $writer->exec("UPDATE {$prefix}product_description SET name='Current synthetic part' WHERE product_id=1");
+     $titleUpdated=true;
+ });
+ $legacySaved=(new Lead($leadConnection,$prefix))->submit(json_encode($legacyBody,JSON_THROW_ON_ERROR),'192.0.2.39',['content-type'=>'application/json']);
  check($legacySaved['status']===200,'Unmanaged canonical legacy submission remains supported before cutover');
+ check($titleUpdated && $lead->find($legacySaved['body']['id'])['items'][0]['product_title']==='Current synthetic part',
+     'Lead snapshots the product title after taking the native product mutex');
  $state=$inventory->productState(1);
  $run('product.activate',['product_id'=>1,'expected_product_version'=>0,'expected_legacy_quantity'=>10,'expected_legacy_revision'=>$state['legacy_revision'],'confirmed'=>true,'allocations'=>[['warehouse_id'=>$a['warehouse_id'],'quantity'=>6,'expected_warehouse_version'=>1],['warehouse_id'=>$b['warehouse_id'],'quantity'=>4,'expected_warehouse_version'=>1]]]);
  $input=function(int $wid,array $extra=[]) use($inventory):array { $state=$inventory->productState(1); $bal=$inventory->balances(['product_id'=>1,'warehouse_id'=>$wid])['rows'][0]; return array_replace(['product_id'=>1,'warehouse_id'=>$wid,'expected_product_version'=>$state['version'],'expected_balance_version'=>$bal['version'],'expected_warehouse_version'=>1],$extra); };
  $run('offer.update',$input((int)$a['warehouse_id'],['price'=>'1000.10','published'=>true]));
  $run('offer.update',$input((int)$b['warehouse_id'],['price'=>'850.25','published'=>true]));
+ $offerUpdated=false;
+ $reader=observingConnection('AND x.slug = ?', function () use ($run, $input, $a, &$offerUpdated): void {
+     $run('offer.update',$input((int)$a['warehouse_id'],['price'=>'1001.10','published'=>true]));
+     $offerUpdated=true;
+ });
+ $consistent=(new Catalog($reader,$prefix,1,0))->product('synthetic');
+ check($offerUpdated && $consistent['offers'][0]['price']==='1000.10' &&
+     $inventory->publicOffers(['public-001'])['public-001']['offers'][0]['price']==='1001.10',
+     'Product and its offers use the same snapshot during a committed warehouse update');
+ $run('offer.update',$input((int)$a['warehouse_id'],['price'=>'1000.10','published'=>true]));
  $base=['request_key'=>Cmteh\LeadInput::uuid(),'name'=>'Synthetic buyer','phone'=>'+70000000000','page_url'=>'http://localhost/request','request_items'=>[['product_id'=>'public-001','article'=>'00001','quantity'=>2]]];
  $send=fn(array $body)=>$lead->submit(json_encode($body,JSON_THROW_ON_ERROR),'192.0.2.40',['content-type'=>'application/json']);
  $legacyReplay=$lead->submit(json_encode($legacyBody,JSON_THROW_ON_ERROR),'192.0.2.39',['content-type'=>'application/json']);
@@ -178,6 +214,17 @@ try {
  $pdo->exec("INSERT INTO {$prefix}product_to_store (product_id,store_id) VALUES(2,0)");
  $pdo->exec("INSERT INTO {$prefix}product_description (product_id,language_id,name,description,tag,meta_title,meta_description,meta_keyword) VALUES(2,1,'Synthetic legacy part','','','','','')");
  $pdo->exec("INSERT INTO {$prefix}cmteh_product (product_id,source_id,slug,sku,sku_norm,mpn_norm,name_norm,brand_norm,manufacturer_id,category_id,published_at,indexable,availability,price_status,currency,data) VALUES(2,'public-002','synthetic-legacy','00002','00002','','synthetic','',0,0,'2020-01-01',1,'in_stock','fixed','RUB','{}')");
+ $longSku=str_repeat('Z',100);
+ $setSku=$pdo->prepare("UPDATE {$prefix}cmteh_product SET sku=?,sku_norm=? WHERE product_id=2");
+ $setSku->execute([$longSku,$longSku]);
+ $prices=$catalog->selectedProducts(['public-002','unpublished']);
+ check(array_keys($prices)===['public-002'] && $prices['public-002']['sku']===$longSku && $prices['public-002']['price']===900.0,
+     'Exact canonical lookup retains the fixed price for a long SKU beyond suggestion bounds');
+ $setSku->execute(['---','']);
+ $punctuation=$catalog->checkList([['article'=>'!!','quantity'=>1]])['rows'][0];
+ check($punctuation['status']==='not_found' && $punctuation['products']===[],
+     'Different nonempty inputs with empty normalized keys are not equivalent articles');
+ $setSku->execute(['00002','00002']);
  check(array_column($catalog->products(['sort'=>'price_asc'])['products'],'id')===['public-001','public-002'],'Price sorting uses the visible warehouse price rather than a stale native global price');
  $run('offer.update',$input((int)$b['warehouse_id'],['price'=>null,'published'=>true]));
  check(array_column($catalog->products(['sort'=>'price_asc'])['products'],'id')===['public-002','public-001'] && $catalog->products(['availability'=>'in_stock'])['total']===2,'Null warehouse prices sort after known prices while availability remains independent');

@@ -1,4 +1,4 @@
-import { activateView } from './view-controls.mjs?v=20261117-1';
+import { activateView } from './view-controls.mjs?v=20261117-2';
 
 // A V2 presentation enhancement over normal, server-rendered storefront URLs.
 // No response scripts are executed, and commerce uses the existing shared modules.
@@ -46,15 +46,11 @@ if (main && search && input && dock && status && supported(new URL(location.href
   async function preparePartsList(nodes) {
     if (!partsNodes) {
       partsNodes = nodes;
-      partsParking.replaceChildren(...partsNodes);
-      // The head module ran before this form existed. Evaluate the same source once
-      // for V2, with the real root connected even if navigation is superseded.
-      partsReady = import('../parts-list.mjs?v=20261111-1&v2=seamless').then(() => {
-        // A seamless parts-list URL has no prefill. The shared module may have
-        // read ?article from the page visible while the import was in flight.
-        let draft;
-        try { draft = JSON.parse(sessionStorage.getItem('smtechno-quote-draft')); } catch { /* No readable draft. */ }
-        if (typeof draft?.text !== 'string') partsParking.querySelector('#parts-list-text').value = '';
+      // Initialize the clean route using its own prefill, even when the fetch
+      // or module import finishes while another URL is still visible.
+      partsReady = import('../parts-list.mjs?v=20261117-2').then(({ setupPartsList }) => {
+        partsParking.replaceChildren(...partsNodes);
+        setupPartsList(partsParking.querySelector('[data-parts-list]'), { prefill: '' });
       });
     }
     await partsReady;

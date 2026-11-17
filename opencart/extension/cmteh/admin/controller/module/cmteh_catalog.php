@@ -203,16 +203,18 @@ final class CmtehCatalog extends Controller
             $this->document->addScript('view/javascript/ckeditor/adapters/jquery.js');
         }
 
+        $recordRevision = Catalog::adminRevision($record);
         $sectionRevision = $this->sectionRevision($record['sections'] ?? []);
         $submittedSections = [];
         $error = null;
         if ($isPost) {
             try {
+                $recordRevision = $this->formString($_POST, 'record_revision');
                 if (($this->request->post['action'] ?? '') === 'delete') {
                     if ($id === '' || ($this->request->post['confirm_delete'] ?? '') !== '1') {
                         throw new InvalidArgumentException('Подтвердите удаление записи. Предпочтительно снять её с публикации.');
                     }
-                    $catalog->deleteRecord($type, $id);
+                    $catalog->deleteRecord($type, $id, $recordRevision);
                     $this->response->redirect($link(['type' => $type, 'deleted' => 1]));
                     return;
                 }
@@ -220,12 +222,12 @@ final class CmtehCatalog extends Controller
                 if ($showSections && ($input = $this->formString($_POST, 'sections_json')) !== '') {
                     $submittedSections = json_decode($input, true, 16, JSON_THROW_ON_ERROR);
                 }
-                $catalog->saveFromAdmin($type, $record, ($_POST['confirm_slug_change'] ?? '') === '1');
+                $catalog->saveFromAdmin($type, $record, ($_POST['confirm_slug_change'] ?? '') === '1', $recordRevision);
                 $this->response->redirect($link(['type' => $type, 'id' => $record['id'], 'saved' => 1]));
                 return;
             } catch (InvalidArgumentException | JsonException $exception) {
                 if (($_POST['action'] ?? '') !== 'delete') $record = $this->submittedRecord($type, $fields, $_POST, $record ?? []);
-                http_response_code(422);
+                http_response_code($exception->getCode() === 409 ? 409 : 422);
                 $error = $exception->getMessage();
             } catch (Throwable $exception) {
                 $this->log->write('СМ ТЕХНО: не удалось сохранить запись (' . get_class($exception) . ')');
@@ -314,7 +316,7 @@ final class CmtehCatalog extends Controller
             'action' => $link(['type' => $type, 'id' => $id, 'page' => $page, 'search' => $search, 'status' => $status]),
             'new_record' => $link(['type' => $type, 'new' => 1, 'page' => $page]),
             'show_form' => $showForm, 'show_sections' => $showSections, 'sections' => $sections,
-            'section_revision' => $sectionRevision,
+            'record_revision' => $recordRevision, 'section_revision' => $sectionRevision,
             'section_fields' => self::SECTION_FIELDS, 'section_types' => self::SECTION_TYPES, 'item_fields' => self::ITEM_FIELDS,
             'can_browse_images' => $canBrowseImages, 'ckeditor_lang' => 'ru',
             'store_origin' => rtrim(HTTP_CATALOG, '/'),
@@ -374,7 +376,7 @@ final class CmtehCatalog extends Controller
             $previousSections = $existing['sections'] ?? [];
             $revision = $this->formString($post, 'sections_revision');
             if ($revision !== '' && !hash_equals($this->sectionRevision($previousSections), $revision)) {
-                throw new InvalidArgumentException('Разделы изменились в другой вкладке. Обновите страницу редактора.');
+                throw new InvalidArgumentException('Разделы изменились в другой вкладке. Обновите страницу редактора.', 409);
             }
             $record['sections'] = $this->readSections($post['sections_json'], $previousSections);
         }

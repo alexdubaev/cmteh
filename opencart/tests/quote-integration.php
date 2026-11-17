@@ -42,10 +42,15 @@ if ($prefix===DB_PREFIX) { throw new RuntimeException('Unsafe test prefix.'); }
 $t=$prefix.'cmteh_quote'; $q=new Quote($pdo,$prefix); $capture=sys_get_temp_dir().'/'.$prefix.'capture';
 $children=[];
 try {
-    $q->migrate(); $q->migrate(); $p=payload(); $accepted=submit($q,$p);
+    $q->migrate(); $q->migrate(); $p=payload();
+    $p['list_text'] .= "\r\nУплотнение;4";
+    $originalTextRequest = $p;
+    $accepted=submit($q,$p);
     check($accepted['status']===200 && $accepted['body']['replayed']===false && count($accepted['body'])===2,'Text accepted with private minimal acknowledgement');
     $id=$accepted['body']['id']; $saved=$q->find($id);
     check($saved['list_text']===$p['list_text'] && $saved['message']===$p['message'],'Original multiline text and contacts persist');
+    $textHash = hash('sha256', $p['list_text']);
+    check($q->textOriginal($id) === null && !$q->deleteText($id, $textHash), 'Pending text cannot be exported or removed');
     $used=(int)$pdo->query("SELECT used_bytes FROM {$t}_quota")->fetchColumn();
     $replay=submit($q,$p); $p['message']='Changed'; $conflict=submit($q,$p);
     check($replay['body']===['id'=>$id,'replayed'=>true] && $conflict['status']===409
@@ -195,6 +200,19 @@ try {
     $pdo->exec("UPDATE {$t}_outbox SET available_at=UTC_TIMESTAMP()");
     $result=$worker->run(static function(array $quote) use ($capture): void { (QuoteMail::capture($capture,$quote['public_id'].'.eml'))($quote); },10);
     check($result['sent']>=5 && $q->find($id)['status']==='sent','Retry sends saved text/file through capture and records MTA acceptance');
+    $sentText = $q->find($id);
+    $textQuota = (int)$pdo->query("SELECT used_bytes FROM {$t}_quota")->fetchColumn();
+    check($q->textOriginal($id) === $originalTextRequest['list_text']
+        && !$q->deleteText($id, str_repeat('0',64))
+        && (int)$pdo->query("SELECT used_bytes FROM {$t}_quota")->fetchColumn() === $textQuota,
+        'Text export preserves all original bytes and removal refuses a stale export hash');
+    check($q->deleteText($id, $textHash) && !$q->deleteText($id, $textHash)
+        && $q->textOriginal($id) === null && $q->find($id) === array_replace($sentText, ['list_text'=>null])
+        && (int)$pdo->query("SELECT used_bytes FROM {$t}_quota")->fetchColumn() === $textQuota - strlen($originalTextRequest['list_text']),
+        'Removing exported sent text releases its bytes exactly once and preserves every history field');
+    check(submit($q,$originalTextRequest)['body'] === ['id'=>$id,'replayed'=>true] && $q->textOriginal($id) === null
+        && !$q->retry($id) && !$q->deleteText($fileId, hash('sha256',$bytes)),
+        'Replay cannot restore removed text or enqueue it again and archive cannot delete a file');
     $pdo->exec("UPDATE {$t}_outbox SET status='sending',attempts=3,available_at=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 SECOND) WHERE quote_id=(SELECT quote_id FROM {$t} WHERE public_id='$fileId')");
     $expired=$worker->run(static function(): void { throw new RuntimeException('must not send terminal lease'); });
     check($expired['failed']===1 && $q->find($fileId)['status']==='failed' && $q->retry($fileId),'Expired final claim becomes failed; explicit retry permitted');

@@ -82,6 +82,7 @@ final class CatalogImport
             while (!$finished && ($maxBatches === null || $batches < $maxBatches)) {
                 $this->pdo->beginTransaction();
                 try {
+                    $this->catalog->lockImportProducts($this->batchProductIds($file, $batchSize));
                     for ($i = 0; $i < $batchSize; $i++) {
                         $raw = $this->line($file);
                         if ($raw === null) {
@@ -100,7 +101,7 @@ final class CatalogImport
                     $this->pdo->commit();
                     $batches++;
                 } catch (Throwable $error) {
-                    $this->pdo->rollBack();
+                    if ($this->pdo->inTransaction()) $this->pdo->rollBack();
                     $public = $error instanceof InvalidArgumentException ? ': ' . $error->getMessage() : '';
                     throw new RuntimeException("Строка $line: пакет отменён. Повторите с --resume$public", previous: $error);
                 }
@@ -193,6 +194,23 @@ final class CatalogImport
             throw new InvalidArgumentException('Ожидается объект NDJSON с type и data');
         }
         return [$row['type'], $row['data']];
+    }
+
+    private function batchProductIds($file, int $batchSize): array
+    {
+        $start = ftell($file);
+        if ($start === false) throw new RuntimeException('Не удалось прочитать контрольную точку');
+        $ids = [];
+        // Keep the file order and bounded memory; acquire existing native products in ID order.
+        for ($i = 0; $i < $batchSize; $i++) {
+            $raw = $this->line($file);
+            if ($raw === null) break;
+            if (trim($raw) === '') continue;
+            [$type, $data] = $this->record($raw);
+            if (in_array($type, ['product', 'unpublish'], true) && is_string($data['id'] ?? null)) $ids[] = trim($data['id']);
+        }
+        if (fseek($file, $start) !== 0) throw new RuntimeException('Не удалось прочитать контрольную точку');
+        return $ids;
     }
 
     private function line($file): ?string

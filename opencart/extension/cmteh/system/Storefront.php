@@ -102,14 +102,19 @@ final class Storefront
                 }
                 return;
             }
-            if ($path === '/api/warehouse-offers') {
+            if ($path === '/api/warehouse-offers' || $path === '/api/product-prices') {
                 $ids = $params['ids'] ?? null;
                 if (!is_array($ids) || !array_is_list($ids) || !$ids || count($ids)>100
                     || array_filter($ids, static fn($id): bool => !is_string($id) || $id==='' || !mb_check_encoding($id, 'UTF-8') || mb_strlen($id)>160 || preg_match('/[\\x00-\\x1F\\x7F]/', $id))) {
                     $this->json(400, ['error'=>'Проверьте список товаров.']);
                     return;
                 }
-                $this->json(200, ['data'=>$this->catalog()->publicWarehouseOffers($ids)], cache: 'no-store');
+                $data = $path === '/api/warehouse-offers'
+                    ? $this->catalog()->publicWarehouseOffers($ids)
+                    : (object) array_map(static fn(array $product): array => array_intersect_key($product, array_flip([
+                        'id', 'sku', 'title', 'slug', 'brand', 'price', 'currency', 'price_status', 'inventory_managed',
+                    ])), $this->catalog()->selectedProducts($ids));
+                $this->json(200, ['data' => $data], cache: 'no-store');
                 return;
             }
             if ($path === '/api/search') {
@@ -323,7 +328,8 @@ final class Storefront
         if (str_starts_with($path, '/api/assets/')) {
             return $this->catalog()->asset(substr($path, strlen('/api/assets/'))) !== null;
         }
-        if (in_array($path, ['/robots.txt', '/sitemap', '/sitemap.xml', '/sitemaps/static.xml', '/api/search', '/api/health', '/parts-list'], true)) {
+        if (in_array($path, ['/robots.txt', '/sitemap', '/sitemap.xml', '/sitemaps/static.xml', '/api/search',
+            '/api/health', '/api/product-prices', '/parts-list'], true)) {
             return true;
         }
         if (preg_match('~^/sitemaps/products-(0|[1-9][0-9]{0,8})\.xml$~D', $path, $matches)) {

@@ -30,6 +30,13 @@ PAGES = ("home", "catalog", "product", "request", "brands", "articles")
 WIDTHS = (1440, 1024, 390)
 
 
+def editor_revision(session, path):
+    status, body = session.request(path)
+    match = re.search(r'name="record_revision" value="([0-9a-f]{64})"', body)
+    require(status == 200 and match is not None, "The live catalog editor did not render its record revision.")
+    return match.group(1)
+
+
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
@@ -422,10 +429,14 @@ def _quote_acceptance(runtime, package):
     quote_id = result["id"]
     code, body = runtime.request("/api/quote", json.dumps(payload).encode(), "application/json")
     require(code == 200 and json.loads(body) == {"id": quote_id, "replayed": True}, "HTTP quote replay changed identity.")
+    text_original = "001A;2\r\nУплотнение;3\n002;4 "
     text = {"request_key": str(uuid4()), "name": "Quote text", "phone": "+70000000000",
-            "input_kind": "text", "list_text": "001A;2\n002;3"}
-    require(runtime.request("/api/quote", json.dumps(text).encode(), "application/json")[0] == 200,
-            "HTTP text quote was not accepted.")
+            "input_kind": "text", "list_text": text_original}
+    text_payload = json.dumps(text).encode()
+    code, body = runtime.request("/api/quote", text_payload, "application/json")
+    text_saved = json.loads(body)
+    require(code == 200 and text_saved.get("replayed") is False, "HTTP text quote was not accepted.")
+    text_id = text_saved["id"]
     require(runtime.request("/api/quote")[0] == 405
             and runtime.request("/api/quote", b"x", "text/plain")[0] == 415
             and runtime.request("/api/quote", b" " * 8388609, "application/json")[0] == 413,
@@ -446,6 +457,10 @@ def _quote_acceptance(runtime, package):
         sessions += [reader, editor, outsider]
         def action(session, verb="", **fields):
             return session.action(LEADS, type="quote", id=quote_id, action=verb, **fields)
+        def text_action(session, verb):
+            return session.action(LEADS, type="quote", id=text_id, action=verb)
+        require(editor.request(text_action(editor, "downloadText"), b"", FORM)[0] == 404,
+                "Pending text could be exported for removal.")
         anonymous = LocalOpenCart(runtime.directory, runtime.port)
         code, body = anonymous.request("/admin/index.php?" + urlencode({"route": LEADS, "type": "quote", "id": quote_id, "action": "download"}))
         require(code in (200, 401, 403) and "Synthetic private quote" not in body and filename not in body,
@@ -517,6 +532,8 @@ def _quote_acceptance(runtime, package):
                 "Independent MIME parser did not recover original UTF-8 name, bytes, contacts and multiline comment.")
         require(reader.request(action(reader, "deleteAttachment"), b"", FORM)[0] == 403,
                 "Read-only role could delete an accepted file.")
+        require(reader.request(text_action(reader, "downloadText"), b"", FORM)[0] == 403,
+                "Read-only role could prepare a text export for removal.")
         old_opener = reader.http
         old_download = runtime.origin + html.unescape(action(reader, "download"))
         reader.logout()
@@ -531,6 +548,39 @@ def _quote_acceptance(runtime, package):
                 "Authorized explicit deletion did not preserve quote history.")
         require(editor.request(action(editor, "download"))[0] == 404,
                 "Deleted original remained downloadable.")
+
+        confirmation = b"confirm_archive=1"
+        archiver = create_role(runtime, "Quote archive operator", [LEADS], [LEADS])
+        sessions.append(archiver)
+        extract = text_action(editor, "downloadText")
+        erase = text_action(editor, "deleteText")
+        require(editor.request(extract)[0] == 405 and editor.request(erase)[0] == 405
+                and outsider.request(text_action(outsider, "downloadText"), b"", FORM)[0] in (401, 403)
+                and editor.request(erase, confirmation, FORM)[0] == 409,
+                "Text archive accepted GET, an unrelated role, or removal before export.")
+        with editor.http.open(Request(runtime.origin + html.unescape(extract), b"", {"Content-Type": FORM}),
+                              timeout=15) as response:
+            original_text_bytes = text_original.encode()
+            require(response.read() == original_text_bytes and response.headers.get_content_type() == "text/plain"
+                    and response.headers.get_content_charset() == "utf-8"
+                    and response.headers.get("Content-Length") == str(len(original_text_bytes))
+                    and "no-store" in response.headers.get("Cache-Control", "")
+                    and response.headers.get("X-Content-Type-Options") == "nosniff"
+                    and f"quote-{text_id}.txt" in response.headers.get("Content-Disposition", ""),
+                    "Text export changed original bytes or omitted private attachment headers.")
+        require(archiver.request(text_action(archiver, "deleteText"), confirmation, FORM)[0] == 409
+                and editor.request(erase, b"", FORM)[0] == 400,
+                "Text removal accepted another modifying session or missing confirmation.")
+        code, archived = editor.request(erase, confirmation, FORM)
+        require(code == 200 and "Quote text" in archived and "Текст списка удалён из хранилища" in archived
+                and "Передано почтовому серверу" in archived and "Уплотнение" not in archived
+                and editor.request(extract, b"", FORM)[0] == 404
+                and editor.request(erase, confirmation, FORM)[0] == 409,
+                "Text removal lost history, leaked removed content or allowed a second removal.")
+        code, body = runtime.request("/api/quote", text_payload, "application/json")
+        require(code == 200 and json.loads(body) == {"id": text_id, "replayed": True},
+                "Quote acknowledgment changed after removal of the saved text.")
+        print("PASS: native text quote export and removal preserve bytes, session scope, history and replay", flush=True)
         print("PASS: public quote HTTP, native access/modify privacy, parsed original MIME and packaged CLI capture", flush=True)
     finally:
         for session in sessions:
@@ -575,7 +625,8 @@ def admin_roles(runtime, lead_id):
                   "status": "draft", "is_indexable": "0"}
 
         def save(session, status, **query):
-            payload = urlencode(fields | {"status": status}).encode("ascii")
+            revision = editor_revision(session, session.action(CATALOG, type="page", **(query or {"new": "1"})))
+            payload = urlencode(fields | {"status": status, "record_revision": revision}).encode("ascii")
             return session.request(session.action(CATALOG, type="page", **query), payload, FORM)
 
         code, body = operator.request(operator.action(CATALOG, type="page", new="1"))
@@ -668,8 +719,10 @@ def editorial_content(runtime):
 
     def save(kind, record_id, **fields):
         fields |= {"id": record_id, "status": fields.get("status", "published"), "is_indexable": "1"}
+        action = editor.action(CATALOG, type=kind, id=record_id)
+        fields["record_revision"] = editor_revision(editor, action)
         code, body = editor.request(
-            editor.action(CATALOG, type=kind, id=record_id),
+            action,
             urlencode(fields, doseq=True).encode("ascii"), FORM,
         )
         require(code == 200 and "Запись сохранена" in body, f"Admin could not save {kind} {record_id} (HTTP {code}).")
@@ -764,6 +817,40 @@ foreach (['category','category_description','category_path','category_to_store',
 echo hash('sha256',json_encode($state,JSON_THROW_ON_ERROR));'''
         return runtime.docker("exec", "-T", "web", "php", "-r", script, capture=True).stdout.strip()
 
+    def race_category_delete(category_id, product_id):
+        # A writer takes the category relationship mutex before the delete request begins.
+        # Commit the assignment only when MySQL observes the blocked native delete request.
+        script = r'''require '/var/www/html/config.php';
+require '/workspace/extension/cmteh/system/Database.php';
+$category=(int)$argv[1]; $product=(int)$argv[2];
+$pdo=\Cmteh\Database::connectFromOpenCart();
+$pdo->beginTransaction();
+$pdo->query('SELECT category_id FROM `'.DB_PREFIX.'category` WHERE category_id='.$category.' LOCK IN SHARE MODE')->fetchColumn();
+echo "READY\n"; flush();
+$until=microtime(true)+7;
+while (microtime(true)<$until) {
+    foreach ($pdo->query('SELECT INFO FROM information_schema.PROCESSLIST WHERE ID<>CONNECTION_ID() AND DB=DATABASE() AND INFO IS NOT NULL')->fetchAll(PDO::FETCH_COLUMN) as $sql) {
+        if (str_contains($sql, '`'.DB_PREFIX.'category`') && preg_match('/\b(?:FOR UPDATE|DELETE FROM)\b/', $sql) && preg_match('/\b'.$category.'\b/', $sql)) {
+            $pdo->exec('INSERT INTO `'.DB_PREFIX.'product_to_category` (product_id,category_id) VALUES ('.$product.','.$category.')');
+            $pdo->commit();
+            exit;
+        }
+    }
+    usleep(20000);
+}
+$pdo->rollBack();
+throw new RuntimeException('The native category deletion did not reach its database lock');'''
+        command = ["docker", "exec", runtime.project + "-web-1", "php", "-r", script, "--", str(category_id), str(product_id)]
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8") as writer:
+            require(writer.stdout.readline().strip() == "READY", "The concurrent category fixture did not acquire its row lock.")
+            status, body = runtime.request(runtime.action("catalog/category.delete"),
+                                           urlencode({"selected[]": category_id}).encode("ascii"), FORM)
+            _, errors = writer.communicate(timeout=9)
+            require(writer.returncode == 0, "The concurrent category fixture failed. " + errors.strip())
+        result = json.loads(body)
+        require(status == 200 and isinstance(result.get("error"), str) and not result.get("success"),
+                "Native deletion removed a category whose concurrent product assignment committed.")
+
     try:
         nonce = uuid4().hex[:8]
         parent_slug, child_slug, product_slug = ("test-" + prefix + "-" + nonce for prefix in ("parent", "child", "product"))
@@ -791,6 +878,11 @@ echo hash('sha256',json_encode($state,JSON_THROW_ON_ERROR));'''
         require(runtime.request("/category/" + empty_slug)[0] == 410,
                 "Native deletion of an unlinked category did not retire its URL.")
         print("PASS: native category deletion denies whole dependent batches without mutations; unlinked deletion returns URL410", flush=True)
+        racing_slug = "test-racing-" + nonce
+        racing = save_category(racing_slug, "Тестовая категория для гонки " + nonce)
+        race_category_delete(racing, product)
+        require(runtime.request("/category/" + racing_slug)[0] == 200, "The dependent category URL was unexpectedly removed.")
+        print("PASS: native category deletion waits for an in-flight assignment and preserves the category", flush=True)
         code, body = runtime.request("/category/" + parent_slug)
         require(code == 200 and "Штатный подраздел " + nonce in body and "Штатный товар " + nonce in body,
                 "Native category tree did not appear or roll up its descendant's product.")
@@ -932,7 +1024,7 @@ def collect_browser(runtime, tooling, reference, evidence):
                         "CMTEH_ADMIN_CMS_SCENARIO": "full",
                         "CMTEH_ADMIN_USERNAME": username,
                         "CMTEH_ADMIN_PASSWORD_FILE": str(password_file)}
-    for name in ("storefront.mjs", "admin-cms.mjs", "admin-shell.mjs", "capture.mjs"):
+    for name in ("storefront.mjs", "cart-concurrency.mjs", "admin-cms.mjs", "admin-shell.mjs", "capture.mjs"):
         subprocess.run(["node", str(browser_dir / name)], env=env, check=True)
 
     pairs = []

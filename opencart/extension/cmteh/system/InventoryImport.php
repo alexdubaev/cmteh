@@ -3,7 +3,6 @@ declare(strict_types=1);
 namespace Cmteh;
 
 use PDO;
-use PDOException;
 use RuntimeException;
 
 /** Strict server-side staging and atomic apply for explicitly listed warehouse rows. */
@@ -12,6 +11,10 @@ final class InventoryImport
     private const HEADERS = ['article','warehouse_code','quantity','price','delivery_term'];
     private const MAX_BYTES = 5_242_880;
     private const MAX_ROWS = 10_000;
+    private const XLSX_RELATIONSHIPS = [
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+        'http://purl.oclc.org/ooxml/officeDocument/relationships',
+    ];
 
     public function __construct(private PDO $pdo, private string $prefix, private Inventory $inventory)
     {
@@ -66,40 +69,113 @@ final class InventoryImport
         if($zip->open($path,\ZipArchive::CHECKCONS)!==true) throw new InventoryException('invalid_input','Повреждённый или зашифрованный XLSX.');
         try {
             if($zip->numFiles>1024) throw new InventoryException('invalid_input','В XLSX слишком много файлов.');
-            $total=0; $names=[]; $sheets=[];
+            $total=0; $names=[];
             for($i=0;$i<$zip->numFiles;$i++) {
                 $name=$zip->getNameIndex($i); $stat=$zip->statIndex($i);
                 if(!is_string($name)||!is_array($stat)||str_contains($name,'..')||str_starts_with($name,'/')||isset($names[$name])) throw new InventoryException('invalid_input','В XLSX обнаружена небезопасная запись.');
                 $names[$name]=true; $total+=(int)($stat['size']??0);
                 if($total>32*1024*1024) throw new InventoryException('invalid_input','XLSX превышает допустимый распакованный размер.');
                 if(preg_match('~(?:^|/)(?:externalLinks|vbaProject\.bin)~i',$name)) throw new InventoryException('invalid_input','Внешние ссылки и макросы XLSX не поддерживаются.');
-                if(preg_match('~^xl/worksheets/sheet[0-9]+\.xml$~i',$name)) $sheets[]=$name;
             }
-            if(!$sheets) throw new InventoryException('invalid_input','В XLSX не найден лист.');
-            usort($sheets,static fn($a,$b)=>(int)preg_replace('/\D/','',$a)<=>(int)preg_replace('/\D/','',$b));
-            $first='';
-            foreach($sheets as $name) {
-                $xml=$zip->getFromName($name);
-                if(!is_string($xml)||strlen($xml)>32*1024*1024||preg_match('/<!DOCTYPE|<!ENTITY/i',$xml)) throw new InventoryException('invalid_input','XLSX содержит неподдерживаемую XML-структуру.');
-                if(preg_match_all('/<c\b[^>]*\br=["\'][^"\']+["\'][^>]*>[\s\S]*?<\/(?:[A-Za-z0-9_.-]+:)?c\s*>/i',$xml,$cells)) {
-                    foreach($cells[0] as $cell) if(preg_match('/<(?:[A-Za-z0-9_.-]+:)?f\b/i',$cell)) {
-                        preg_match('/\br=["\'][A-Z]+([0-9]+)["\']/i',$cell,$rowNumber);
-                        throw new InventoryException('invalid_input','XLSX содержит формулу в строке '.($rowNumber[1]??'?').'. Сначала замените формулу значением.');
-                    }
-                }
-                if($name===$sheets[0]) $first=$xml;
-            }
-            if(!preg_match('/<worksheet\b|<\w+:worksheet\b/i',$first)) throw new InventoryException('invalid_input','В XLSX не найден обычный лист.');
-            $xmlRows=preg_split('/<row\b[^>]*>/i',$first);
-            for($i=2;$i<count($xmlRows);$i++) {
-                $row=explode('</row>',$xmlRows[$i],2)[0];
-                if(!preg_match('/<c\b/i',$row)) continue;
-                foreach(['A','B',...($hasSourceId?['F']:[])] as $column) {
-                    if(!preg_match('/<c\b(?=[^>]*\br=["\']'.$column.'[0-9]+["\'])[^>]*>/i',$row,$cell)) throw new InventoryException('invalid_input','Артикул и код склада в XLSX должны быть текстовыми ячейками.');
-                    if(!preg_match('/\bt=["\'](?:s|inlineStr|str)["\']/i',$cell[0])) throw new InventoryException('invalid_input','Артикул и код склада в XLSX должны быть текстовыми ячейками.');
-                }
+            $workbookSheets = self::workbookSheets($zip);
+            $numberedSheets = preg_grep('~^xl/worksheets/sheet[0-9]+\.xml$~i', array_keys($names));
+            foreach (array_values(array_unique([...$workbookSheets, ...$numberedSheets])) as $index => $name) {
+                self::validateWorksheet(self::xlsxXml($zip, $name), $index === 0, $hasSourceId);
             }
         } finally { $zip->close(); }
+    }
+
+    private static function xlsxXml(\ZipArchive $zip, string $path): string
+    {
+        $xml = $zip->getFromName($path);
+        if (!is_string($xml) || !mb_check_encoding($xml, 'UTF-8') || str_contains($xml, "\0") || preg_match('/<!DOCTYPE|<!ENTITY/i', $xml)) {
+            throw new InventoryException('invalid_input', 'XLSX содержит неподдерживаемую XML-структуру.');
+        }
+        return $xml;
+    }
+
+    private static function workbookSheets(\ZipArchive $zip): array
+    {
+        $workbook = new \DOMDocument();
+        $relationships = new \DOMDocument();
+        $flags = LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING;
+        if (!$workbook->loadXML(self::xlsxXml($zip, 'xl/workbook.xml'), $flags)
+            || !$relationships->loadXML(self::xlsxXml($zip, 'xl/_rels/workbook.xml.rels'), $flags)) {
+            throw new InventoryException('invalid_input', 'Не удалось прочитать структуру листов XLSX.');
+        }
+        $targets = [];
+        $worksheetTypes = array_map(static fn(string $namespace) => $namespace . '/worksheet', self::XLSX_RELATIONSHIPS);
+        foreach ($relationships->getElementsByTagNameNS('*', 'Relationship') as $relation) {
+            if (!in_array($relation->getAttribute('Type'), $worksheetTypes, true)) continue;
+            $id = $relation->getAttribute('Id');
+            $target = $relation->getAttribute('Target');
+            $path = str_starts_with($target, '/') ? substr($target, 1) : 'xl/' . $target;
+            if ($id === '' || isset($targets[$id]) || $relation->getAttribute('TargetMode') === 'External'
+                || !str_starts_with(strtolower($path), 'xl/') || !str_ends_with(strtolower($path), '.xml')
+                || strpbrk($path, ':\\') !== false || str_contains($path, '..')) {
+                throw new InventoryException('invalid_input', 'В XLSX обнаружена недопустимая ссылка на лист.');
+            }
+            $targets[$id] = $path;
+        }
+        $sheets = [];
+        foreach ($workbook->getElementsByTagNameNS('*', 'sheet') as $sheet) {
+            $id = $sheet->getAttributeNS(self::XLSX_RELATIONSHIPS[0], 'id')
+                ?: $sheet->getAttributeNS(self::XLSX_RELATIONSHIPS[1], 'id');
+            if (!isset($targets[$id])) throw new InventoryException('invalid_input', 'В XLSX не найден обычный лист.');
+            $sheets[] = $targets[$id];
+        }
+        if (!$sheets) throw new InventoryException('invalid_input', 'В XLSX не найден лист.');
+        return array_values(array_unique($sheets));
+    }
+
+    private static function validateWorksheet(string $xml, bool $checkColumns, bool $hasSourceId): void
+    {
+        $reader = new \XMLReader();
+        $previous = libxml_use_internal_errors(true);
+        libxml_clear_errors();
+        try {
+            if (!$reader->XML($xml, 'UTF-8', LIBXML_NONET)) throw new InventoryException('invalid_input', 'Не удалось прочитать лист XLSX.');
+            $rowNumber = 0;
+            $columns = [];
+            $cellColumn = null;
+            $hasWorksheet = false;
+            while ($reader->read()) {
+                if ($reader->nodeType === \XMLReader::END_ELEMENT && $reader->localName === 'c') $cellColumn = null;
+                if ($reader->nodeType === \XMLReader::END_ELEMENT && $reader->localName === 'row' && $checkColumns && $rowNumber > 1 && $columns) {
+                    if (!($columns['A']['text'] ?? false) || !($columns['B']['text'] ?? false)
+                        || ($hasSourceId && ($columns['F']['value'] ?? false) && !$columns['F']['text'])) {
+                        throw new InventoryException('invalid_input', 'Артикул, код склада и указанный source_id в XLSX должны быть текстовыми ячейками.');
+                    }
+                }
+                if ($reader->nodeType !== \XMLReader::ELEMENT) continue;
+                switch ($reader->localName) {
+                    case 'worksheet':
+                        $hasWorksheet = $reader->depth === 0;
+                        break;
+                    case 'row':
+                        $rowNumber = (int)($reader->getAttribute('r') ?? $rowNumber + 1);
+                        $columns = [];
+                        break;
+                    case 'c':
+                        $ref = $reader->getAttribute('r') ?? '';
+                        $cellColumn = preg_replace('/[0-9]+$/D', '', $ref);
+                        $columns[$cellColumn] = ['text' => in_array($reader->getAttribute('t'), ['s', 'inlineStr', 'str'], true), 'value' => false];
+                        if ($reader->isEmptyElement) $cellColumn = null;
+                        break;
+                    case 'v':
+                    case 'is':
+                        if ($cellColumn === 'F') $columns['F']['value'] = trim($reader->readString()) !== '';
+                        break;
+                    case 'f':
+                        throw new InventoryException('invalid_input', 'XLSX содержит формулу в строке '.($rowNumber ?: '?').'. Сначала замените формулу значением.');
+                }
+            }
+            if (!$hasWorksheet || libxml_get_last_error()) throw new InventoryException('invalid_input', 'Не удалось прочитать лист XLSX.');
+        } finally {
+            $reader->close();
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
     }
 
     /** @return array{preview_id:string,digest:string,expires_at:string,summary:array,errors:array,rows:array,can_apply:bool} */
@@ -135,7 +211,8 @@ final class InventoryImport
             $seen[$pair]=true;
             $state=$this->inventory->productState($pid);
             $balance=$this->one('SELECT * FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=?',[$pid,$wid]);
-            $entry=['row'=>$rowNumber,'product_id'=>$pid,'article'=>$article,'warehouse_id'=>$wid,'warehouse_code'=>$code,
+            if (!$state) { $problem('Товар изменился во время preview. Повторите загрузку.'); continue; }
+            $entry=['row'=>$rowNumber,'product_id'=>$pid,'article'=>$article,'identity'=>self::productIdentity($native),'warehouse_id'=>$wid,'warehouse_code'=>$code,
                 'warehouse_version'=>(int)$warehouse['version'],'expected_product_version'=>(int)$state['version'],
                 'expected_legacy_quantity'=>(int)$state['legacy_quantity'],'expected_legacy_revision'=>$state['legacy_revision'],
                 'expected_balance_version'=>(int)($balance['version']??0),'before_quantity'=>$balance?(int)$balance['on_hand']:0,
@@ -202,7 +279,17 @@ final class InventoryImport
             if(!$payload['errors']||count($payload['errors'])>0||!$payload['rows']) {
                 if($payload['errors']||!$payload['rows']) throw new InventoryException('invalid_input','Исправьте ошибки preview перед применением.');
             }
-            $rows=$payload['rows']; $this->lockAll($rows);
+            $rows=$payload['rows'];
+            $identities=$this->lockAll($rows);
+            foreach ($rows as $row) {
+                $product = $identities[$row['product_id']] ?? null;
+                if (!isset($row['identity'])) {
+                    throw new InventoryException('stale_version', 'Preview создан до обновления. Повторите загрузку.', 409);
+                }
+                if (!$product || $row['identity'] !== self::productIdentity($product)) {
+                    throw new InventoryException('stale_version', 'Артикул или связь с товаром изменились после preview. Повторите загрузку.', 409);
+                }
+            }
             $commandCount=0; $groups=[]; foreach($rows as $row) $groups[$row['product_id']][]=$row;
             $ordinal=0;
             foreach($groups as $pid=>$items) {
@@ -218,13 +305,13 @@ final class InventoryImport
                 }
                 foreach($items as $row) {
                     $fresh=$this->inventory->productState((int)$pid);
-                    $balance=$this->one('SELECT * FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=?',[$pid,$row['warehouse_id']]);
+                    $balance=$this->one('SELECT * FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=? FOR UPDATE',[$pid,$row['warehouse_id']]);
                     if((int)($balance['reserved']??0)>$row['quantity']) throw new InventoryException('insufficient_stock','Количество ниже активного резерва; весь импорт отменён.',409);
                     $this->inventory->command('balance.count',['product_id'=>(int)$pid,'warehouse_id'=>$row['warehouse_id'],
-                        'expected_product_version'=>$fresh['version'],'expected_balance_version'=>(int)$balance['version'],'expected_warehouse_version'=>$row['warehouse_version'],
+                        'expected_product_version'=>$fresh['version'],'expected_balance_version'=>(int)($balance['version']??0),'expected_warehouse_version'=>$row['warehouse_version'],
                         'quantity'=>$row['quantity'],'reason'=>'Импорт подтверждённого количества строки '.$row['row']],$actor,$this->commandKey($requestKey,'q',++$ordinal));
                     $commandCount++;
-                    $fresh=$this->inventory->productState((int)$pid); $balance=$this->one('SELECT * FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=?',[$pid,$row['warehouse_id']]);
+                    $fresh=$this->inventory->productState((int)$pid); $balance=$this->one('SELECT * FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=? FOR UPDATE',[$pid,$row['warehouse_id']]);
                     $this->inventory->command('offer.update',['product_id'=>(int)$pid,'warehouse_id'=>$row['warehouse_id'],
                         'expected_product_version'=>$fresh['version'],'expected_balance_version'=>$balance['version'],'expected_warehouse_version'=>$row['warehouse_version'],
                         'price'=>$row['price'],'published'=>$row['publish']?true:(bool)$balance['published'],'delivery_term'=>$row['delivery_term']],$actor,$this->commandKey($requestKey,'o',++$ordinal));
@@ -245,33 +332,37 @@ final class InventoryImport
     private function assertFresh(array $row,array $state): void
     {
         if((int)$state['version']!==$row['expected_product_version'] || !hash_equals($state['legacy_revision'],$row['expected_legacy_revision'])) throw new InventoryException('stale_version','Товар изменился после preview. Повторите загрузку.',409);
-        if(!$state['managed']) {
-            $native=$this->one('SELECT * FROM '.$this->table('product').' WHERE product_id=?',[$row['product_id']]);
-            if(!$native||Inventory::legacyRevision($native)!==$row['expected_legacy_revision']) throw new InventoryException('stale_version','Старый остаток изменился после preview.',409);
-        }
-        $warehouse=$this->one('SELECT version,active FROM '.$this->table('cmteh_warehouse').' WHERE warehouse_id=?',[$row['warehouse_id']]);
+        $warehouse=$this->one('SELECT version,active FROM '.$this->table('cmteh_warehouse').' WHERE warehouse_id=? FOR UPDATE',[$row['warehouse_id']]);
         if(!$warehouse||(int)$warehouse['version']!==$row['warehouse_version']||!(int)$warehouse['active']) throw new InventoryException('stale_version','Склад изменился после preview.',409);
-        $balance=$this->one('SELECT version,on_hand,reserved FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=?',[$row['product_id'],$row['warehouse_id']]);
+        $balance=$this->one('SELECT version,on_hand,reserved FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=? FOR UPDATE',[$row['product_id'],$row['warehouse_id']]);
         if((int)($balance['version']??0)!==$row['expected_balance_version']) throw new InventoryException('stale_version','Остаток/цена изменились после preview.',409);
         if($balance&&(int)$balance['reserved']>$row['quantity']) throw new InventoryException('insufficient_stock','Количество ниже активного резерва.',409);
     }
 
-    private function lockAll(array $rows): void
+    private function lockAll(array $rows): array
     {
         $products=array_values(array_unique(array_column($rows,'product_id'))); sort($products,SORT_NUMERIC);
         $in=implode(',',array_fill(0,count($products),'?'));
-        $this->pdo->prepare('SELECT product_id FROM '.$this->table('product')." WHERE product_id IN ($in) ORDER BY product_id FOR UPDATE")->execute($products);
+        $productRows=$this->pdo->prepare('SELECT p.product_id,p.model,c.source_id,c.sku FROM '.$this->table('product').' p LEFT JOIN '.$this->table('cmteh_product').' c ON c.product_id=p.product_id'." WHERE p.product_id IN ($in) ORDER BY p.product_id FOR UPDATE");
+        $productRows->execute($products);
+        $identities=array_column($productRows->fetchAll(),null,'product_id');
         $this->pdo->prepare('SELECT product_id FROM '.$this->table('cmteh_inventory_product')." WHERE product_id IN ($in) ORDER BY product_id FOR UPDATE")->execute($products);
         $warehouses=array_values(array_unique(array_column($rows,'warehouse_id'))); sort($warehouses,SORT_NUMERIC);
         $wh=implode(',',array_fill(0,count($warehouses),'?'));
         $this->pdo->prepare('SELECT warehouse_id FROM '.$this->table('cmteh_warehouse')." WHERE warehouse_id IN ($wh) ORDER BY warehouse_id FOR UPDATE")->execute($warehouses);
         $pairs=$this->pdo->prepare('SELECT offer_id FROM '.$this->table('cmteh_inventory_balance').' WHERE product_id=? AND warehouse_id=? FOR UPDATE');
         foreach($rows as $row) $pairs->execute([$row['product_id'],$row['warehouse_id']]);
+        return $identities;
+    }
+
+    private static function productIdentity(array $row): array
+    {
+        return ['source_id' => $row['source_id'], 'sku' => $row['sku'], 'model' => $row['model']];
     }
 
     private function resolveArticle(string $article,string $sourceId=''): array
     {
-        $sql='SELECT DISTINCT p.product_id,p.quantity,p.master_id,p.date_modified,p.model FROM '.$this->table('product').' p LEFT JOIN '.$this->table('cmteh_product').' c ON c.product_id=p.product_id WHERE (BINARY c.sku=BINARY ? OR BINARY p.model=BINARY ?)';
+        $sql='SELECT p.product_id,p.model,c.source_id,c.sku FROM '.$this->table('product').' p LEFT JOIN '.$this->table('cmteh_product').' c ON c.product_id=p.product_id WHERE (BINARY c.sku=BINARY ? OR BINARY p.model=BINARY ?)';
         $params=[$article,$article];
         if($sourceId!=='') { $sql.=' AND BINARY c.source_id=BINARY ?'; $params[]=$sourceId; }
         $sql.=' ORDER BY p.product_id LIMIT 3'; $stmt=$this->pdo->prepare($sql); $stmt->execute($params); return $stmt->fetchAll();

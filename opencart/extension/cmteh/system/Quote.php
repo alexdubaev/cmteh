@@ -147,6 +147,42 @@ final class Quote
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
+    public function textOriginal(string $publicId): ?string
+    {
+        $t = $this->table;
+        $stmt = $this->pdo->prepare("SELECT q.list_text FROM {$t} q JOIN {$t}_outbox o ON o.quote_id=q.quote_id
+            WHERE q.public_id=? AND q.input_kind='text' AND q.list_text IS NOT NULL AND o.status='sent'");
+        $stmt->execute([$publicId]);
+        $text = $stmt->fetchColumn();
+        return is_string($text) ? $text : null;
+    }
+
+    public function deleteText(string $publicId, string $exportHash): bool
+    {
+        $t = $this->table;
+        $this->pdo->beginTransaction();
+        try {
+            $used = $this->pdo->query("SELECT used_bytes FROM {$t}_quota WHERE id=1 FOR UPDATE")->fetchColumn();
+            $stmt = $this->pdo->prepare("SELECT q.quote_id,q.list_text FROM {$t} q JOIN {$t}_outbox o ON o.quote_id=q.quote_id
+                WHERE q.public_id=? AND q.input_kind='text' AND q.list_text IS NOT NULL AND o.status='sent' FOR UPDATE");
+            $stmt->execute([$publicId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row || !hash_equals(hash('sha256', $row['list_text']), $exportHash)) {
+                $this->pdo->rollBack();
+                return false;
+            }
+            $size = strlen($row['list_text']);
+            if ($used === false || (int) $used < $size) throw new RuntimeException('Quote storage quota is inconsistent.');
+            $this->pdo->prepare("UPDATE {$t} SET list_text=NULL WHERE quote_id=?")->execute([$row['quote_id']]);
+            $this->pdo->prepare("UPDATE {$t}_quota SET used_bytes=used_bytes-? WHERE id=1")->execute([$size]);
+            $this->pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
     public function retry(string $publicId): bool
     {
         $t = $this->table;

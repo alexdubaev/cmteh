@@ -90,4 +90,13 @@ final class InventoryGuard extends Model
             return $this->native()->addOptionValue($product_id,$product_option_id,$option_id,$data);
         });
     }
+
+    public function addCategory(int $product_id, int $category_id): void
+    {
+        $this->guard()->run([$product_id], function () use ($product_id, $category_id): void {
+            $row = $this->db->query('SELECT category_id FROM `' . DB_PREFIX . 'category` WHERE category_id=' . $category_id . ' LOCK IN SHARE MODE');
+            if (!$row->num_rows) throw new \Cmteh\InventoryException('category_missing', 'Категория была удалена. Обновите форму товара.', 409);
+            $this->native()->addCategory($product_id, $category_id);
+        });
+    }
 }

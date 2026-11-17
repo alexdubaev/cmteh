@@ -10,6 +10,7 @@ use PDOStatement;
 use Throwable;
 
 require_once __DIR__ . '/CatalogSchema.php';
+require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/CatalogInput.php';
 require_once __DIR__ . '/CatalogWrites.php';
 require_once __DIR__ . '/CatalogAdmin.php';
@@ -76,7 +77,7 @@ final class Catalog
         }
 
         $offset = ($page - 1) * $limit;
-        return $this->atomic(function () use ($result, $where, $params, $rankParams, $limit, $offset, $order): array {
+        return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order): array {
             $base = $this->productFrom() . " WHERE $where";
             $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $base, $params)->fetchColumn();
             $rows = $this->run(
@@ -105,10 +106,15 @@ final class Catalog
             }
             $needles[] = CatalogInput::normalize(trim($row['article']));
         }
-        $keys = array_values(array_unique($needles));
+        return Database::readSnapshot($this->pdo, fn(): array => $this->projectList($rows, $needles));
+    }
+
+    private function projectList(array $rows, array $needles): array
+    {
+        $keys = array_values(array_unique(array_filter($needles, static fn(string $key): bool => $key !== '')));
         $placeholders = implode(',', array_fill(0, count($keys), '?'));
         // sku_lookup supports one indexed batch, independent of input row count and duplicates.
-        $hits = $this->run($this->productSelect() . $this->productFrom()
+        $hits = !$keys ? [] : $this->run($this->productSelect() . $this->productFrom()
             . ' WHERE ' . $this->publicProduct() . " AND x.sku_norm IN ($placeholders)"
             . ' ORDER BY x.sku_norm, x.product_id LIMIT 5001', $keys)->fetchAll(PDO::FETCH_ASSOC);
         $cut = count($hits) > 5000;
@@ -137,7 +143,7 @@ final class Catalog
         foreach ($rows as $index => $row) {
             $key = $needles[$index];
             $products = $groups[$key] ?? [];
-            $more = ($counts[$key] ?? 0) > 5 || ($cut && strcmp($key, $last) >= 0);
+            $more = $key !== '' && (($counts[$key] ?? 0) > 5 || ($cut && strcmp($key, $last) >= 0));
             $partial = $partial || $more;
             $result[] = ['index' => $index, 'article' => trim($row['article']), 'quantity' => $row['quantity'],
                 'status' => $more || count($products) > 1 ? 'ambiguous' : ($products ? 'matched' : 'not_found'),
@@ -146,16 +152,42 @@ final class Catalog
         return ['rows' => $result, 'partial' => $partial];
     }
 
-    /** Canonical published snapshots for at most 100 explicitly chosen offers. */
+    /** Exact public product identities for cart price lookups. */
     public function selectedProducts(array $ids): array
     {
         if (!$ids || count($ids) > 100) return [];
         $ids = array_values(array_unique($ids));
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $rows = $this->run($this->productSelect() . $this->productFrom()
-            . ' WHERE ' . $this->publicProduct() . " AND x.source_id IN ($placeholders) LIMIT 100", $ids)
-            ->fetchAll(PDO::FETCH_ASSOC);
-        return array_column($this->productDtos($rows), null, 'id');
+        return Database::readSnapshot($this->pdo, function () use ($placeholders, $ids): array {
+            $rows = $this->run($this->productSelect() . $this->productFrom()
+                . ' WHERE ' . $this->publicProduct() . " AND x.source_id IN ($placeholders) LIMIT 100", $ids)
+                ->fetchAll(PDO::FETCH_ASSOC);
+            return array_column($this->productDtos($rows), null, 'id');
+        });
+    }
+
+    /** Lead reads the current product data under its READ COMMITTED transaction. */
+    public function leadProductSnapshots(array $ids): array
+    {
+        if (!$ids || count($ids) > 100) return [];
+        $ids = array_values(array_unique($ids));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $rows = $this->run(
+            'SELECT x.source_id AS id, x.sku, x.data, d.name, m.name AS brand_name, b.data AS brand_data '
+            . $this->publicProductFrom()
+            . ' WHERE ' . $this->publicProduct() . " AND x.source_id IN ($placeholders)",
+            $ids,
+        )->fetchAll(PDO::FETCH_ASSOC);
+        $snapshots = [];
+        foreach ($rows as $row) {
+            $snapshots[$row['id']] = [
+                'id' => $row['id'],
+                'sku' => $row['sku'],
+                'title' => self::nativeText($row['name'], self::decode($row['data'])),
+                'brand' => self::nativeText($row['brand_name'] ?? '', isset($row['brand_data']) ? self::decode($row['brand_data']) : []),
+            ];
+        }
+        return $snapshots;
     }
 
     public function explain(array $query): array
@@ -166,6 +198,11 @@ final class Catalog
     }
 
     public function product(string $slug): ?array
+    {
+        return Database::readSnapshot($this->pdo, fn(): ?array => $this->readProduct($slug));
+    }
+
+    private function readProduct(string $slug): ?array
     {
         $row = $this->run(
             $this->productSelect() . $this->productFrom() . ' WHERE ' . $this->publicProduct() . ' AND x.slug = ?',
@@ -328,7 +365,11 @@ final class Catalog
         if (CatalogInput::uuid($uuid) === null) {
             return null;
         }
-        $uuid = strtolower($uuid);
+        return Database::readSnapshot($this->pdo, fn(): ?array => $this->authorizedAsset(strtolower($uuid)));
+    }
+
+    private function authorizedAsset(string $uuid): ?array
+    {
         $media = $this->run('SELECT path, filename, mime FROM ' . $this->table('cmteh_media') .
             ' WHERE uuid = ? AND status = 1', [$uuid])->fetch(PDO::FETCH_ASSOC);
         if (!$media) {
@@ -388,7 +429,7 @@ final class Catalog
             image.uuid AS public_image, ' . $this->effectiveAvailability() . ' AS effective_availability ';
     }
 
-    private function productFrom(): string
+    private function publicProductFrom(): string
     {
         $store = $this->storeId;
         $language = $this->languageId;
@@ -398,8 +439,15 @@ final class Catalog
             JOIN " . $this->table('product_to_store') . " s ON s.product_id = p.product_id AND s.store_id = $store
             LEFT JOIN " . $this->table('manufacturer') . ' m ON m.manufacturer_id = p.manufacturer_id
             LEFT JOIN ' . $this->table('cmteh_brand') . ' b ON b.manufacturer_id = m.manufacturer_id AND b.status = 1 AND b.published_at <= UTC_TIMESTAMP()
-            LEFT JOIN ' . $this->table('manufacturer_to_store') . " ms ON ms.manufacturer_id = m.manufacturer_id AND ms.store_id = $store
-            LEFT JOIN " . $this->table('product_to_category') . ' pc ON pc.product_id = p.product_id AND pc.category_id = x.category_id
+            LEFT JOIN ' . $this->table('manufacturer_to_store') . " ms ON ms.manufacturer_id = m.manufacturer_id AND ms.store_id = $store";
+    }
+
+    private function productFrom(): string
+    {
+        $store = $this->storeId;
+        $language = $this->languageId;
+        return $this->publicProductFrom()
+            . ' LEFT JOIN ' . $this->table('product_to_category') . ' pc ON pc.product_id = p.product_id AND pc.category_id = x.category_id
             LEFT JOIN ' . $this->table('category') . ' nc ON nc.category_id = pc.category_id AND nc.status = 1
             LEFT JOIN ' . $this->table('category_to_store') . " cs ON cs.category_id = nc.category_id AND cs.store_id = $store
             LEFT JOIN " . $this->table('cmteh_category') . ' c ON c.category_id = cs.category_id AND c.published_at <= UTC_TIMESTAMP()

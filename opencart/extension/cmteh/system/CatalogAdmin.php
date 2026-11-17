@@ -124,14 +124,36 @@ trait CatalogAdmin
         return $data;
     }
 
-    public function saveFromAdmin(string $type,array $input,bool $confirmSlugChange=false): string
+    public static function adminRevision(?array $record): string
+    {
+        return hash('sha256', $record === null ? 'null' : self::encode($record));
+    }
+
+    private function recordForAdminWrite(string $type, string $id, ?string $revision, ?int $nativeId): ?array
+    {
+        if ($nativeId !== null) {
+            $this->nativeMappingForWrite($type, $id, $nativeId);
+        } elseif ($revision !== null) {
+            $this->run('SELECT source_id FROM ' . $this->table('cmteh_content') . ' WHERE type = ? AND source_id = ? FOR UPDATE',
+                [$type, $id])->fetchColumn();
+        }
+        $record = $this->editRecord($type, $id);
+        if ($revision !== null && !hash_equals(self::adminRevision($record), $revision)) {
+            throw new InvalidArgumentException('Запись изменилась. Обновите страницу редактора перед сохранением.', 409);
+        }
+        return $record;
+    }
+
+    public function saveFromAdmin(string $type,array $input,bool $confirmSlugChange=false,?string $revision=null): string
     {
         if (!in_array($type,['product','category','brand',...self::CONTENT_TYPES],true)) throw new InvalidArgumentException('Неизвестный тип записи');
-        return $this->atomic(function() use($type,$input,$confirmSlugChange):string {
-            $id=CatalogInput::text($input['id']??null,160,'id',true);
+        $id=CatalogInput::text($input['id']??null,160,'id',true);
+        $nativeId = $revision !== null && isset(self::NATIVE_CATALOG_IDENTITIES[$type]) ? $this->nativeMappingId($type, $id) : null;
+        return $this->atomic(function() use($type,$id,$input,$confirmSlugChange,$revision,$nativeId):string {
             // Serialize administrative URL decisions, including collisions with legacy routes.
             $this->run('SELECT version FROM ' . $this->table('cmteh_schema') . ' ORDER BY version FOR UPDATE')->fetchAll();
-            $previous=$this->editRecord($type,$id);
+            if ($type === 'category') $this->lockCategoryHierarchy();
+            $previous=$this->recordForAdminWrite($type,$id,$revision,$nativeId);
             $allowed=['id','slug','status','published_at','is_indexable','sort_order','title','name','h1','description','seo_title','seo_description','canonical_url','image_path','parent_slug','accent','sku','mpn','brand_slug','category_slug','category_slugs','main_image_path','main_image','availability_status','part_type','price_status','price','currency','confirm_zero_price','short_description','full_description','delivery_status','codes','images','documents','specification_items','relations'];
             if (in_array($type,self::CONTENT_TYPES,true)) {
                 // Editorial fields are named form fields; internal provenance never comes from a client.
@@ -177,7 +199,13 @@ trait CatalogAdmin
         return $id===false ? null:(int)$id;
     }
 
-    private function writeAdminNativeFields(string $type,int $id,array $row): void
+    private function lockCategoryHierarchy(): array
+    {
+        return $this->run('SELECT category_id,parent_id FROM ' . $this->table('category') . ' ORDER BY category_id FOR UPDATE')
+            ->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    private function writeAdminNativeFields(string $type,int $id,array $row,?array $categoryIds=null): void
     {
         $image=$type==='product'?'main_image_path':'image_path';
         if (array_key_exists($image,$row)) {
@@ -186,18 +214,14 @@ trait CatalogAdmin
             [$native,$key]=match($type){'product'=>['product','product_id'],'category'=>['category','category_id'],default=>['manufacturer','manufacturer_id']};
             $this->run('UPDATE ' . $this->table($native) . " SET image=? WHERE $key=?",[$path,$id]);
         }
-        if ($type==='product' && array_key_exists('category_slugs',$row)) {
-            if (!is_array($row['category_slugs']) || !array_is_list($row['category_slugs']) || count($row['category_slugs'])>300) throw new InvalidArgumentException('Категории: неверный список');
-            $slugs=$row['category_slugs']; if (!empty($row['category_slug'])) $slugs[]=$row['category_slug'];
-            $ids=[];
-            foreach(array_unique($slugs) as $slug) $ids[]=$this->taxonomyId('category',CatalogInput::slug($slug))??throw new InvalidArgumentException('Категория не найдена');
+        if ($type==='product' && $categoryIds!==null) {
             // Preserve unmanaged native assignments whose mapping has not been created yet.
             $this->run('DELETE pc FROM ' . $this->table('product_to_category') . ' pc JOIN ' . $this->table('cmteh_category') . ' c USING(category_id) WHERE pc.product_id=?',[$id]);
-            foreach ($ids as $category) $this->run('INSERT IGNORE INTO ' . $this->table('product_to_category') . ' (product_id,category_id) VALUES (?,?)',[$id,$category]);
+            foreach (array_unique($categoryIds) as $category) $this->run('INSERT IGNORE INTO ' . $this->table('product_to_category') . ' (product_id,category_id) VALUES (?,?)',[$id,$category]);
         }
         if ($type==='category' && array_key_exists('parent_slug',$row)) {
             $parent=empty($row['parent_slug'])?0:($this->taxonomyId('category',CatalogInput::slug($row['parent_slug']))??throw new InvalidArgumentException('Родитель не найден'));
-            $parents=$this->run('SELECT category_id,parent_id FROM ' . $this->table('category') . ' FOR UPDATE')->fetchAll(PDO::FETCH_KEY_PAIR);
+            $parents=$this->lockCategoryHierarchy();
             $parents[$id]=$parent;
             foreach($parents as $child=>$unused) {
                 $seen=[];$path=[];$node=(int)$child;
@@ -249,11 +273,12 @@ trait CatalogAdmin
         }
     }
 
-    public function deleteRecord(string $type,string $id): void
+    public function deleteRecord(string $type,string $id,?string $revision=null): void
     {
         if(!in_array($type,['product','category','brand','page','article','navigation'],true)) throw new InvalidArgumentException('Системную запись нельзя удалить');
-        $this->atomic(function()use($type,$id):void {
-            $record=$this->editRecord($type,$id);
+        $nativeId = ($type === 'category' || $revision !== null) && isset(self::NATIVE_CATALOG_IDENTITIES[$type]) ? $this->nativeMappingId($type, $id) : null;
+        $this->atomic(function()use($type,$id,$revision,$nativeId):void {
+            $record=$this->recordForAdminWrite($type,$id,$revision,$nativeId);
             if(!$record) throw new InvalidArgumentException('Запись не найдена');
             require_once __DIR__ . '/StorefrontPages.php';
             if($type==='page' && StorefrontPages::reserved($record['slug'])) throw new InvalidArgumentException('Системную страницу нельзя удалить');
@@ -263,7 +288,11 @@ trait CatalogAdmin
                 InventoryNativeGuard::assertDeletable($this->pdo,$this->prefix,$nativeId);
             }
             if($type==='brand' && $this->run('SELECT 1 FROM ' . $this->table('product') . ' WHERE manufacturer_id=? LIMIT 1',[$nativeId])->fetchColumn()) throw new InvalidArgumentException('Бренд связан с товарами; сначала снимите связи');
-            if($type==='category' && ($this->run('SELECT 1 FROM ' . $this->table('product_to_category') . ' WHERE category_id=? LIMIT 1',[$nativeId])->fetchColumn() || $this->run('SELECT 1 FROM ' . $this->table('category') . ' WHERE parent_id=? LIMIT 1',[$nativeId])->fetchColumn())) throw new InvalidArgumentException('Категория связана с товарами или дочерними категориями');
+            if ($type==='category' && (
+                $this->run('SELECT 1 FROM ' . $this->table('product_to_category') . ' WHERE category_id=? LIMIT 1 LOCK IN SHARE MODE',[$nativeId])->fetchColumn()
+                || $this->run('SELECT 1 FROM ' . $this->table('category') . ' WHERE parent_id=? LIMIT 1 LOCK IN SHARE MODE',[$nativeId])->fetchColumn()
+                || $this->run('SELECT 1 FROM ' . $this->table('category_path') . ' WHERE path_id=? AND category_id<>path_id LIMIT 1 LOCK IN SHARE MODE',[$nativeId])->fetchColumn()
+            )) throw new InvalidArgumentException('Категория связана с товарами или дочерними категориями');
             $path=$this->recordPath($type,$record['slug']);
             if($path) {
                 $this->run('UPDATE ' . $this->table('cmteh_route') . ' SET status=410,target=NULL WHERE target=?',[$path]);

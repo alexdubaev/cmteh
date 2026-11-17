@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, selectedLine, onCartChange, readCart } from "./cart.mjs?v=20261111-1";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, selectedLine, onCartChange, readCart, withCartWrite } from "./cart.mjs?v=20261117-2";
 
 function showCartCount() {
   const count = readCart().reduce((sum, item) => sum + item.quantity, 0);
@@ -25,7 +25,7 @@ function temporaryFeedback(button, label, message) {
 }
 
 for (const button of document.querySelectorAll("[data-add-article]")) {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const { addArticle: article, title, brand, productId } = button.dataset;
     if (!productId || !articleKey(article) || [...article].length > MAX_ARTICLE_LENGTH) {
       temporaryFeedback(button, "Не добавлено", "Некорректный артикул. Выберите товар в каталоге.");
@@ -37,7 +37,7 @@ for (const button of document.querySelectorAll("[data-add-article]")) {
       warehouse: { name: data.warehouseName, code: data.warehouseCode, city: data.warehouseCity },
       delivery_term: data.deliveryTerm, price: data.price || null, currency: "RUB",
     }) : { article, title, brand, productId, quantity: 1 };
-    const result = mergeCart([line]);
+    const result = await withCartWrite(() => mergeCart([line]));
     if (result.requiresReview) {
       temporaryFeedback(button, "Проверьте корзину", "Условия склада изменились. Проверьте выбранную строку в корзине.");
       return;

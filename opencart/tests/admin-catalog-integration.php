@@ -11,6 +11,13 @@ require __DIR__ . '/../extension/cmteh/system/StorefrontPages.php';
 require __DIR__ . '/../extension/cmteh/system/StorefrontSeo.php';
 if (!preg_match('~^http://(?:127\.0\.0\.1|localhost)(?::[0-9]+)?$~D', Database::siteUrl())) throw new RuntimeException('Loopback required');
 $pdo = Database::connectFromOpenCart();
+if (($argv[2] ?? '') === '--native-lock-writer') {
+ $prefix = $argv[3] ?? '';
+ if (!preg_match('/^atest_[0-9a-f]{12}_$/D', $prefix)) throw new RuntimeException('Test table prefix required');
+ echo $pdo->query('SELECT CONNECTION_ID()')->fetchColumn()."\n";
+ (new Catalog($pdo,$prefix,1,0,sys_get_temp_dir().'/'.$prefix))->saveFromAdmin('product',['id'=>'product-a','short_description'=>'Concurrent writer']);
+ exit;
+}
 $prefix = 'atest_' . bin2hex(random_bytes(6)) . '_';
 $native = ['product','product_code','product_description','product_to_store','product_to_category','product_attribute','product_image','product_related','category','category_description','category_to_store','category_path','manufacturer','manufacturer_to_store','attribute','attribute_description','attribute_group','attribute_group_description','seo_url'];
 $managed = array_map(fn($s) => 'cmteh_' . $s, ['schema','product','category','brand','attribute','content','route','media','media_link','import']);
@@ -77,6 +84,12 @@ try {
  check(($c->editRecord('category','root')['h1']??null)==='Synthetic category heading' && ($c->categories()[0]['h1']??null)==='Synthetic category heading','Category H1 survives admin reload and public catalog read');
  $c->saveFromAdmin('article',['id'=>'article-a','slug'=>'article-a','title'=>'Synthetic article','status'=>'published']);
  $c->saveFromAdmin('article',['id'=>'article-a','excerpt'=>'Synthetic article summary']);
+ $article = $c->editRecord('article','article-a');
+ $revision = hash('sha256',json_encode($article,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
+ $c->saveFromAdmin('article',['id'=>'article-a','title'=>'Updated by another editor'],false,$revision);
+ rejects(fn()=> $c->saveFromAdmin('article',['id'=>'article-a','title'=>$article['title'],'excerpt'=>'Stale edit'],false,$revision),'An editor using a stale revision cannot overwrite a newer save');
+ check($c->editRecord('article','article-a')['title']==='Updated by another editor' && $c->editRecord('article','article-a')['excerpt']==='Synthetic article summary','A stale edit does not change any published fields');
+ $c->saveFromAdmin('article',['id'=>'article-a','title'=>$article['title']]);
  check(($c->editRecord('article','article-a')['excerpt']??null)==='Synthetic article summary' && ($c->content('article','article-a')['excerpt']??null)==='Synthetic article summary','Article excerpt survives admin reload and public content read');
  $legacyImage='00000000-0000-4000-8000-000000000001';
  file_put_contents($private . '/media/legacy.png',base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jMskAAAAASUVORK5CYII='));
@@ -94,11 +107,46 @@ try {
  rejects(fn()=> $c->saveFromAdmin('category',['id'=>'root','parent_slug'=>'child']), 'Category cycle rejected atomically');
  check($c->editRecord('category','child')['parent_slug']==='root','Parent is read from native hierarchy');
  $c->saveFromAdmin('product',['id'=>'product-a','slug'=>'product-a','title'=>'Synthetic part','sku'=>'000001','mpn'=>'000002','brand_slug'=>'brand-a','category_slug'=>'child','category_slugs'=>['root','child'],'status'=>'published','main_image_path'=>'catalog/test.png','specification_items'=>[['name'=>'Size','value'=>'42','group_name'=>'Technical']]]);
+ $pid=(int)$c->editRecord('product','product-a')['native_id'];
+ $pdo->beginTransaction();
+ $writer = null;
+ try {
+   $pdo->query("SELECT product_id FROM `{$prefix}product` WHERE product_id=$pid FOR UPDATE")->fetchColumn();
+   $writer = proc_open([PHP_BINARY,__FILE__,$argv[1]??'/var/www/html/config.php','--native-lock-writer',$prefix], [1=>['pipe','w'],2=>['pipe','w']], $pipes);
+   if (!is_resource($writer)) throw new RuntimeException('Cannot start the independent catalog writer');
+   stream_set_timeout($pipes[1],5);
+   $writerId = (int) fgets($pipes[1]);
+   $query = $pdo->prepare('SELECT INFO FROM information_schema.PROCESSLIST WHERE ID = ?');
+   $nativeWait = false;
+   $deadline = microtime(true)+5;
+   while ($writerId > 0 && microtime(true) < $deadline) {
+     $query->execute([$writerId]);
+     $info = (string) $query->fetchColumn();
+     if (str_contains($info, "`{$prefix}product`") && (str_contains($info, 'FOR UPDATE') || str_starts_with($info, 'UPDATE'))) {
+       $nativeWait = true;
+       break;
+     }
+     usleep(20_000);
+   }
+   check($nativeWait,'Independent catalog writer waits on the native product row');
+   $mapping = $pdo->query("SELECT product_id FROM `{$prefix}cmteh_product` WHERE source_id='product-a' FOR UPDATE")->fetchColumn();
+   check((int)$mapping===$pid,'The native mutex owner can lock the mapping while the catalog writer is waiting');
+ } finally {
+   if ($pdo->inTransaction()) $pdo->rollBack();
+   if (is_resource($writer)) {
+     $writerError=stream_get_contents($pipes[2]);
+     fclose($pipes[1]); fclose($pipes[2]);
+     if (proc_close($writer)!==0) throw new RuntimeException('The independent catalog writer failed: '.$writerError);
+   }
+ }
+ check($c->editRecord('product','product-a')['short_description']==='Concurrent writer','The catalog writer commits after the native lock is released');
+ $productRevision = Catalog::adminRevision($c->editRecord('product','product-a'));
  $p=$c->editRecord('product','product-a'); $pid=$p['native_id'];
  $pdo->prepare("INSERT INTO `{$prefix}product_description` (product_id,language_id,name,description,tag,meta_title,meta_description,meta_keyword) VALUES (?,2,'Other language','','','','','')")->execute([$pid]);
  $pdo->prepare("UPDATE `{$prefix}product_description` SET name='Native changed' WHERE product_id=? AND language_id=1")->execute([$pid]);
  $pdo->prepare("UPDATE `{$prefix}product` SET location='Keep location', model='Native model independent of SKU' WHERE product_id=?")->execute([$pid]);
  (new Cmteh\NativeCatalog($pdo,$prefix,1,0,'RUB'))->synchronize('product',$pid);
+ rejects(fn()=> $c->saveFromAdmin('product',['id'=>'product-a','title'=>'Stale product title'],false,$productRevision),'A stale CMTEH form cannot overwrite a native product edit');
  $pdo->exec("INSERT INTO `{$prefix}attribute_group` (sort_order) VALUES (0)"); $group=(int)$pdo->lastInsertId();
  $pdo->exec("INSERT INTO `{$prefix}attribute_group_description` (attribute_group_id,language_id,name) VALUES ($group,1,'Native group')");
  $pdo->exec("INSERT INTO `{$prefix}attribute` (attribute_group_id,sort_order) VALUES ($group,0)"); $attribute=(int)$pdo->lastInsertId();
@@ -109,6 +157,12 @@ try {
  check((int)$pdo->query("SELECT COUNT(*) FROM `{$prefix}product_attribute` WHERE product_id=$pid")->fetchColumn()===2,'Editing existing native specification does not duplicate attributes');
  $p=$c->editRecord('product','product-a');
  check($p['title']==='Native changed' && $p['sku']==='000001' && count($p['category_slugs'])===2 && $p['main_image_path']==='catalog/test.png' && $p['specification_items'][0]['value']==='42','Native edits, multiple categories, image and specs survive partial admin save');
+ $measurements=[['name'=>'Size','value'=>'42','unit'=>'mm','group_name'=>'Technical'],['name'=>'Size','value'=>'4.2','unit'=>'cm','group_name'=>'Technical']];
+ $sizeValues=fn()=>array_column(array_filter($c->product('product-a')['specification_items']??[],fn($row)=>$row['name']==='Size'),'value','unit');
+ $c->saveFromAdmin('product',['id'=>'product-a','specification_items'=>$measurements]);
+ check($sizeValues()===['mm'=>'42','cm'=>'4.2'],'Specifications with the same name and distinct units stay distinct on the storefront');
+ $c->saveFromAdmin('product',['id'=>'product-a','short_description'=>'Unrelated edit']);
+ check($sizeValues()===['mm'=>'42','cm'=>'4.2'],'An unrelated edit preserves both specification units');
  check($pdo->query("SELECT name FROM `{$prefix}product_description` WHERE product_id=$pid AND language_id=2")->fetchColumn()==='Other language' && $pdo->query("SELECT location FROM `{$prefix}product` WHERE product_id=$pid")->fetchColumn()==='Keep location','Other languages and unmanaged native fields preserved');
  check(count($c->editRows('product',1,'000001','published'))===1 && count($c->editRows('product',1,'no match',''))===0 && count($c->editRows('category',1,'','draft'))===1,'Lists search native fields and publication status');
  rejects(fn()=> $c->saveFromAdmin('product',['id'=>'product-a','slug'=>'second']), 'Slug change needs explicit confirmation');

@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, selectedLine } from "../cart.mjs?v=20261111-1";
+import { MAX_ARTICLE_LENGTH, articleKey, mergeCart, selectedLine, withCartWrite } from "../cart.mjs?v=20261117-2";
 
 const bound = new WeakSet();
 const feedbackTimers = new WeakMap();
@@ -20,7 +20,7 @@ function temporaryFeedback(button, label, message) {
 function bindAddToCart(button) {
   if (bound.has(button)) return;
   bound.add(button);
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const { addArticle: article, title, brand, productId } = button.dataset;
     if (!productId || !articleKey(article) || [...article].length > MAX_ARTICLE_LENGTH) {
       temporaryFeedback(button, "Не добавлено", "Некорректный артикул. Выберите товар в каталоге.");
@@ -36,7 +36,7 @@ function bindAddToCart(button) {
       price: data.price || null,
       currency: "RUB",
     }) : { article, title, brand, productId, quantity: 1 };
-    const result = mergeCart([line]);
+    const result = await withCartWrite(() => mergeCart([line]));
     if (result.requiresReview) {
       temporaryFeedback(button, "Проверьте корзину", "Условия склада изменились. Проверьте выбранную строку в корзине.");
     } else if (!result.persisted) {
