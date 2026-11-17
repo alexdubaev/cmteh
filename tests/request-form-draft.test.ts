@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { clearFormDraft, readFormDraft, sameFormValues, writeFormDraft } from "../hooks/useFormDraft";
 
 function tabStorage() {
@@ -13,8 +14,8 @@ function tabStorage() {
 describe("contact form draft persistence", () => {
   it("resets a form only when its current fields still match the submitted snapshot", () => {
     const submitted = { name: "Анна", email: "a@example.com" };
-    expect(sameFormValues(submitted, { ...submitted })).toBe(true);
-    expect(sameFormValues(submitted, { ...submitted, name: "Мария" })).toBe(false);
+    assert.equal(sameFormValues(submitted, { ...submitted }), true);
+    assert.equal(sameFormValues(submitted, { ...submitted, name: "Мария" }), false);
   });
 
   it("restores contact fields independently for tabs and forms, clearing only the submitted form", () => {
@@ -24,11 +25,11 @@ describe("contact form draft persistence", () => {
     writeFormDraft(firstTab, "request", draft);
     writeFormDraft(firstTab, "contact", { name: "Другой контакт" });
     writeFormDraft(secondTab, "request", { name: "Вторая вкладка" });
-    expect(readFormDraft(firstTab, "request")).toEqual(draft);
+    assert.deepEqual(readFormDraft(firstTab, "request"), draft);
     clearFormDraft(firstTab, "request", firstTab.getItem("request"));
-    expect(readFormDraft(firstTab, "request")).toEqual({});
-    expect(readFormDraft(firstTab, "contact")).toEqual({ name: "Другой контакт" });
-    expect(readFormDraft(secondTab, "request")).toEqual({ name: "Вторая вкладка" });
+    assert.deepEqual(readFormDraft(firstTab, "request"), {});
+    assert.deepEqual(readFormDraft(firstTab, "contact"), { name: "Другой контакт" });
+    assert.deepEqual(readFormDraft(secondTab, "request"), { name: "Вторая вкладка" });
   });
 
   it("preserves a newer edit after a late acknowledgement even when its values match the submitted draft", () => {
@@ -39,24 +40,24 @@ describe("contact form draft persistence", () => {
     writeFormDraft(storage, "request", { name: "Анна", message: "Новый комментарий" });
     writeFormDraft(storage, "request", submitted);
     clearFormDraft(storage, "request", submittedVersion);
-    expect(readFormDraft(storage, "request")).toEqual(submitted);
+    assert.deepEqual(readFormDraft(storage, "request"), submitted);
     clearFormDraft(storage, "request", storage.getItem("request"));
-    expect(readFormDraft(storage, "request")).toEqual({});
+    assert.deepEqual(readFormDraft(storage, "request"), {});
   });
 
   it("ignores malformed storage and unsupported fields", () => {
     const storage = tabStorage();
     storage.setItem("broken", "{no json");
     storage.setItem("unexpected", JSON.stringify({ name: "Имя", phone: 123, request_items: [{ article: "SKU" }] }));
-    expect(readFormDraft(storage, "broken")).toEqual({});
-    expect(readFormDraft(storage, "unexpected")).toEqual({ name: "Имя" });
+    assert.deepEqual(readFormDraft(storage, "broken"), {});
+    assert.deepEqual(readFormDraft(storage, "unexpected"), { name: "Имя" });
   });
 
   it("allows the form to work when browser storage is denied", () => {
     const denied = () => { throw new Error("Access denied"); };
     const storage = { getItem: denied, setItem: denied, removeItem: denied };
-    expect(readFormDraft(storage, "request")).toEqual({});
-    expect(() => writeFormDraft(storage, "request", { name: "Имя" })).not.toThrow();
-    expect(() => clearFormDraft(storage, "request", null)).not.toThrow();
+    assert.deepEqual(readFormDraft(storage, "request"), {});
+    assert.doesNotThrow(() => writeFormDraft(storage, "request", { name: "Имя" }));
+    assert.doesNotThrow(() => clearFormDraft(storage, "request", null));
   });
 });

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { clearPendingSubmission, ensurePendingSubmission, fingerprintPayload, requireLeadAcknowledgement, validateLeadSubmission } from "../lib/idempotency";
 
 function storage() {
@@ -8,15 +9,15 @@ function storage() {
 
 describe("reload-safe pending lead keys", () => {
   it("blocks an empty parts RFQ while allowing quick contact without items", () => {
-    expect(validateLeadSubmission("request", [])).toBe("Добавьте позиции в корзину перед отправкой заявки.");
-    expect(validateLeadSubmission("contact", [])).toBeNull();
-    expect(validateLeadSubmission("request", [{ article: "SKU", quantity: 1 }])).toBeNull();
+    assert.equal(validateLeadSubmission("request", []), "Добавьте позиции в корзину перед отправкой заявки.");
+    assert.equal(validateLeadSubmission("contact", []), null);
+    assert.equal(validateLeadSubmission("request", [{ article: "SKU", quantity: 1 }]), null);
   });
 
   it("rejects malformed acknowledgements even when HTTP succeeded", () => {
-    expect(requireLeadAcknowledgement({ id: "lead-42" })).toBe("lead-42");
+    assert.equal(requireLeadAcknowledgement({ id: "lead-42" }), "lead-42");
     for (const payload of [null, {}, { id: "" }, { id: 42 }]) {
-      expect(() => requireLeadAcknowledgement(payload)).toThrow();
+      assert.throws(() => requireLeadAcknowledgement(payload));
     }
   });
 
@@ -26,8 +27,8 @@ describe("reload-safe pending lead keys", () => {
     const key1 = await ensurePendingSubmission(firstTabMount, "request", lead, () => "key-1");
     const remounted = await ensurePendingSubmission(firstTabMount, "request", lead, () => "key-2");
     const edited = await ensurePendingSubmission(firstTabMount, "request", { ...lead, message: "Изменение" }, () => "key-3");
-    expect(remounted.key).toBe(key1.key);
-    expect(edited.key).toBe("key-3");
+    assert.equal(remounted.key, key1.key);
+    assert.equal(edited.key, "key-3");
   });
 
   it("scopes keys by form and stores only fingerprints and keys, then clears acknowledged state", async () => {
@@ -35,12 +36,12 @@ describe("reload-safe pending lead keys", () => {
     const payload = { email: "private@example.com" };
     const request = await ensurePendingSubmission(saved, "request", payload, () => "request-key");
     const contact = await ensurePendingSubmission(saved, "contact", payload, () => "contact-key");
-    expect(contact.key).not.toBe(request.key);
+    assert.notEqual(contact.key, request.key);
     const serialized = saved.getItem("smtechno-pending-lead:request") ?? "";
-    expect(serialized).not.toContain(payload.email);
-    expect(serialized).toContain(await fingerprintPayload(payload));
+    assert.ok(!serialized.includes(payload.email));
+    assert.ok(serialized.includes(await fingerprintPayload(payload)));
     clearPendingSubmission(saved, "request", request.fingerprint);
-    expect(saved.getItem("smtechno-pending-lead:request")).toBeNull();
-    expect(saved.getItem("smtechno-pending-lead:contact")).not.toBeNull();
+    assert.equal(saved.getItem("smtechno-pending-lead:request"), null);
+    assert.notEqual(saved.getItem("smtechno-pending-lead:contact"), null);
   });
 });
