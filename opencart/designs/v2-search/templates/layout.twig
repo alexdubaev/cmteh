@@ -42,7 +42,7 @@
   <script type="module" src="{{ assets }}request.mjs?v=20261111-1"></script>
   <script type="module" src="{{ assets }}parts-list.mjs?v=20261111-1"></script>
   <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261116-3"></script>
-  {% if page in ['home', 'catalog', 'product', 'parts-list'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261116-6"></script>{% endif %}
+  {% if page in ['home', 'catalog', 'product', 'parts-list'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261117-1"></script>{% endif %}
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>

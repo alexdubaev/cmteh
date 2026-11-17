@@ -1,4 +1,4 @@
-import { activateView } from './view-controls.mjs?v=20261116-1';
+import { activateView } from './view-controls.mjs?v=20261117-1';
 
 // A V2 presentation enhancement over normal, server-rendered storefront URLs.
 // No response scripts are executed, and commerce uses the existing shared modules.
@@ -33,6 +33,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   history.replaceState(currentState(current), '', location.href);
   history.scrollRestoration = 'manual';
   views.set(current.id, current);
+  activateView(main, { bindControls: false });
 
   // Keep the original form alive, including FileList, results and in-flight work.
   // Its unchanged module owns validation, draft storage and quote idempotency.
@@ -48,7 +49,13 @@ if (main && search && input && dock && status && supported(new URL(location.href
       partsParking.replaceChildren(...partsNodes);
       // The head module ran before this form existed. Evaluate the same source once
       // for V2, with the real root connected even if navigation is superseded.
-      partsReady = import('../parts-list.mjs?v=20261111-1&v2=seamless');
+      partsReady = import('../parts-list.mjs?v=20261111-1&v2=seamless').then(() => {
+        // A seamless parts-list URL has no prefill. The shared module may have
+        // read ?article from the page visible while the import was in flight.
+        let draft;
+        try { draft = JSON.parse(sessionStorage.getItem('smtechno-quote-draft')); } catch { /* No readable draft. */ }
+        if (typeof draft?.text !== 'string') partsParking.querySelector('#parts-list-text').value = '';
+      });
     }
     await partsReady;
     return partsNodes;
@@ -139,6 +146,12 @@ if (main && search && input && dock && status && supported(new URL(location.href
     status.replaceChildren();
   }
 
+  function cancelNavigation() {
+    pending?.request.abort();
+    pending = null;
+    clearLoading();
+  }
+
   function show(view, { restore = false, motion = false } = {}) {
     const previousBounds = search.getBoundingClientRect();
     const previousHeight = main.getBoundingClientRect().height;
@@ -160,7 +173,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     document.title = view.title;
     document.head.querySelectorAll(headSelector).forEach(node => node.remove());
     document.head.append(...view.head.map(node => node.cloneNode(true)));
-    if (!view.initial) activateView(main);
+    activateView(main, { bindControls: !view.initial });
     const menu = document.querySelector('.catalog-menu');
     if (menu) menu.open = false;
     document.querySelector('.main-nav')?.classList.remove('is-open');
@@ -185,47 +198,73 @@ if (main && search && input && dock && status && supported(new URL(location.href
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
 
-  async function navigate(url, { restoreId, restoreState, motion = false, openSingleResult = false } = {}) {
-    pending?.abort();
+  function showFailure(url, options) {
     clearLoading();
+    status.textContent = 'Не удалось открыть страницу.';
+    const retry = document.createElement('a');
+    retry.href = url.href;
+    retry.textContent = 'Попробовать ещё раз';
+    retry.dataset.v2Native = '';
+    if (options.restoreId) {
+      retry.addEventListener('click', event => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        navigate(url, options);
+      });
+    }
+    status.append(retry);
+    status.hidden = false;
+  }
+
+  async function navigate(url, options = {}) {
+    const { restoreId, restoreState, motion = false, openSingleResult = false } = options;
+    cancelNavigation();
     saveCurrent();
-    const request = new AbortController();
-    pending = request;
     const old = restoreId && views.get(restoreId);
     // Fetch product pages again on Back/Forward: warehouse prices/offer versions are live.
     if (old && old.kind !== 'product' && routeKey(old.url) === routeKey(url)) {
-      show(old, { restore: true, motion });
-      pending = null;
+      show({ ...old, url }, { restore: true, motion });
       return;
     }
+    const request = new AbortController();
+    const transition = { request, restoring: Boolean(restoreId) };
+    pending = transition;
+    const openNatively = () => {
+      // A history traversal already occupies its destination entry.
+      if (restoreId) location.replace(url.href);
+      else location.assign(url.href);
+    };
     main.setAttribute('aria-busy', 'true');
     loadingTimer = setTimeout(() => {
-      if (pending !== request) return;
+      if (pending !== transition) return;
       status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
         : pageKind(url) === 'parts-list' ? 'Открываем список или файл…' : 'Загружаем результаты…';
       status.hidden = false;
       main.classList.add('v2-waiting');
     }, 160);
-    let timedOut = false;
-    const deadline = setTimeout(() => { timedOut = true; request.abort(); }, 15000);
+    const deadline = setTimeout(() => {
+      if (pending !== transition) return;
+      cancelNavigation();
+      showFailure(url, options);
+    }, 15000);
     try {
       const response = await fetch(url.href, { signal: request.signal, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html' } });
-      if (request.signal.aborted || pending !== request) return;
+      if (pending !== transition) return;
       const finalUrl = new URL(response.url);
       finalUrl.hash = url.hash;
       if (!response.ok || !supported(finalUrl) || !response.headers.get('content-type')?.includes('text/html')) {
-        location.assign(url.href); // Normal server redirects/404/410 remain authoritative.
+        openNatively(); // Normal server redirects/404/410 remain authoritative.
         return;
       }
       const html = await response.text();
-      if (request.signal.aborted || pending !== request) return;
+      if (pending !== transition) return;
       const page = new DOMParser().parseFromString(html, 'text/html');
       const kind = page.body.dataset.v2Page;
       const content = page.querySelector('#main-content');
       if (!content || !page.body.classList.contains('v2-storefront') || kind !== pageKind(finalUrl)
           || (kind === 'home' && !content.querySelector('[data-v2-search-home]'))
           || (kind === 'parts-list' && !content.querySelector('[data-parts-list]'))) {
-        location.assign(url.href);
+        openNatively();
         return;
       }
       content.querySelector('#article-search')?.remove();
@@ -245,26 +284,16 @@ if (main && search && input && dock && status && supported(new URL(location.href
         focus: saved.focus === 'search' ? 'search' : null, initial: false,
       };
       if (kind === 'parts-list') view.nodes = await preparePartsList(view.nodes);
-      if (request.signal.aborted || pending !== request) return;
+      if (pending !== transition) return;
       if (kind === 'catalog') view.query = finalUrl.searchParams.get('q') || '';
       if (restoreId) history.replaceState(currentState(view), '', finalUrl.href);
       else history.pushState({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } }, '', finalUrl.href);
       show(view, { restore: Boolean(restoreId), motion });
-    } catch (error) {
-      if ((request.signal.aborted && !timedOut) || pending !== request) return;
-      clearLoading();
-      // During a failed history restore, synchronize the URL with the retained view.
-      if (restoreId) history.replaceState(currentState(current), '', current.url.href);
-      status.textContent = 'Не удалось открыть страницу.';
-      const retry = document.createElement('a');
-      retry.href = url.href;
-      retry.textContent = 'Попробовать ещё раз';
-      retry.dataset.v2Native = '';
-      status.append(retry);
-      status.hidden = false;
+    } catch {
+      if (pending === transition) showFailure(url, options);
     } finally {
       clearTimeout(deadline);
-      if (pending === request) {
+      if (pending === transition) {
         pending = null;
         clearTimeout(loadingTimer);
         main.removeAttribute('aria-busy');
@@ -288,9 +317,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
   window.addEventListener('touchstart', stopAnimations, { passive: true });
   input.addEventListener('input', () => {
     // Editing a new query supersedes any product still loading from an earlier choice.
-    pending?.abort();
-    pending = null;
-    clearLoading();
+    // The address bar already moved during a history traversal.
+    if (pending && !pending.restoring) cancelNavigation();
     saveCurrent();
   });
   window.addEventListener('scroll', () => {
@@ -327,8 +355,13 @@ if (main && search && input && dock && status && supported(new URL(location.href
   window.addEventListener('popstate', event => {
     const url = new URL(location.href);
     if (!supported(url)) { location.reload(); return; }
-    if (routeKey(url) === routeKey(current.url) && url.hash !== current.url.hash) return;
+    if (routeKey(url) === routeKey(current.url) && url.hash !== current.url.hash) {
+      cancelNavigation();
+      current.url = url;
+      history.replaceState(currentState(current), '', url.href);
+      return;
+    }
     navigate(url, { restoreId: event.state?.v2View || nextId(), restoreState: event.state?.v2Navigation, motion: pointerAction });
   });
-  window.addEventListener('pagehide', () => { pending?.abort(); stopAnimations(); });
+  window.addEventListener('pagehide', () => { cancelNavigation(); stopAnimations(); });
 }
