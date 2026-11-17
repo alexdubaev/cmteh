@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Cmteh;
 use PDO;
+require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/InventoryInput.php';
 require_once __DIR__ . '/InventorySchema.php';
 
@@ -312,7 +313,7 @@ final class Inventory
 
     public function publicOffers(array $sourceIds): array
     {
-        return $this->offerProjection($sourceIds,false);
+        return Database::readSnapshot($this->pdo, fn(): array => $this->offerProjection($sourceIds,false));
     }
 
     private function visibility(): string

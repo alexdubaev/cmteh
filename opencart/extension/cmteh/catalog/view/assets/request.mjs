@@ -1,4 +1,4 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, writeCart } from "./cart.mjs?v=20261111-1";
+import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, withCartWrite, writeCart } from "./cart.mjs?v=20261117-2";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
@@ -25,18 +25,55 @@ function formatCount(count) {
 function exactProduct(item, payload) {
   const result = payload?.data;
   if (!Array.isArray(result) || result.length !== payload.meta?.total || payload.meta.partial) return null;
-  const sku = articleKey(item.article);
-  const candidates = result.filter((product) => {
-    if (item.productId && product?.id !== item.productId) return false;
-    if (typeof product?.sku !== "string" || articleKey(product.sku) !== sku) return false;
-    if (!hasBrand(item.brand)) return true;
-    return typeof product.brand === "string" && product.brand.trim().toLocaleLowerCase("ru") === item.brand.trim().toLocaleLowerCase("ru");
-  });
+  const candidates = result.filter((product) => matchesItem(item, product));
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+function matchesItem(item, product) {
+  if (item.productId && product?.id !== item.productId) return false;
+  if (typeof product?.sku !== "string" || articleKey(product.sku) !== articleKey(item.article)) return false;
+  if (!hasBrand(item.brand)) return true;
+  return typeof product.brand === "string" && product.brand.trim().toLocaleLowerCase("ru") === item.brand.trim().toLocaleLowerCase("ru");
+}
+
+function batchLookups(path, ids, signal) {
+  const lookups = new Map();
+  let batch = [];
+  let query = "";
+  function addBatch() {
+    if (!batch.length) return;
+    const url = path + "?" + query;
+    let response;
+    // Start only when a cart worker needs an item in this batch.
+    const load = () => response ??= fetch(url, { signal, cache: "no-store" }).then(async (result) => {
+      if (!result.ok) throw new Error("Unavailable");
+      const { data } = await result.json();
+      if (!data || typeof data !== "object") throw new Error("Missing lookup data");
+      return data;
+    });
+    for (const id of batch) lookups.set(id, load);
+    batch = [];
+    query = "";
+  }
+  for (const id of ids) {
+    const parameter = new URLSearchParams([["ids[]", id]]).toString();
+    // Bound the encoded request target, which is ASCII after serialization.
+    if (path.length + parameter.length + 1 > 3500) continue;
+    if (path.length + query.length + parameter.length + 2 > 3500) addBatch();
+    query += (query ? "&" : "") + parameter;
+    batch.push(id);
+  }
+  addBatch();
+  return lookups;
+}
+
+async function lookup(lookups, id) {
+  const data = await lookups.get(id)();
+  return Object.hasOwn(data, id) ? data[id] : null;
+}
+
 function fixedPrice(product) {
-  if (!product || product.price_status !== "fixed") return null;
+  if (!product || product.inventory_managed || product.price_status !== "fixed") return null;
   const currency = typeof product.currency === "string" ? product.currency.trim().toUpperCase() : "";
   if (!/^[A-Z]{3}$/.test(currency)) return null;
   const digits = new Intl.NumberFormat("ru-RU", { style: "currency", currency }).resolvedOptions().maximumFractionDigits;
@@ -67,22 +104,26 @@ function setupCart(cart) {
   let identity;
   let controller;
 
-  function updateItem(key, delta) {
-    const items = readCart();
-    const index = items.findIndex((item) => lineKey(item) === key);
-    if (index < 0) return;
-    if (delta === null) items.splice(index, 1);
-    else items[index].quantity = normalizeQuantity(items[index].quantity + delta);
-    writeCart(items);
+  async function updateItem(key, delta) {
+    await withCartWrite(() => {
+      const items = readCart();
+      const index = items.findIndex((item) => lineKey(item) === key);
+      if (index < 0) return;
+      if (delta === null) items.splice(index, 1);
+      else items[index].quantity = normalizeQuantity(items[index].quantity + delta);
+      writeCart(items);
+    });
   }
-  function review(item, offer) {
-    const items = readCart();
-    const current = items.find((candidate) => lineKey(candidate) === lineKey(item));
-    if (!current) return;
-    Object.assign(current, { offerVersion: offer.offer_version, price: offer.price, currency: offer.currency,
-      warehouseName: offer.warehouse.name, warehouseCode: offer.warehouse.code, warehouseCity: offer.warehouse.city,
-      deliveryTerm: offer.delivery_term, selectionInvalid: false });
-    writeCart(items);
+  async function review(item, offer) {
+    await withCartWrite(() => {
+      const items = readCart();
+      const current = items.find((candidate) => lineKey(candidate) === lineKey(item));
+      if (!current) return;
+      Object.assign(current, { offerVersion: offer.offer_version, price: offer.price, currency: offer.currency,
+        warehouseName: offer.warehouse.name, warehouseCode: offer.warehouse.code, warehouseCity: offer.warehouse.city,
+        deliveryTerm: offer.delivery_term, selectionInvalid: false });
+      writeCart(items);
+    });
   }
   function render() {
     const items = readCart();
@@ -142,12 +183,16 @@ function setupCart(cart) {
       if (failed) { const retry = quantityButton("Повторить загрузку цен", "Повторить загрузку цен", () => update(true)); retry.className = "cart-retry"; totals.append(retry); }
     }
   }
-  async function loadPrice(item, signal, warehouseData) {
+  async function loadPrice(item, signal, warehouseLookups, productLookups) {
     try {
       if (item.warehouseSelection) {
         if (item.selectionInvalid) return {};
-        const data = await warehouseData;
-        return { offer: data?.[item.productId]?.offers?.find((offer) => offer.offer_id === item.offerId) || null };
+        const data = await lookup(warehouseLookups, item.productId);
+        return { offer: data?.offers?.find((offer) => offer.offer_id === item.offerId) || null };
+      }
+      if (item.productId) {
+        const product = await lookup(productLookups, item.productId);
+        return { product: matchesItem(item, product) ? product : null };
       }
       const query = item.article.trim();
       if (query.length < 2 || query.length > 64) return { product: null };
@@ -162,14 +207,14 @@ function setupCart(cart) {
     if (retry || nextIdentity !== identity) {
       identity = nextIdentity; controller?.abort();
       const signal = (controller = new AbortController()).signal; entries = new Map();
-      const ids = [...new Set(items.filter((item) => item.warehouseSelection && !item.selectionInvalid).map((item) => item.productId))];
-      const query = new URLSearchParams(); for (const id of ids) query.append("ids[]", id);
-      const warehouseData = ids.length ? fetch("/api/warehouse-offers?" + query, { signal, cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error("Unavailable"); return (await response.json()).data; }).catch(() => null) : Promise.resolve({});
+      const warehouseIds = new Set(items.filter((item) => item.warehouseSelection && !item.selectionInvalid).map((item) => item.productId));
+      const productIds = new Set(items.filter((item) => !item.warehouseSelection && item.productId).map((item) => item.productId));
+      const warehouseLookups = batchLookups("/api/warehouse-offers", warehouseIds, signal);
+      const productLookups = batchLookups("/api/product-prices", productIds, signal);
       const queue = [...new Map(items.map((item) => [lineKey(item), item])).values()]; let index = 0;
       async function worker() {
         while (!signal.aborted && index < queue.length) {
-          const item = queue[index++]; const entry = await loadPrice(item, signal, warehouseData);
-          if (item.warehouseSelection && !item.selectionInvalid && await warehouseData === null) entry.failed = true;
+          const item = queue[index++]; const entry = await loadPrice(item, signal, warehouseLookups, productLookups);
           if (!signal.aborted) entries.set(lineKey(item), entry);
         }
       }
@@ -178,6 +223,7 @@ function setupCart(cart) {
     render();
   }
   onCartChange(() => update());
+  return () => update(true);
 }
 
 const names = ["company", "name", "phone", "email", "message"];
@@ -204,27 +250,39 @@ async function fingerprint(payload) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function setupLead(form) {
+function setupLead(form, refreshCart) {
   const type = form.dataset.lead;
   const rfq = type === "request";
-  const draftKey = "smtechno-form-draft:" + (rfq ? type : type + ":" + location.pathname);
   const legacyPendingKey = "smtechno-pending-lead:" + type;
   const submit = form.querySelector("button[type=submit]");
   const progress = form.querySelector("[data-lead-loading]");
   const empty = form.querySelector("[data-cart-required]");
   const result = form.querySelector("[data-lead-result]");
   let sending = false;
+  let preparingCart = false;
+  let draftKey;
 
   const readFields = () => Object.fromEntries(names.map((name) => [name, form.elements.namedItem(name).value]));
-  const draft = parseSession(draftKey);
-  for (const name of names) {
-    const field = form.elements.namedItem(name);
-    if (!field.value && typeof draft[name] === "string") field.value = draft[name];
+  function syncDraft() {
+    const key = "smtechno-form-draft:" + (rfq ? type : type + ":" + location.pathname);
+    if (key === draftKey) return;
+    const initial = draftKey === undefined;
+    draftKey = key;
+    const draft = parseSession(key);
+    if (!initial) form.reset();
+    for (const name of names) {
+      const field = form.elements.namedItem(name);
+      if ((!initial || !field.value) && typeof draft[name] === "string") field.value = draft[name];
+      if (!initial) fieldError(field, "");
+    }
+    if (!initial) show("", false);
   }
+  syncDraft();
+  if (type === "quick") document.addEventListener("v2:navigated", syncDraft);
   function sync() {
     const required = rfq && readCart().length === 0;
     if (empty) empty.hidden = !required;
-    submit.disabled = sending || required;
+    submit.disabled = preparingCart || sending || required;
   }
   onCartChange(sync);
 
@@ -254,8 +312,19 @@ function setupLead(form) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (sending) return;
-    const items = rfq ? readCart() : [];
+    if (preparingCart || sending) return;
+    let items = [];
+    if (rfq) {
+      // Queue behind quantity, removal and offer changes already requested.
+      preparingCart = true;
+      sync();
+      try {
+        items = await withCartWrite(readCart);
+      } finally {
+        preparingCart = false;
+        sync();
+      }
+    }
     if (rfq && !items.length) {
       show("Добавьте позиции в корзину перед отправкой заявки.", true);
       return;
@@ -291,7 +360,11 @@ function setupLead(form) {
       : { company, name, phone, email, message, request_items, page_url };
     if (type === "quick") payload.intent = "quick";
     const website = form.elements.namedItem("website").value;
-    const savedDraft = readSession(draftKey);
+    const submittedDraftKey = draftKey;
+    const savedDraft = readSession(submittedDraftKey);
+    const showSubmission = (message, error) => {
+      if (draftKey === submittedDraftKey) show(message, error);
+    };
     sending = true;
     sync();
     submit.textContent = "Отправляем…";
@@ -313,24 +386,26 @@ function setupLead(form) {
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        show(typeof body?.error === "string" && body.error ? body.error : "Не удалось отправить заявку. Попробуйте ещё раз.", true);
+        // A warehouse conflict may be the first notice that the server revised an offer.
+        if (rfq && response.status === 409) refreshCart?.();
+        showSubmission(typeof body?.error === "string" && body.error ? body.error : "Не удалось отправить заявку. Попробуйте ещё раз.", true);
         return;
       }
       const id = body?.id;
       if (!((typeof id === "string" && id.trim()) || (Number.isSafeInteger(id) && id > 0)) || typeof body.replayed !== "boolean") {
-        show("Сервис вернул некорректное подтверждение заявки. Попробуйте ещё раз.", true);
+        showSubmission("Сервис вернул некорректное подтверждение заявки. Попробуйте ещё раз.", true);
         return;
       }
-      if (rfq && !acknowledgeCart(items)) {
-        show("Заявка принята. Номер: " + id + ". Хранилище браузера недоступно: корзина сохранена в этой вкладке, повторная отправка вернёт тот же номер.", false);
+      if (rfq && !await withCartWrite(() => acknowledgeCart(items))) {
+        showSubmission("Заявка принята. Номер: " + id + ". Хранилище браузера недоступно: корзина сохранена в этой вкладке, повторная отправка вернёт тот же номер.", false);
         return;
       }
       clearSession(pendingKey, pending);
-      if (names.every((name) => form.elements.namedItem(name).value === original[name])) form.reset();
-      clearSession(draftKey, savedDraft);
-      show((rfq ? "Заявка принята. Номер: " : type === "quick" ? "Запрос принят: " : "Заявка принята: ") + id + ". Следующий шаг: менеджер свяжется с вами.", false);
+      if (draftKey === submittedDraftKey && names.every((name) => form.elements.namedItem(name).value === original[name])) form.reset();
+      clearSession(submittedDraftKey, savedDraft);
+      showSubmission((rfq ? "Заявка принята. Номер: " : type === "quick" ? "Запрос принят: " : "Заявка принята: ") + id + ". Следующий шаг: менеджер свяжется с вами.", false);
     } catch {
-      show("Не удалось получить подтверждение. Попробуйте отправить заявку ещё раз.", true);
+      showSubmission("Не удалось получить подтверждение. Попробуйте отправить заявку ещё раз.", true);
     } finally {
       sending = false;
       sync();
@@ -345,5 +420,5 @@ function setupLead(form) {
 }
 
 const cart = document.querySelector("[data-cart]");
-if (cart) setupCart(cart);
-for (const form of document.querySelectorAll("[data-lead]")) setupLead(form);
+const refreshCart = cart ? setupCart(cart) : undefined;
+for (const form of document.querySelectorAll("[data-lead]")) setupLead(form, refreshCart);

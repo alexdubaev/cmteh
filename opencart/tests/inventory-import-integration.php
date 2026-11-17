@@ -62,17 +62,40 @@ try {
     checkImport($legacy[0]['article']==='0000123' && $legacy[0]['delivery_term']==='Склад', 'Windows-1251 CSV decodes to strict UTF-8 rows');
     if(class_exists(ZipArchive::class)) {
         $xlsx=tempnam(sys_get_temp_dir(),'inventory-xlsx-');
-        $zip=new ZipArchive(); $zip->open($xlsx,ZipArchive::CREATE|ZipArchive::OVERWRITE);
         $sheet='<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>article</t></is></c><c r="B1" t="inlineStr"><is><t>warehouse_code</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>0000123</t></is></c><c r="B2" t="inlineStr"><is><t>WH-A</t></is></c></row></sheetData></worksheet>';
-        $zip->addFromString('xl/worksheets/sheet1.xml',$sheet); $zip->close();
+        $writeWorkbook = static function (array $sheets) use ($xlsx): void {
+            $zip = new ZipArchive();
+            if ($zip->open($xlsx, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) throw new RuntimeException('Failed to create workbook fixture.');
+            $workbook = '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>';
+            $relationships = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+            foreach ($sheets as $id => $xml) {
+                $workbook .= '<sheet name="Sheet'.$id.'" sheetId="'.$id.'" r:id="rId'.$id.'"/>';
+                $relationships .= '<Relationship Id="rId'.$id.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'.$id.'.xml"/>';
+                $zip->addFromString('xl/worksheets/sheet'.$id.'.xml', $xml);
+            }
+            $zip->addFromString('xl/workbook.xml', $workbook.'</sheets></workbook>');
+            $zip->addFromString('xl/_rels/workbook.xml.rels', $relationships.'</Relationships>');
+            $zip->close();
+        };
+        $writeWorkbook([1 => $sheet]);
         InventoryImport::validateXlsxFile($xlsx);
         checkImport(true, 'Bounded XLSX inspection accepts text typed leading-zero article and warehouse code');
-        $zip->open($xlsx,ZipArchive::OVERWRITE); $zip->addFromString('xl/worksheets/sheet1.xml',str_replace('</c></row></sheetData>','</c><c r="C2" t="n"><f>1+1</f><v>2</v></c></row></sheetData>',$sheet)); $zip->close();
+        $writeWorkbook([1 => str_replace('</c></row></sheetData>','</c><c r="C2" t="n"><f>1+1</f><v>2</v></c></row></sheetData>',$sheet)]);
         try { InventoryImport::validateXlsxFile($xlsx); throw new RuntimeException('formula XLSX unexpectedly accepted'); }
         catch(Cmteh\InventoryException $e) { checkImport($e->reason==='invalid_input'&&str_contains($e->getMessage(),'строке 2'),'XLSX formula cells are rejected with their row number before import preview'); }
-        $zip->open($xlsx,ZipArchive::OVERWRITE); $zip->addFromString('xl/worksheets/sheet1.xml',str_replace('t="inlineStr"><is><t>0000123','t="n"><v>123',$sheet)); $zip->close();
+        $numericSku = str_replace('<c r="A2" t="inlineStr"><is><t>0000123</t></is></c>','<c r="A2" t="n"><v>123</v></c>',$sheet);
+        $writeWorkbook([1 => $numericSku]);
         try { InventoryImport::validateXlsxFile($xlsx); throw new RuntimeException('numeric SKU XLSX unexpectedly accepted'); }
         catch(Cmteh\InventoryException $e) { checkImport($e->reason==='invalid_input','Numeric typed XLSX article cannot lose leading zeros'); }
+        $optionalSource = str_replace('</c></row><row r="2">','</c><c r="F1" t="inlineStr"><is><t>source_id</t></is></c></row><row r="2">',$sheet);
+        $writeWorkbook([1 => $optionalSource]);
+        InventoryImport::validateXlsxFile($xlsx, true);
+        checkImport(true, 'Workbook rows may omit optional source_id cells');
+        $writeWorkbook([2 => $optionalSource, 1 => $numericSku]);
+        InventoryImport::validateXlsxFile($xlsx, true);
+        checkImport(true, 'Workbook validation follows workbook ordering and ignores numeric articles on the second sheet');
+        $writeWorkbook([2 => $numericSku, 1 => $sheet]);
+        rejectImport(fn()=>InventoryImport::validateXlsxFile($xlsx), 'invalid_input', 'Numeric typed SKU in the first workbook sheet is rejected after reordering');
         unlink($xlsx);
     }
     $rows = [
@@ -91,8 +114,13 @@ try {
     $publishPreview=$import->preview($publishRows,$actor); $import->apply($publishPreview['preview_id'],$publishPreview['digest'],$actor,'inventory-import-publish-01');
     $importedBalance=$inventory->balances(['product_id'=>1,'warehouse_id'=>$warehouse['warehouse_id']])['rows'][0];
     checkImport((int)$importedBalance['published']===1,'Explicit preview publication checkbox publishes the imported offer atomically');
+    $dropStoredIdentity=$pdo->prepare("UPDATE `{$prefix}cmteh_inventory_import_preview` SET payload=JSON_REMOVE(payload,'$.rows[0].identity') WHERE preview_id=?");
+    $dropStoredIdentity->execute([$preview['preview_id']]);
     $replay = $import->apply($preview['preview_id'],$preview['digest'],$actor,'inventory-import-apply-01');
-    checkImport($replay['replayed'] && $replay['command_id']===$receipt['command_id'], 'Exact apply replay returns same receipt without double movement');
+    checkImport($replay['replayed'] && $replay['command_id']===$receipt['command_id'], 'A pre-update applied preview still returns its receipt without double movement');
+    $oldDraft=$import->preview($rows,$actor);
+    $dropStoredIdentity->execute([$oldDraft['preview_id']]);
+    rejectImport(fn()=>$import->apply($oldDraft['preview_id'],$oldDraft['digest'],$actor,'inventory-import-old-draft'), 'stale_version', 'A pre-update pending preview without product identity requires a fresh preview');
     $outerPreview=$import->preview([['article'=>'0000123','warehouse_code'=>'WH-A','quantity'=>'9','price'=>'125.50','delivery_term'=>'Next day']],$actor);
     $pdo->beginTransaction(); $outerReceipt=$import->apply($outerPreview['preview_id'],$outerPreview['digest'],$actor,'inventory-import-outer-rollback');
     checkImport($pdo->inTransaction()&&!$outerReceipt['replayed'],'Import apply uses a savepoint inside an existing PDO transaction');
@@ -100,6 +128,25 @@ try {
     checkImport($inventory->productState(1)['on_hand']===9,'Outer caller rollback removes the complete import');
     $import->apply($outerPreview['preview_id'],$outerPreview['digest'],$actor,'inventory-import-outer-rollback');
     checkImport($inventory->productState(1)['on_hand']===9,'Rolled-back import can be safely retried with the same key');
+    $anotherWarehouse = $command('warehouse.save', ['expected_warehouse_version'=>0,'code'=>'WH-NEW','name'=>'New warehouse','city'=>'','delivery_term'=>''])['warehouse'];
+    $newBalance = $import->preview([['article'=>'0000123','warehouse_code'=>'WH-NEW','quantity'=>'0','price'=>'145.00','delivery_term'=>'Next day']],$actor);
+    checkImport($newBalance['can_apply'], 'Managed product can preview a previously unseen warehouse balance');
+    set_error_handler(static function (int $severity, string $message): never { throw new ErrorException($message, 0, $severity); }, E_WARNING);
+    try {
+        $import->apply($newBalance['preview_id'],$newBalance['digest'],$actor,'inventory-import-new-balance');
+    } finally {
+        restore_error_handler();
+    }
+    $newBalanceRows = $inventory->balances(['product_id'=>1,'warehouse_id'=>$anotherWarehouse['warehouse_id']])['rows'];
+    checkImport(count($newBalanceRows)===1 && $newBalanceRows[0]['price']==='145.00', 'A missing managed balance starts at version zero and stores the imported offer without warnings');
+    $changedIdentity = $import->preview([['article'=>'0000123','source_id'=>'public-first','warehouse_code'=>'WH-A','quantity'=>'19','price'=>'125.50','delivery_term'=>'']],$actor);
+    $pdo->exec("UPDATE `{$prefix}cmteh_product` SET source_id='new-public-first', sku='RENAMED' WHERE product_id=1");
+    try {
+        rejectImport(fn()=>$import->apply($changedIdentity['preview_id'],$changedIdentity['digest'],$actor,'inventory-import-stale-identity'), 'stale_version', 'Applying a preview after canonical product identity changes is rejected');
+        checkImport($inventory->productState(1)['on_hand']===9, 'A rejected identity change leaves the existing stock in place');
+    } finally {
+        $pdo->exec("UPDATE `{$prefix}cmteh_product` SET source_id='public-first', sku='0000123' WHERE product_id=1");
+    }
     $bad = $import->preview([
         ['article'=>'0000123','warehouse_code'=>'WH-A','quantity'=>'1.5','price'=>'10','delivery_term'=>''],
         ['article'=>'0000123','warehouse_code'=>'WH-A','quantity'=>'4','price'=>'-3','delivery_term'=>''],

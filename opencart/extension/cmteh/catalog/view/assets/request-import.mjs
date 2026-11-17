@@ -1,4 +1,4 @@
-import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey } from "./cart.mjs?v=20261111-1";
+import { MAX_ARTICLE_LENGTH, MAX_QUANTITY, articleKey } from "./cart.mjs?v=20261117-2";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 32 * 1024 * 1024;
@@ -68,9 +68,13 @@ function delimiterOf(line) {
 function parseLine(line) {
   const delimiter = delimiterOf(line);
   if (!delimiter) {
-    const result = line.match(/^(.*?)(?:\s+(\d+))?$/u);
-    const article = result?.[1]?.trim() ?? line;
-    return { cells: [article.startsWith('"') && article.endsWith('"') ? article.slice(1, -1).replaceAll('""', '"') : article, result?.[2] ?? 1] };
+    const value = line.trim();
+    if (value.startsWith('"')) {
+      const result = value.match(/^"((?:[^"]|"")*)"(?:\s+(\d+))?$/u);
+      return result ? { cells: [result[1].replaceAll('""', '"'), result[2] ?? 1] } : { invalid: true };
+    }
+    const result = value.match(/^(.*?)(?:\s+(\d+))?$/u);
+    return { cells: [result?.[1]?.trim() ?? value, result?.[2] ?? 1] };
   }
   const cells = [];
   let value = "";
@@ -107,10 +111,10 @@ function* lines(text) {
   let start = 0;
   let row = 1;
   for (const match of text.matchAll(/\r\n|\n|\r/g)) {
-    yield { row: row++, ...parseLine(text.slice(start, match.index).trim()) };
+    yield { row: row++, ...parseLine(text.slice(start, match.index)) };
     start = match.index + match[0].length;
   }
-  yield { row, ...parseLine(text.slice(start).trim()) };
+  yield { row, ...parseLine(text.slice(start)) };
 }
 
 // Check archive size before the spreadsheet reader expands XML.

@@ -1,6 +1,10 @@
 const MAX_FILE = 5 * 1024 * 1024;
 const MAX_EXPANDED = 32 * 1024 * 1024;
 const HEADERS = ["article", "warehouse_code", "quantity", "price", "delivery_term"];
+const RELATIONSHIPS = [
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+  "http://purl.oclc.org/ooxml/officeDocument/relationships",
+];
 
 function directory(buffer) {
   const view = new DataView(buffer);
@@ -13,7 +17,7 @@ function directory(buffer) {
   const size = view.getUint32(end + 12, true);
   if (count > 1024 || offset + size !== end) throw new Error("XLSX превышает допустимый размер архива.");
   const decoder = new TextDecoder("utf-8", { fatal: true });
-  const entries = [];
+  const entries = new Map();
   let expanded = 0;
   for (let index = 0; index < count; index++) {
     if (offset + 46 > end || view.getUint32(offset, true) !== 0x02014b50) throw new Error("XLSX: повреждённая таблица файлов.");
@@ -28,7 +32,8 @@ function directory(buffer) {
     expanded += length;
     if (expanded > MAX_EXPANDED || offset + 46 + nameLength + extraLength + commentLength > end) throw new Error("XLSX превышает допустимый распакованный размер.");
     if (name.includes("..") || name.startsWith("/") || /externalLinks|vbaProject\.bin/i.test(name)) throw new Error("Внешние ссылки и макросы XLSX не поддерживаются.");
-    entries.push({ name, method, compressed, length, localOffset });
+    if (entries.has(name)) throw new Error("XLSX содержит повторную запись.");
+    entries.set(name, { method, compressed, length, localOffset });
     offset += 46 + nameLength + extraLength + commentLength;
   }
   if (offset !== end) throw new Error("XLSX: повреждённая таблица файлов.");
@@ -61,28 +66,67 @@ async function bytesFor(buffer, archive, entry) {
   return result;
 }
 
-async function assertTextColumns(buffer, archive, firstSheet, hasSourceId = false) {
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  const sheets = archive.entries.filter((entry) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(entry.name));
-  if (!sheets.length) throw new Error("В книге не найден лист.");
-  for (const sheet of sheets) {
-    const xml = decoder.decode(await bytesFor(buffer, archive, sheet));
-    const cells = xml.matchAll(/<c\b[^>]*\br=["'][A-Z]+\d+["'][^>]*>[\s\S]*?<\/(?:\w+:)?c\s*>/gi);
-    for (const cell of cells) if (/<(?:\w+:)?f\b/i.test(cell[0])) {
-      const row = cell[0].match(/\br=["'][A-Z]+(\d+)["']/i)?.[1] ?? "?";
+async function xmlDocument(buffer, archive, path) {
+  const entry = archive.entries.get(path);
+  if (!entry) throw new Error("В XLSX не найдена необходимая XML-запись.");
+  const xml = new TextDecoder("utf-8", { fatal: true }).decode(await bytesFor(buffer, archive, entry));
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error("XLSX содержит неподдерживаемую XML-структуру.");
+  const parsed = new DOMParser().parseFromString(xml, "text/xml");
+  if (parsed.getElementsByTagNameNS("*", "parsererror").length) throw new Error("Не удалось прочитать структуру XLSX.");
+  return parsed;
+}
+
+async function validateWorkbook(buffer, archive) {
+  const workbook = await xmlDocument(buffer, archive, "xl/workbook.xml");
+  const relationships = await xmlDocument(buffer, archive, "xl/_rels/workbook.xml.rels");
+  const worksheetTypes = RELATIONSHIPS.map(namespace => namespace + "/worksheet");
+  const targets = new Map();
+  for (const relation of relationships.getElementsByTagNameNS("*", "Relationship")) {
+    if (!worksheetTypes.includes(relation.getAttribute("Type"))) continue;
+    const id = relation.getAttribute("Id");
+    const target = relation.getAttribute("Target") ?? "";
+    const path = target.startsWith("/") ? target.slice(1) : "xl/" + target;
+    if (!id || targets.has(id) || relation.getAttribute("TargetMode") === "External" || !/^xl\/[^:\\]+\.xml$/i.test(path) || path.includes("..")) {
+      throw new Error("В XLSX обнаружена недопустимая ссылка на лист.");
+    }
+    targets.set(id, path);
+  }
+  const worksheetPaths = new Set();
+  for (const sheet of workbook.getElementsByTagNameNS("*", "sheet")) {
+    const id = sheet.getAttributeNS(RELATIONSHIPS[0], "id") || sheet.getAttributeNS(RELATIONSHIPS[1], "id");
+    if (!targets.has(id)) throw new Error("В XLSX не найден обычный лист.");
+    worksheetPaths.add(targets.get(id));
+  }
+  if (!worksheetPaths.size) throw new Error("В книге не найден лист.");
+  for (const path of archive.entries.keys()) {
+    if (/^xl\/worksheets\/sheet\d+\.xml$/i.test(path)) worksheetPaths.add(path);
+  }
+  let firstSheet;
+  for (const path of worksheetPaths) {
+    const sheet = await xmlDocument(buffer, archive, path);
+    if (sheet.documentElement.localName !== "worksheet") throw new Error("В XLSX не найден обычный лист.");
+    const formula = sheet.getElementsByTagNameNS("*", "f")[0];
+    if (formula) {
+      const row = formula.parentElement?.getAttribute("r")?.match(/\d+$/)?.[0] ?? "?";
       throw new Error(`XLSX содержит формулу в строке ${row}. Сначала замените её значением.`);
     }
+    firstSheet ??= sheet;
   }
-  const firstXml = decoder.decode(await bytesFor(buffer, archive, firstSheet));
-  const rows = [...firstXml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/gi)];
-  for (let index = 1; index < rows.length; index++) {
-    const xmlRow = rows[index][1];
-    if (!/<c\b/i.test(xmlRow)) continue;
-    for (const column of ["A", "B", ...(hasSourceId ? ["F"] : [])]) {
-      const cell = xmlRow.match(new RegExp(`<c\\b(?=[^>]*\\br="${column}\\d+")[^>]*>`,'i'))?.[0];
-      if (!cell) throw new Error(`XLSX: артикул и код склада должны быть записаны текстом (строка ${index + 1}).`);
-      const type = cell.match(/\bt="([^"]+)"/i)?.[1];
-      if (!(["s", "inlineStr", "str"].includes(type))) throw new Error(`XLSX: артикул и код склада должны быть текстом (строка ${index + 1}).`);
+  return firstSheet;
+}
+
+function assertTextColumns(sheet, hasSourceId) {
+  const rows = Array.from(sheet.getElementsByTagNameNS("*", "row"));
+  const isText = cell => ["s", "inlineStr", "str"].includes(cell?.getAttribute("t"));
+  for (const row of rows.slice(1)) {
+    const cells = Array.from(row.getElementsByTagNameNS("*", "c"));
+    if (!cells.length) continue;
+    const column = name => cells.find(cell => cell.getAttribute("r")?.replace(/\d+$/, "") === name);
+    const source = hasSourceId ? column("F") : null;
+    const hasSourceValue = source && Array.from(source.children).some(node =>
+      ["v", "is"].includes(node.localName) && node.textContent.trim());
+    if (!isText(column("A")) || !isText(column("B")) || (hasSourceValue && !isText(source))) {
+      throw new Error(`XLSX: артикул, код склада и указанный source_id должны быть текстом (строка ${row.getAttribute("r") ?? "?"}).`);
     }
   }
 }
@@ -91,9 +135,7 @@ async function readXlsx(file) {
   if (file.size > MAX_FILE) throw new Error("Выберите файл до 5 МБ.");
   const buffer = await file.arrayBuffer();
   const archive = directory(buffer);
-  const firstSheet = archive.entries.filter((entry) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(entry.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))[0];
-  if (!firstSheet) throw new Error("В книге не найден лист.");
-  await assertTextColumns(buffer, archive, firstSheet);
+  const firstSheet = await validateWorkbook(buffer, archive);
   const script = document.createElement("script");
   script.src = new URL("./vendor/read-excel-file.min.js", import.meta.url).href;
   await new Promise((resolve, reject) => { script.onload = resolve; script.onerror = () => reject(new Error("Не удалось загрузить XLSX reader.")); document.head.append(script); });
@@ -103,7 +145,7 @@ async function readXlsx(file) {
   if (!Array.isArray(matrix) || matrix.length > 10_001) throw new Error("В XLSX должно быть до 10 000 строк данных.");
   const header = matrix[0]?.map((cell) => typeof cell === "string" ? cell.trim() : "");
   if (!header || HEADERS.some((name, index) => header[index] !== name) || ![5, 6].includes(header.length) || (header[5] !== undefined && header[5] !== "source_id")) throw new Error(`Заголовки листа должны быть: ${HEADERS.join(", ")}, source_id (последняя колонка необязательна).`);
-  if (header.length === 6) await assertTextColumns(buffer, archive, firstSheet, true);
+  assertTextColumns(firstSheet, header.length === 6);
   return matrix.slice(1).map((cells, index) => {
     if (!Array.isArray(cells) || cells.length > header.length) throw new Error(`В строке ${index + 2} лишние колонки.`);
     const row = { _row: index + 2 };
@@ -118,7 +160,8 @@ async function readXlsx(file) {
 
 for (const form of document.querySelectorAll("[data-inventory-import]")) {
   form.addEventListener("submit", async (event) => {
-    const file = form.querySelector("[data-inventory-file]")?.files?.[0];
+    const fileInput = form.querySelector("[data-inventory-file]");
+    const file = fileInput?.files?.[0];
     if (!file || !/\.xlsx$/i.test(file.name)) return;
     event.preventDefault();
     const submit = form.querySelector('[type="submit"]');
@@ -126,6 +169,7 @@ for (const form of document.querySelectorAll("[data-inventory-import]")) {
     if (submit) { submit.disabled = true; submit.textContent = "Проверяем XLSX…"; }
     try {
       const rows = await readXlsx(file);
+      if (fileInput.files?.[0] !== file) throw new Error("Файл изменился во время чтения. Проверьте выбранный файл снова.");
       form.querySelector("[data-xlsx-rows]").value = JSON.stringify(rows);
       form.submit();
     } catch (error) {

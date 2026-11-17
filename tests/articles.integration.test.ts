@@ -1,10 +1,12 @@
+import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { setFixtureEnv } from "./fixture-env";
 
 type Row = Record<string, unknown>;
 const cover = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -56,8 +58,9 @@ const server = createServer((request, response) => {
 });
 let articles: typeof import("../lib/articles");
 let renderer: typeof import("../components/articles/ArticleContent");
+let restoreEnv: (() => void) | undefined;
 
-beforeAll(async () => {
+before(async () => {
   // Exercise the real gateway request contract, with an in-memory virtual dataset
   // so the 1M offset boundary needs no database or million-row fixture allocation.
   const cmsRoot = process.env.CMS_SOURCE_ROOT;
@@ -74,13 +77,23 @@ beforeAll(async () => {
   registerStorefrontGateway({ get(path: string, handler: typeof actualGatewayHandler) { if (path === "/storefront/items/:collection") actualGatewayHandler = handler; }, post() {} }, { env: { COMMERCE_STOREFRONT_ENABLED: "true", COMMERCE_STOREFRONT_USER_ID: "12345678-1234-1234-1234-123456789abc", COMMERCE_STOREFRONT_PUBLIC_FOLDER_ID: cover }, services: { ItemsService, AssetsService: class {} }, getSchema: async () => ({ collections: { articles: { primary: "id" } } }), database: {} });
   server.listen(0, "127.0.0.1"); await once(server, "listening");
   const address = server.address(); if (!address || typeof address === "string") throw new Error("No fixture port");
-  vi.stubEnv("DIRECTUS_URL", `http://127.0.0.1:${address.port}`);
-  vi.stubEnv("STOREFRONT_MOCK_MODE", "false"); vi.stubEnv("STOREFRONT_ALLOW_MOCK_FALLBACK", "true");
-  vi.stubEnv("STOREFRONT_DIRECTUS_GATEWAY", "true"); vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://synthetic.example");
-  vi.resetModules();
+  restoreEnv = setFixtureEnv({
+    DIRECTUS_URL: `http://127.0.0.1:${address.port}`,
+    DIRECTUS_TOKEN: undefined,
+    STOREFRONT_MOCK_MODE: "false",
+    STOREFRONT_ALLOW_MOCK_FALLBACK: "true",
+    STOREFRONT_DIRECTUS_GATEWAY: "true",
+    NEXT_PUBLIC_SITE_URL: "https://synthetic.example",
+  });
   [articles, renderer] = await Promise.all([import("../lib/articles"), import("../components/articles/ArticleContent")]);
 });
-afterAll(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); vi.unstubAllEnvs(); vi.resetModules(); });
+after(async () => {
+  try {
+    if (server.listening) await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  } finally {
+    restoreEnv?.();
+  }
+});
 beforeEach(() => {
   unavailable = false; ignoreFilter = false; ignorePaging = false; requests.length = 0;
   catalogRows = {}; useActualGateway = false; virtualArticleTotal = 0;
@@ -92,90 +105,97 @@ describe("published article routes over a synthetic HTTP service", () => {
   it("paginates published materials and uses explicit bounded queries", async () => {
     const first = await articles.getPublishedArticles({ limit: 1 });
     const next = await articles.getPublishedArticles({ page: 2, limit: 1 });
-    expect(first.items.map(row => row.slug)).toEqual(["one"]);
-    expect(next.items.map(row => row.slug)).toEqual(["two"]);
+    assert.deepEqual(first.items.map(row => row.slug), ["one"]);
+    assert.deepEqual(next.items.map(row => row.slug), ["two"]);
     const result = await articles.getPublishedArticles({ limit: 999 });
-    expect(result.limit).toBe(24);
-    expect(result.items.map(row => row.slug)).toEqual(["one", "two"]);
-    expect(requests.every(url => !url.searchParams.get("fields")?.includes("*"))).toBe(true);
+    assert.equal(result.limit, 24);
+    assert.deepEqual(result.items.map(row => row.slug), ["one", "two"]);
+    assert.equal(requests.every(url => !url.searchParams.get("fields")?.includes("*")), true);
   });
   it("rejects private, malformed and future rows even if upstream ignores filters", async () => {
     ignoreFilter = true;
     const list = await articles.getPublishedArticles();
-    expect(list.items.map(row => row.slug)).toEqual(["one", "two"]);
-    expect(list.total).toBe(2);
-    expect(await articles.getPublishedArticle("draft")).toBeNull();
-    expect(await articles.getPublishedArticle("future")).toBeNull();
-    expect(await articles.getPublishedArticle("../one")).toBeNull();
-    expect((await articles.getArticlesForSitemap()).map(row => row.slug)).toEqual(["one", "two"]);
+    assert.deepEqual(list.items.map(row => row.slug), ["one", "two"]);
+    assert.equal(list.total, 2);
+    assert.equal(await articles.getPublishedArticle("draft"), null);
+    assert.equal(await articles.getPublishedArticle("future"), null);
+    assert.equal(await articles.getPublishedArticle("../one"), null);
+    assert.deepEqual((await articles.getArticlesForSitemap()).map(row => row.slug), ["one", "two"]);
   });
   it("renders the list, safe detail metadata and published-only sitemap with persistent dates", async () => {
     const { default: List } = await import("../app/articles/page");
     const html = renderToStaticMarkup(await List({ searchParams: Promise.resolve({}) }));
-    expect(html).toContain('href="/articles/one"'); expect(html).not.toContain('/articles/draft');
+    assert.ok(html?.includes('href="/articles/one"')); assert.ok(!html?.includes('/articles/draft'));
     const { default: Detail, generateMetadata } = await import("../app/articles/[slug]/page");
     const props = { params: Promise.resolve({ slug: "one" }) };
-    expect(await generateMetadata(props)).toMatchObject({ title: "Первый материал", description: "Краткий анонс", alternates: { canonical: "https://synthetic.example/articles/one" }, openGraph: { type: "article", publishedTime: "2020-01-02T12:00:00.000Z", url: "https://synthetic.example/articles/one" } });
+    const { title, description, alternates, openGraph } = await generateMetadata(props);
+    assert.equal(title, "Первый материал");
+    assert.equal(description, "Краткий анонс");
+    assert.equal(alternates?.canonical, "https://synthetic.example/articles/one");
+    assert.ok(openGraph && "type" in openGraph && openGraph.type === "article");
+    assert.equal(openGraph.publishedTime, "2020-01-02T12:00:00.000Z");
+    assert.equal(openGraph.url, "https://synthetic.example/articles/one");
     const detail = renderToStaticMarkup(await Detail(props));
-    expect(detail.match(/<h1[ >]/g)).toHaveLength(1); expect(detail).toContain('"datePublished":"2020-01-02T12:00:00.000Z"'); expect(detail).not.toContain('dateModified');
-    expect(detail).toContain("Второй материал");
-    expect(requests.some(url => url.pathname.endsWith("/items/articles") && url.searchParams.get("limit") === "2")).toBe(true);
+    assert.equal(detail.match(/<h1[ >]/g)?.length, 1); assert.ok(detail?.includes('"datePublished":"2020-01-02T12:00:00.000Z"')); assert.ok(!detail?.includes('dateModified'));
+    assert.ok(detail?.includes("Второй материал"));
+    assert.equal(requests.some(url => url.pathname.endsWith("/items/articles") && url.searchParams.get("limit") === "2"), true);
     const { GET } = await import("../app/sitemaps/[name]/route");
     const map = await GET(new Request("https://synthetic.example/sitemaps/static.xml"), { params: Promise.resolve({ name: "static.xml" }) });
-    const xml = await map.text(); expect(xml).toContain('/articles/one</loc>'); expect(xml).not.toContain('/articles/draft'); expect(xml).not.toContain('/articles/future');
-    expect(map.headers.get("cache-control")).toBe("no-store");
+    const xml = await map.text(); assert.ok(xml?.includes('/articles/one</loc>')); assert.ok(!xml?.includes('/articles/draft')); assert.ok(!xml?.includes('/articles/future'));
+    assert.equal(map.headers.get("cache-control"), "no-store");
   });
   it("fails closed on live errors even when catalog fallback is enabled and hides empty home section", async () => {
     unavailable = true;
-    expect(await articles.getPublishedArticle("one")).toBeNull();
-    expect((await articles.getPublishedArticles()).items).toEqual([]);
-    expect(await articles.getArticlesForSitemap()).toEqual([]);
+    assert.equal(await articles.getPublishedArticle("one"), null);
+    assert.deepEqual((await articles.getPublishedArticles()).items, []);
+    assert.deepEqual(await articles.getArticlesForSitemap(), []);
     const { ArticlesSection } = await import("../components/articles/ArticlesSection");
-    expect(await ArticlesSection()).toBeNull();
+    assert.equal(await ArticlesSection(), null);
     const { default: List } = await import("../app/articles/page");
-    expect(renderToStaticMarkup(await List({ searchParams: Promise.resolve({}) }))).toContain("Опубликованных материалов пока нет");
+    assert.ok(renderToStaticMarkup(await List({ searchParams: Promise.resolve({}) }))?.includes("Опубликованных материалов пока нет"));
   });
   it("rechecks publication on subsequent reads and resolves only known public catalog links", async () => {
     rows[0].related_categories = ["known-category", "missing", { slug: "javascript:alert(1)" }];
     rows[0].related_products = ["known-product", "draft-product"];
     catalogRows = { categories: [{ id: "known-category", slug: "known-category", title: "Категория", status: "published" }], products: [{ id: "known-product", slug: "known-product", title: "Товар", status: "published", category: { status: "published" } }, { id: "draft-product", slug: "draft-product", title: "Черновик товара", status: "draft" }] };
     const article = await articles.getPublishedArticle("one");
-    expect(article).not.toBeNull();
-    expect(await articles.getArticleRelatedLinks(article!)).toEqual([{ title: "Категория", href: "/category/known-category" }, { title: "Товар", href: "/product/known-product" }]);
+    assert.notEqual(article, null);
+    assert.deepEqual(await articles.getArticleRelatedLinks(article!), [{ title: "Категория", href: "/category/known-category" }, { title: "Товар", href: "/product/known-product" }]);
     rows[0].status = "draft";
-    expect(await articles.getPublishedArticle("one")).toBeNull();
-    expect((await articles.getArticlesForSitemap()).map(row => row.slug)).toEqual(["two"]);
+    assert.equal(await articles.getPublishedArticle("one"), null);
+    assert.deepEqual((await articles.getArticlesForSitemap()).map(row => row.slug), ["two"]);
   });
   it("includes publications beyond the first 500 and fails closed if upstream pagination does not progress", async () => {
     rows = Array.from({ length: 501 }, (_, index) => ({ ...rows[0], id: `article-${index}`, slug: `article-${String(index).padStart(4, "0")}` }));
     const all = await articles.getArticlesForSitemap();
-    expect(all).toHaveLength(501);
-    expect(new Set(all.map(row => row.slug)).size).toBe(501);
-    expect(all.some(row => row.slug === "article-0500")).toBe(true);
+    assert.equal(all?.length, 501);
+    assert.equal(new Set(all.map(row => row.slug)).size, 501);
+    assert.equal(all.some(row => row.slug === "article-0500"), true);
     ignorePaging = true;
-    expect(await articles.getArticlesForSitemap()).toEqual([]);
+    assert.deepEqual(await articles.getArticlesForSitemap(), []);
   });
   it("keeps list links, metadata and adapter pages within the real gateway's bounded article window", async () => {
     useActualGateway = true; virtualArticleTotal = 12_001;
     const { default: List, generateMetadata } = await import("../app/articles/page");
     const first = renderToStaticMarkup(await List({ searchParams: Promise.resolve({ page: "1000" }) }));
-    expect(first).toContain('href="/articles?page=1001"');
+    assert.ok(first?.includes('href="/articles?page=1001"'));
     const next = await articles.getPublishedArticles({ page: 1001, limit: 12 });
-    expect(next.items.map(row => row.id)).toEqual(["article-12000"]);
+    assert.deepEqual(next.items.map(row => row.id), ["article-12000"]);
     const following = renderToStaticMarkup(await List({ searchParams: Promise.resolve({ page: "1001" }) }));
-    expect(following).toContain('href="/articles/article-12000"');
-    expect(following).not.toContain('rel="next"');
+    assert.ok(following?.includes('href="/articles/article-12000"'));
+    assert.ok(!following?.includes('rel="next"'));
     virtualArticleTotal = 1_000_020;
     const oversized = await articles.getPublishedArticles({ page: 9_999_999, limit: 12 });
-    expect(oversized.page).toBe(83_334);
-    expect(oversized.items[0]?.id).toBe("article-999996");
+    assert.equal(oversized.page, 83_334);
+    assert.equal(oversized.items[0]?.id, "article-999996");
     const last = renderToStaticMarkup(await List({ searchParams: Promise.resolve({ page: "9999999" }) }));
-    expect(last).toContain('href="/articles/article-999996"');
-    expect(last).not.toContain('rel="next"');
-    expect(await generateMetadata({ searchParams: Promise.resolve({ page: "9999999" }) })).toMatchObject({ alternates: { canonical: "https://synthetic.example/articles?page=83334" } });
+    assert.ok(last?.includes('href="/articles/article-999996"'));
+    assert.ok(!last?.includes('rel="next"'));
+    const metadata = await generateMetadata({ searchParams: Promise.resolve({ page: "9999999" }) });
+    assert.equal(metadata.alternates?.canonical, "https://synthetic.example/articles?page=83334");
     const last24 = await articles.getPublishedArticles({ page: 9_999_999, limit: 24 });
-    expect(last24.page).toBe(41_667);
-    expect(last24.items[0]?.id).toBe("article-999984");
+    assert.equal(last24.page, 41_667);
+    assert.equal(last24.items[0]?.id, "article-999984");
   });
 });
 
@@ -184,24 +204,24 @@ describe("allowlisted article HTML rendered through React", () => {
     const html = '<h1>Вложенный заголовок</h1><h2 id="evil">Раздел &amp; данные</h2><h2>Раздел &amp; данные</h2><h2>Итог</h2><p onclick="alert(1)">Текст &lt;script&gt; <a href="jav&#x61;script:alert(1)">ссылка</a></p><script>alert(1)</script><style>body{display:none}</style><svg><a href="javascript:alert(2)">bad</a></svg><ul><li>Пункт</li></ul><table><tr><th>Номер</th><td>1</td></tr></table><img src="/assets/' + cover + '" alt="Деталь" onerror="alert(1)"><img src="/api/assets/' + privateImage + '"><img src="https://tracker.invalid/pixel"><a href="//evil.invalid">bad</a>';
     const parsed = renderer.prepareArticleContent(html, [cover]);
     const output = renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: parsed }));
-    expect(output).not.toMatch(/<h1|<script|<style|<svg|onclick|onerror|javascript:|tracker.invalid|evil.invalid/);
-    expect(output).toContain('Раздел &amp; данные'); expect(output).toContain('<table>'); expect(output).toContain('<li>Пункт</li>');
-    expect(output).toContain(`/api/assets/${cover}`); expect(output).not.toContain(privateImage);
-    expect(parsed.headings.map(row => row.id)).toEqual(['section-1', 'section-2', 'section-3', 'section-4']);
-    expect(renderer.prepareArticleContent(html, [cover]).headings).toEqual(parsed.headings);
+    assert.doesNotMatch(output, /<h1|<script|<style|<svg|onclick|onerror|javascript:|tracker.invalid|evil.invalid/);
+    assert.ok(output?.includes('Раздел &amp; данные')); assert.ok(output?.includes('<table>')); assert.ok(output?.includes('<li>Пункт</li>'));
+    assert.ok(output?.includes(`/api/assets/${cover}`)); assert.ok(!output?.includes(privateImage));
+    assert.deepEqual(parsed.headings.map(row => row.id), ['section-1', 'section-2', 'section-3', 'section-4']);
+    assert.deepEqual(renderer.prepareArticleContent(html, [cover]).headings, parsed.headings);
   });
   it("handles malformed unknown HTML as escaped text and bounds untrusted input", () => {
     const parsed = renderer.prepareArticleContent('<unknown><p>safe &quot;text&quot;<b>bold</unknown><iframe src="https://evil.invalid"><p>private</iframe><a href="/catalog">Каталог</a>', []);
     const output = renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: parsed }));
-    expect(output).toContain('safe'); expect(output).toContain('href="/catalog"'); expect(output).not.toContain('iframe'); expect(output).not.toContain('private');
+    assert.ok(output?.includes('safe')); assert.ok(output?.includes('href="/catalog"')); assert.ok(!output?.includes('iframe')); assert.ok(!output?.includes('private'));
     const tooLarge = renderer.prepareArticleContent('x'.repeat(250_001), []);
-    expect(tooLarge.truncated).toBe(true);
-    expect(renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooLarge })).length).toBeLessThan(251_000);
+    assert.equal(tooLarge.truncated, true);
+    assert.ok(renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooLarge })).length < 251_000);
     const tooDeep = renderer.prepareArticleContent('<div>'.repeat(100) + '<p>deep</p>' + '</div>'.repeat(100), []);
-    expect(tooDeep.truncated).toBe(true);
-    expect(renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooDeep }))).not.toContain('deep');
+    assert.equal(tooDeep.truncated, true);
+    assert.ok(!renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooDeep }))?.includes('deep'));
     const tooMany = renderer.prepareArticleContent('<p>item</p>'.repeat(6_000), []);
-    expect(tooMany.truncated).toBe(true);
-    expect(renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooMany })).match(/<p>/g)!.length).toBeLessThan(5_001);
+    assert.equal(tooMany.truncated, true);
+    assert.ok(renderToStaticMarkup(createElement(renderer.ArticleContent, { prepared: tooMany })).match(/<p>/g)!.length < 5_001);
   });
 });

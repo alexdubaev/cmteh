@@ -143,6 +143,7 @@
           <form id="cmteh-editor" action="{{ action|escape }}" method="post" data-store-origin="{{ store_origin|escape }}">
             <fieldset{% if not can_write %} disabled{% endif %}>
               <input type="hidden" name="id" value="{{ record.id|escape }}">
+              <input type="hidden" name="record_revision" value="{{ record_revision|escape }}">
               {% if native_href %}<p><a href="{{ native_href|escape }}">Открыть штатную форму OpenCart</a></p>{% endif %}
               {% if public_href %}<p><a href="{{ public_href|escape }}" target="_blank" rel="noopener">Открыть на сайте</a></p>{% endif %}
               {% if edit_id %}<details class="mb-3"><summary>Предпросмотр сохранённого материала в админке</summary>
@@ -253,6 +254,7 @@
             <details class="mt-4"><summary>Удаление записи</summary>
               <p>Рекомендуется выбрать статус «Черновик» или «В архиве», чтобы сохранить историю. Удаление необратимо, старый адрес вернёт 410. Связанные категории и бренды нельзя удалить до снятия связей.</p>
               <form action="{{ action|escape }}" method="post" data-delete-form>
+                <input type="hidden" name="record_revision" value="{{ record_revision|escape }}">
                 <input type="hidden" name="action" value="delete">
                 <label class="form-check-label"><input type="checkbox" name="confirm_delete" value="1" required> Подтверждаю удаление этой записи</label>
                 <button type="submit" class="btn btn-outline-danger ms-2">Удалить запись</button>

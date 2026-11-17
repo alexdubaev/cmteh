@@ -229,6 +229,9 @@ final class Lead
         $table = $this->prefix . 'cmteh_lead';
         $fingerprint = hash('sha256', json_encode($data, JSON_THROW_ON_ERROR));
         $publicId = LeadInput::uuid();
+        // Read product details after waiting for its mutex without locking the
+        // brand rows a catalog writer may already hold while updating mappings.
+        $this->pdo->exec('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
         $this->pdo->beginTransaction();
         try {
             $insert = $this->pdo->prepare("INSERT INTO {$table}
@@ -301,7 +304,7 @@ final class Lead
         if (!$ready && array_filter($items, static fn(array $item): bool => isset($item['offer_id']))) {
             throw new InventoryException('stale_offer', 'Предложения складов временно недоступны.', 409);
         }
-        $products = $ids ? (new Catalog($this->pdo, $this->prefix, $this->languageId, $this->storeId))->selectedProducts($ids) : [];
+        $products = $ids ? (new Catalog($this->pdo, $this->prefix, $this->languageId, $this->storeId))->leadProductSnapshots($ids) : [];
         foreach ($items as $item) {
             if (!isset($item['product_id'])) continue;
             $product = $products[$item['product_id']] ?? null;

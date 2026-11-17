@@ -1,9 +1,10 @@
-import { mergeCart, selectedLine } from "./cart.mjs?v=20261111-1";
-import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261111-1";
+import { mergeCart, selectedLine, withCartWrite } from "./cart.mjs?v=20261117-2";
+import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261117-2";
 
-const root = document.querySelector('[data-parts-list]');
-if (root) setup(root);
-function setup(root) {
+const initialized = new WeakSet();
+export function setupPartsList(root, { prefill = new URLSearchParams(location.search).get('article') } = {}) {
+  if (initialized.has(root)) return;
+  initialized.add(root);
   const text = root.querySelector('#parts-list-text');
   const upload = root.querySelector('#parts-list-file');
   const modes = [...root.querySelectorAll('[name=list-source]')];
@@ -11,14 +12,14 @@ function setup(root) {
   const check = root.querySelector('[data-check-list]');
   const submit = form.querySelector('[type=submit]');
   const results = root.querySelector('[data-list-results]');
+  const diagnostics = root.querySelector('[data-list-diagnostics]');
   const draftKey = 'smtechno-quote-draft';
   const pendingKey = 'smtechno-quote-pending';
   const fields = ['name', 'phone', 'email', 'message'];
   let busy = false;
-  let checking = false;
+  let checking;
   let rows = [];
   let page = 0;
-  let revision = 0;
   const fallback = new Map();
   const get = (key) => { try { return JSON.parse((fallback.has(key) ? fallback.get(key) : sessionStorage.getItem(key)) || '{}'); } catch { return {}; } };
   const put = (key, value) => {
@@ -43,7 +44,7 @@ function setup(root) {
     root.querySelector('[data-source-file]').hidden = mode() !== 'file';
   }
   const draft = get(draftKey);
-  text.value = typeof draft.text === 'string' ? draft.text : new URLSearchParams(location.search).get('article') || '';
+  text.value = typeof draft.text === 'string' ? draft.text : prefill || '';
   for (const field of fields) if (typeof draft[field] === 'string') form.elements.namedItem(field).value = draft[field];
   if (draft.input_kind === 'file') {
     modes[1].checked = true;
@@ -65,10 +66,25 @@ function setup(root) {
     input.scrollIntoView({ block: 'center', behavior: 'instant' });
   });
   function revealResults() {
+    if (!results.getClientRects().length) return;
     root.querySelector('#list-results-title').focus({ preventScroll: true });
     results.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
-  function changed() { revision++; results.hidden = true; saveDraft(); }
+  function syncCheck() {
+    check.disabled = busy || Boolean(checking);
+    check.textContent = checking ? 'Проверяем…' : 'Проверить наличие';
+    results.setAttribute('aria-busy', String(Boolean(checking)));
+  }
+  function changed() {
+    checking?.abort();
+    checking = undefined;
+    syncCheck();
+    results.hidden = true;
+    diagnostics.hidden = true;
+    diagnostics.replaceChildren();
+    message('[data-list-message]', '');
+    saveDraft();
+  }
   text.addEventListener('input', changed);
   for (const radio of modes) radio.addEventListener('change', () => { syncMode(); changed(); });
   upload.addEventListener('change', () => {
@@ -85,32 +101,39 @@ function setup(root) {
   }
   check.addEventListener('click', async () => {
     if (checking || busy) return;
-    checking = true; check.disabled = true; check.textContent = 'Проверяем…';
-    results.setAttribute('aria-busy', 'true');
-    const currentRevision = revision;
-    const diagnostics = root.querySelector('[data-list-diagnostics]');
+    const request = new AbortController();
+    checking = request;
+    syncCheck();
     diagnostics.hidden = true;
     message('[data-list-message]', 'Проверяем список…');
     try {
       const parsed = mode() === 'file' ? await inspectFile(sourceFile()) : inspectText(text.value);
+      if (checking !== request) return;
       if (parsed.truncated || parsed.items.length > 1000) throw new Error('Для одной проверки нужно не более 1000 позиций. Исходный файл можно отправить на расценку.');
-      if (!parsed.items.length) throw new Error('Введите хотя бы один артикул или выберите таблицу.');
       diagnostics.replaceChildren(...parsed.problems.map((problem) => node('li', 'Строка ' + problem.row + ': ' + problem.reasons.map((reason) => labels[reason]).join(' '))));
       if (parsed.count > parsed.problems.length) diagnostics.append(node('li', 'Всего строк с замечаниями: ' + parsed.count + '. Проверьте исходный список.'));
       diagnostics.hidden = !parsed.count;
-      const response = await fetch('/api/list-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: parsed.items.map(({ article, quantity }) => ({ article, quantity })) }) });
+      if (!parsed.items.length) throw new Error('Введите хотя бы один артикул или выберите таблицу.');
+      const response = await fetch('/api/list-check', { method: 'POST', signal: request.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: parsed.items.map(({ article, quantity }) => ({ article, quantity })) }) });
       const data = await response.json().catch(() => null);
+      if (checking !== request) return;
       if (!response.ok) throw new Error(data?.error || 'Не удалось проверить наличие. Повторите проверку.');
       if (!Array.isArray(data?.rows) || data.rows.length !== parsed.items.length) throw new Error('Получен неполный ответ. Повторите проверку.');
-      if (currentRevision !== revision) { message('[data-list-message]', 'Список изменился во время проверки. Проверьте обновлённый список.', true); return; }
       rows = data.rows; page = 0; render(); results.hidden = false;
       root.querySelector('[data-result-count]').textContent = 'Проверено строк: ' + rows.length;
       const found = rows.filter((row) => row.products.length).length;
       root.querySelector('[data-result-summary]').textContent = 'С предложениями: ' + found + ' · Без предложений: ' + (rows.length - found) + (data.partial ? '. Показана часть предложений; остальные уточните у менеджера.' : '');
-      revealResults();
       message('[data-list-message]', '');
-    } catch (error) { message('[data-list-message]', error.message || 'Не удалось проверить список. Повторите попытку.', true); }
-    finally { checking = false; check.disabled = busy; check.textContent = 'Проверить наличие'; results.setAttribute('aria-busy', 'false'); }
+    } catch (error) {
+      if (checking === request) message('[data-list-message]', error.message || 'Не удалось проверить список. Повторите попытку.', true);
+      return;
+    } finally {
+      if (checking === request) {
+        checking = undefined;
+        syncCheck();
+      }
+    }
+    revealResults();
   });
   function render() {
     root.querySelector('[data-result-rows]').replaceChildren(...rows.slice(page * 50, (page + 1) * 50).map((row) => {
@@ -134,8 +157,9 @@ function setup(root) {
             const button = node('button', choice ? 'Выбрать склад' : 'В корзину', 'button secondary'); button.type = 'button';
             if (choice && choice.availability_status !== 'in_stock') { button.disabled = true; button.textContent = 'Нет в наличии'; }
             const feedback = node('span', '', 'list-add-feedback'); feedback.setAttribute('role', 'status');
-            button.addEventListener('click', () => {
-              const result = mergeCart([choice ? selectedLine(product, choice, row.quantity) : { article: product.sku, productId: product.id, brand: product.brand, title: product.title, quantity: row.quantity }]);
+            button.addEventListener('click', async () => {
+              const line = choice ? selectedLine(product, choice, row.quantity) : { article: product.sku, productId: product.id, brand: product.brand, title: product.title, quantity: row.quantity };
+              const result = await withCartWrite(() => mergeCart([line]));
               feedback.textContent = result.requiresReview ? 'Условия изменились. Проверьте выбранную строку в корзине.' : result.overflow ? 'Корзина заполнена: максимум 100 позиций.' : !result.persisted ? 'Сохранено в этой вкладке. Не закрывайте её до отправки.' : 'Добавлено: ' + row.quantity + ' шт.';
             });
             group.append(button, feedback); action.append(group);
@@ -187,10 +211,12 @@ function setup(root) {
       message('[data-quote-message]', 'Расценка принята. Номер: ' + data.id + '. Менеджер свяжется с вами.');
     } catch (error) { message('[data-quote-message]', error.message || 'Подтверждение не получено. Повторите отправку с тем же списком.', true); }
     finally {
-      busy = false; submit.disabled = false; check.disabled = checking; submit.textContent = 'Отправить на расценку';
+      busy = false; submit.disabled = false; syncCheck(); submit.textContent = 'Отправить на расценку';
       for (const input of [text, upload, ...modes, ...fields.map((field) => form.elements.namedItem(field))]) input.disabled = false;
     }
   });
   check.disabled = false; submit.disabled = false; root.querySelector('[data-list-preparing]').hidden = true;
 }
+const root = document.querySelector('[data-parts-list]');
+if (root) setupPartsList(root);
 function node(tag, text = '', className = '') { const element = document.createElement(tag); element.textContent = text; element.className = className; return element; }

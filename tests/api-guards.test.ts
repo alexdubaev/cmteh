@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { POST } from "../app/api/lead/route";
 
 describe("lead request body boundary", () => {
@@ -12,14 +13,14 @@ describe("lead request body boundary", () => {
       method: "POST", body, duplex: "half", headers: { "content-length": "1" },
     } as RequestInit);
     const response = await POST(request as never);
-    expect(response.status).toBe(413);
-    expect(cancelled).toBe(true);
-    expect(await response.json()).toEqual({ error: "Заявка слишком большая." });
+    assert.equal(response.status, 413);
+    assert.equal(cancelled, true);
+    assert.deepEqual(await response.json(), { error: "Заявка слишком большая." });
   });
 
   it("returns a controlled client error for malformed JSON", async () => {
     const response = await POST(new Request("http://localhost/api/lead", { method: "POST", body: "{" }) as never);
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Проверьте данные заявки." });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "Проверьте данные заявки." });
   });
 });

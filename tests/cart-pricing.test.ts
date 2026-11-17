@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import type { Product, RequestItem } from "@/lib/types";
 import { cartLineTotal, cartUnitPrice, resolveCartProduct } from "../components/cart-pricing";
 
@@ -10,31 +11,31 @@ const product = (overrides: Partial<Product> = {}): Product => ({
 
 describe("cart pricing", () => {
   it("matches normalized SKU and brand, without trusting stored title", () => {
-    expect(resolveCartProduct(item, [product()])?.title).toBe("Current title");
-    expect(resolveCartProduct(item, [product({ brand: "Other" })])).toBeNull();
+    assert.equal(resolveCartProduct(item, [product()])?.title, "Current title");
+    assert.equal(resolveCartProduct(item, [product({ brand: "Other" })]), null);
   });
 
   it("accepts a blank stored brand only when the SKU is unique", () => {
     const blankBrand = { ...item, brand: "Не указан" };
-    expect(resolveCartProduct(blankBrand, [product()])).not.toBeNull();
-    expect(resolveCartProduct(blankBrand, [product(), product({ id: "2", brand: "Other" })])).toBeNull();
+    assert.notEqual(resolveCartProduct(blankBrand, [product()]), null);
+    assert.equal(resolveCartProduct(blankBrand, [product(), product({ id: "2", brand: "Other" })]), null);
   });
 
   it("does not infer uniqueness from a truncated search result", () => {
-    expect(resolveCartProduct(item, [product()], 11)).toBeNull();
+    assert.equal(resolveCartProduct(item, [product()], 11), null);
   });
 
   it("does not offer unavailable prices and rounds line totals by currency", () => {
-    expect(cartUnitPrice(product({ price_status: "hidden" }))).toBeNull();
-    expect(cartUnitPrice(product({ price: 0 }))?.amount).toBe(0);
-    expect(cartUnitPrice(product({ availability_status: "on_request" }))?.amount).toBe(12.35);
+    assert.equal(cartUnitPrice(product({ price_status: "hidden" })), null);
+    assert.equal(cartUnitPrice(product({ price: 0 }))?.amount, 0);
+    assert.equal(cartUnitPrice(product({ availability_status: "on_request" }))?.amount, 12.35);
     const unit = cartUnitPrice(product());
-    expect(unit && cartLineTotal(unit, 3)).toBe(37.05);
+    assert.equal(unit && cartLineTotal(unit, 3), 37.05);
   });
 
   it("normalizes valid currency codes and rejects malformed nonempty currency", () => {
-    expect(cartUnitPrice(product({ currency: " usd " }))?.currency).toBe("USD");
-    expect(cartUnitPrice(product({ currency: undefined }))?.currency).toBe("RUB");
-    expect(cartUnitPrice(product({ currency: "US dollars" }))).toBeNull();
+    assert.equal(cartUnitPrice(product({ currency: " usd " }))?.currency, "USD");
+    assert.equal(cartUnitPrice(product({ currency: undefined }))?.currency, "RUB");
+    assert.equal(cartUnitPrice(product({ currency: "US dollars" })), null);
   });
 });

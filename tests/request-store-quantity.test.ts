@@ -1,40 +1,59 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import assert from "node:assert/strict";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { MAX_REQUEST_QUANTITY, mergeRequestItems, readRequestItemCount, readRequestItems, writeRequestItems } from "../lib/request-store";
 import type { RequestItem } from "../lib/types";
 
 const item = (quantity: number): RequestItem => ({ article: "SKU", title: "Part", brand: "Brand", quantity });
+const originals = (["window", "localStorage"] as const)
+  .map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
+
+function useStorage(storage: Pick<Storage, "getItem" | "setItem">) {
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+}
 
 describe("request quantity bounds", () => {
+  let storedItems: string;
+  let writtenItems: string | undefined;
+
   beforeEach(() => {
-    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
-    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem: vi.fn() });
+    storedItems = "[]";
+    writtenItems = undefined;
+    Object.defineProperty(globalThis, "window", { configurable: true, value: { dispatchEvent: () => true } });
+    useStorage({ getItem: () => storedItems, setItem: (_, value) => { writtenItems = value; } });
   });
 
   afterEach(() => {
-    vi.stubGlobal("localStorage", { getItem: () => "[]", setItem: vi.fn() });
-    readRequestItems();
-    vi.unstubAllGlobals();
+    try {
+      useStorage({ getItem: () => "[]", setItem: () => {} });
+      readRequestItems();
+    } finally {
+      for (const [name, descriptor] of originals) {
+        if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+        else Reflect.deleteProperty(globalThis, name);
+      }
+    }
   });
 
   it("normalizes stored quantities to finite integers from 1 through the maximum", () => {
-    expect(MAX_REQUEST_QUANTITY).toBe(100000);
-    vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify([
+    assert.equal(MAX_REQUEST_QUANTITY, 100000);
+    storedItems = JSON.stringify([
       { ...item(1), quantity: 1.8 }, { ...item(2), article: "B", quantity: 100001 },
       { ...item(3), article: "C", quantity: -2 }, { ...item(4), article: "D", quantity: Infinity },
-    ]));
-    expect(readRequestItems().map(({ quantity }) => quantity)).toEqual([1, MAX_REQUEST_QUANTITY, 1, 1]);
+    ]);
+    assert.deepEqual(readRequestItems().map(({ quantity }) => quantity), [1, MAX_REQUEST_QUANTITY, 1, 1]);
   });
 
   it("bounds merge inputs and serializes only normalized update values", () => {
     const merged = mergeRequestItems([item(99999)], [item(50.7)]);
-    expect(merged[0].quantity).toBe(MAX_REQUEST_QUANTITY);
+    assert.equal(merged[0].quantity, MAX_REQUEST_QUANTITY);
     writeRequestItems([item(NaN)]);
-    expect(JSON.parse(vi.mocked(localStorage.setItem).mock.calls.at(-1)?.[1] ?? "[]")[0].quantity).toBe(1);
+    assert.ok(writtenItems !== undefined);
+    assert.equal(JSON.parse(writtenItems)[0].quantity, 1);
   });
 
   it("retains selections across reads and later additions when local storage is blocked", () => {
-    vi.stubGlobal("localStorage", {
+    useStorage({
       getItem: () => { throw new Error("Storage denied"); },
       setItem: () => { throw new Error("Storage denied"); },
     });
@@ -42,12 +61,12 @@ describe("request quantity bounds", () => {
     const next = mergeRequestItems(readRequestItems(), [{ ...item(3), article: "NEXT" }]);
     writeRequestItems(next);
 
-    expect(readRequestItems()).toEqual([item(2), { ...item(3), article: "NEXT" }]);
-    expect(readRequestItemCount()).toBe(5);
+    assert.deepEqual(readRequestItems(), [item(2), { ...item(3), article: "NEXT" }]);
+    assert.equal(readRequestItemCount(), 5);
   });
 
   it("does not carry blocked-storage selections into a fresh storage scope", () => {
-    expect(readRequestItems()).toEqual([]);
-    expect(readRequestItemCount()).toBe(0);
+    assert.deepEqual(readRequestItems(), []);
+    assert.equal(readRequestItemCount(), 0);
   });
 });

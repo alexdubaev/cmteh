@@ -9,6 +9,12 @@ use PDO;
 
 trait CatalogWrites
 {
+    private const NATIVE_CATALOG_IDENTITIES = [
+        'product' => ['product', 'product_id'],
+        'category' => ['category', 'category_id'],
+        'brand' => ['manufacturer', 'manufacturer_id'],
+    ];
+
     public function save(string $type, array $input): string
     {
         $row = $this->validate($type, $input);
@@ -414,10 +420,54 @@ trait CatalogWrites
         return $row;
     }
 
+    public function lockImportProducts(array $sourceIds): void
+    {
+        if ($sourceIds === []) return;
+        if (!$this->pdo->inTransaction()) throw new \LogicException('Import product locks require a transaction');
+        $marks = implode(',', array_fill(0, count($sourceIds), '?'));
+        $ids = $this->run('SELECT product_id FROM ' . $this->table('cmteh_product') .
+            " WHERE source_id IN ($marks) ORDER BY product_id", $sourceIds)->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($ids as $id) {
+            $this->run('SELECT product_id FROM ' . $this->table('product') . ' WHERE product_id = ? FOR UPDATE', [$id])->fetchColumn();
+        }
+    }
+
+    private function nativeMappingId(string $type, string $source): int
+    {
+        [, $key] = self::NATIVE_CATALOG_IDENTITIES[$type];
+        return (int) $this->run("SELECT $key FROM " . $this->table('cmteh_' . $type) . ' WHERE source_id = ?', [$source])->fetchColumn();
+    }
+
+    private function nativeMappingForWrite(string $type, string $source, ?int $id = null): array|false
+    {
+        [$nativeTable, $key] = self::NATIVE_CATALOG_IDENTITIES[$type];
+        $mapping = $this->table('cmteh_' . $type);
+        $nativeTable = $this->table($nativeTable);
+        $id ??= $this->nativeMappingId($type, $source);
+        // Inventory and RFQ writers take the native row before the mapping.
+        $native = $id === 0 ? 0 : (int) $this->run("SELECT $key FROM $nativeTable WHERE $key = ? FOR UPDATE", [$id])->fetchColumn();
+        $current = $this->run("SELECT $key, data FROM $mapping WHERE source_id = ? FOR UPDATE", [$source])->fetch(PDO::FETCH_ASSOC);
+        if ($native !== $id || ($current === false ? 0 : (int) $current[$key]) !== $id) {
+            throw new InvalidArgumentException('Запись изменилась. Обновите страницу и повторите операцию.', 409);
+        }
+        return $current;
+    }
+
+    private function lockCategoryReferences(array $ids): void
+    {
+        $ids = array_values(array_unique($ids));
+        sort($ids, SORT_NUMERIC);
+        foreach ($ids as $id) {
+            if ($this->run('SELECT category_id FROM ' . $this->table('category') . ' WHERE category_id=? LOCK IN SHARE MODE', [$id])->fetchColumn() === false) {
+                throw new InvalidArgumentException('Категория была удалена. Обновите форму товара.', 409);
+            }
+        }
+    }
+
     private function writeProduct(array $row): string
     {
         $this->assertSlugAvailable('product', $row);
-        $previous = $this->run('SELECT product_id FROM ' . $this->table('cmteh_product') . ' WHERE source_id = ? FOR UPDATE', [$row['id']])->fetchColumn();
+        $previous = $this->nativeMappingForWrite('product', $row['id']);
         $manufacturer = ['manufacturer_id' => 0, 'name' => ''];
         if ($row['brand_slug'] !== null) {
             $manufacturer = $this->run('SELECT m.manufacturer_id, m.name FROM ' . $this->table('cmteh_brand') . ' b JOIN ' .
@@ -434,6 +484,17 @@ trait CatalogWrites
                 throw new InvalidArgumentException('Не найдена категория ' . $row['category_slug']);
             }
         }
+        $categories = null;
+        if (array_key_exists('category_slugs', $row)) {
+            if (!is_array($row['category_slugs']) || !array_is_list($row['category_slugs']) || count($row['category_slugs']) > 300) {
+                throw new InvalidArgumentException('Категории: неверный список');
+            }
+            $categories = $category ? [(int) $category] : [];
+            foreach ($row['category_slugs'] as $slug) {
+                $categories[] = $this->taxonomyId('category', CatalogInput::slug($slug)) ?? throw new InvalidArgumentException('Категория не найдена');
+            }
+        }
+        $this->lockCategoryReferences($categories ?? ($category ? [(int) $category] : []));
         $published = CatalogInput::published($row);
         $availableDate = substr($row['published_at'], 0, 10);
         $native = [
@@ -446,7 +507,7 @@ trait CatalogWrites
                 VALUES (?, ?, ?, ?, ?, ?, \'\', \'\', 0, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP())', $native);
             $id = (int) $this->pdo->lastInsertId();
         } else {
-            $id = (int) $previous;
+            $id = (int) $previous['product_id'];
             $this->run('UPDATE ' . $this->table('product') . ' SET manufacturer_id = ?, price = ?,
                 date_available = ?, sort_order = ?, status = ?, date_modified = UTC_TIMESTAMP() WHERE product_id = ?',
                 [...array_slice($native, 1), $id]);
@@ -475,7 +536,7 @@ trait CatalogWrites
             'short_description', 'canonical_url', 'delivery_status', 'codes', 'images', 'documents', 'specification_items', 'relations',
             'confirm_zero_price',
         ]));
-        $oldDetails = $previous === false ? [] : self::decode((string) $this->run('SELECT data FROM ' . $this->table('cmteh_product') . ' WHERE product_id = ?', [$id])->fetchColumn());
+        $oldDetails = $previous === false ? [] : self::decode($previous['data']);
         $details = array_replace($oldDetails, $details);
         $details['status'] = $row['status'];
         $details['specifications'] = array_column($row['specification_items'], 'value', 'name');
@@ -496,22 +557,23 @@ trait CatalogWrites
                 manufacturer_id = ?, category_id = ?, published_at = ?, indexable = ?, price_status = ?, currency = ?,
                 availability = ?, part_type = ?, main_image = ?, data = ? WHERE product_id = ?", [...$meta, $id]);
         }
-        $this->writeAdminNativeFields('product', $id, $row);
+        $this->writeAdminNativeFields('product', $id, $row, $categories);
         return $previous === false ? 'added' : 'updated';
     }
 
     private function writeCategory(array $row): string
     {
+        if (array_key_exists('parent_slug', $row)) $this->lockCategoryHierarchy();
         $this->assertSlugAvailable('category', $row);
         $map = $this->table('cmteh_category');
-        $previous = $this->run("SELECT category_id FROM $map WHERE source_id = ? FOR UPDATE", [$row['id']])->fetchColumn();
+        $previous = $this->nativeMappingForWrite('category', $row['id']);
         $status = (int) CatalogInput::published($row);
         if ($previous === false) {
             $this->run('INSERT INTO ' . $this->table('category') . ' (image, sort_order, status) VALUES (\'\', ?, ?)', [$row['sort_order'], $status]);
             $id = (int) $this->pdo->lastInsertId();
             $this->run('INSERT INTO ' . $this->table('category_path') . ' (category_id, path_id, level) VALUES (?, ?, 0)', [$id, $id]);
         } else {
-            $id = (int) $previous;
+            $id = (int) $previous['category_id'];
             $this->run('UPDATE ' . $this->table('category') . ' SET sort_order = ?, status = ? WHERE category_id = ?', [$row['sort_order'], $status, $id]);
         }
         $this->run('INSERT INTO ' . $this->table('category_description') . '
@@ -532,12 +594,12 @@ trait CatalogWrites
     {
         $this->assertSlugAvailable('brand', $row);
         $map = $this->table('cmteh_brand');
-        $previous = $this->run("SELECT manufacturer_id FROM $map WHERE source_id = ? FOR UPDATE", [$row['id']])->fetchColumn();
+        $previous = $this->nativeMappingForWrite('brand', $row['id']);
         if ($previous === false) {
             $this->run('INSERT INTO ' . $this->table('manufacturer') . ' (name, image, sort_order) VALUES (?, \'\', ?)', [$row['name'], $row['sort_order']]);
             $id = (int) $this->pdo->lastInsertId();
         } else {
-            $id = (int) $previous;
+            $id = (int) $previous['manufacturer_id'];
             $this->run('UPDATE ' . $this->table('manufacturer') . ' SET name = ?, sort_order = ? WHERE manufacturer_id = ?', [$row['name'], $row['sort_order'], $id]);
             $this->run('UPDATE ' . $this->table('cmteh_product') . ' SET brand_norm = ? WHERE manufacturer_id = ?',
                 [CatalogInput::normalize($row['name']), $id]);
@@ -565,14 +627,17 @@ trait CatalogWrites
             $key = hash('sha256', $item['group_name'] . "\0" . $item['name'] . "\0" . ($item['unit'] ?? ''));
             $id = $this->run("SELECT attribute_id FROM $attributes WHERE field_key = ?", [$key])->fetchColumn();
             if ($id === false) {
-                // Reuse an existing native attribute by its language/group/name identity.
+                // A native attribute with another field key represents a different unit.
                 $id = $this->run('SELECT a.attribute_id FROM ' . $this->table('attribute') . ' a
                     JOIN ' . $this->table('attribute_description') . ' d ON d.attribute_id=a.attribute_id AND d.language_id=?
                     JOIN ' . $this->table('attribute_group_description') . ' g ON g.attribute_group_id=a.attribute_group_id AND g.language_id=d.language_id
-                    WHERE d.name=? AND g.name=? ORDER BY a.attribute_id LIMIT 1',
+                    LEFT JOIN ' . $attributes . ' x ON x.attribute_id=a.attribute_id
+                    WHERE d.name=? AND g.name=? AND x.attribute_id IS NULL ORDER BY a.attribute_id LIMIT 1',
                     [$this->languageId, $item['name'], $item['group_name']])->fetchColumn();
                 if ($id !== false) {
                     $this->run("INSERT INTO $attributes (attribute_id,field_key,group_name) VALUES (?,?,?) ON DUPLICATE KEY UPDATE field_key=field_key", [$id,$key,$item['group_name']]);
+                    // A concurrent save may have claimed the native attribute under another key.
+                    $id = $this->run("SELECT attribute_id FROM $attributes WHERE field_key = ? FOR UPDATE", [$key])->fetchColumn();
                 }
             }
             if ($id === false) {
@@ -654,8 +719,10 @@ trait CatalogWrites
 
     private function unpublish(string $id): string
     {
-        $count = $this->run('UPDATE ' . $this->table('product') . ' p JOIN ' . $this->table('cmteh_product') .
-            ' x USING (product_id) SET p.status = 0, p.date_modified = UTC_TIMESTAMP() WHERE x.source_id = ? AND p.status = 1', [$id])->rowCount();
+        $product = $this->nativeMappingForWrite('product', $id);
+        if ($product === false) return 'skipped';
+        $count = $this->run('UPDATE ' . $this->table('product') .
+            ' SET status = 0, date_modified = UTC_TIMESTAMP() WHERE product_id = ? AND status = 1', [$product['product_id']])->rowCount();
         return $count ? 'updated' : 'skipped';
     }
 
