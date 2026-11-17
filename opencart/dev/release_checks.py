@@ -791,7 +791,8 @@ def native_catalog_editor(runtime):
         require(result.get("success"), "Native OpenCart category editor rejected a valid record.")
         return category_id or int(result["category_id"])
 
-    def save_product(slug, title, article, category_id, *, product_id=0, manufacturer_id=0, price=123.45):
+    def save_product(slug, title, article, category_id, *, product_id=0, manufacturer_id=0, price=123.45,
+                     expect_removed_category=False):
         fields = {
             "product_id": product_id, "model": article, "status": "1", "price": price,
             "manufacturer_id": manufacturer_id,
@@ -801,6 +802,15 @@ def native_catalog_editor(runtime):
             "product_description[1][meta_title]": title, "product_description[1][tag]": "",
             "product_description[1][meta_description]": "", "product_description[1][meta_keyword]": "",
         }
+        if expect_removed_category:
+            status, body = runtime.request(runtime.action("catalog/product.save"),
+                                           urlencode(fields, doseq=True).encode("ascii"), FORM)
+            require(status == 200, "Native product form did not return its validation response.")
+            result = json.loads(body)
+            error = result.get("error", {})
+            require(isinstance(error, dict) and error.get("warning") == "Категория была удалена. Обновите форму товара."
+                    and not result.get("success"), "Native product editor did not explain that the category had been removed.")
+            return None
         result = admin_post(runtime, "catalog/product.save", fields)
         require(result.get("success"), "Native OpenCart product editor rejected a valid record.")
         return product_id or int(result["product_id"])
@@ -877,6 +887,16 @@ throw new RuntimeException('The native category deletion did not reach its datab
                 "Native deletion rejected an unlinked synthetic category.")
         require(runtime.request("/category/" + empty_slug)[0] == 410,
                 "Native deletion of an unlinked category did not retire its URL.")
+        before_stale_product = catalog_snapshot()
+        save_product("test-stale-" + nonce, "Товар из устаревшей формы " + nonce, "STALE-" + nonce, empty,
+                     expect_removed_category=True)
+        save_product(product_slug, "Правка из устаревшей формы " + nonce, "STALE-" + nonce, empty,
+                     product_id=product, expect_removed_category=True)
+        route_status, _ = runtime.request(runtime.action("extension/cmteh/event/cmteh_catalog.productSave"), b"", FORM)
+        require(route_status in (401, 403), "The save wrapper accepted a direct request without native dispatch.")
+        require(catalog_snapshot() == before_stale_product,
+                "A rejected product save changed native records, links or public projections.")
+        print("PASS: native product form warns about a removed category and rolls back create and edit", flush=True)
         print("PASS: native category deletion denies whole dependent batches without mutations; unlinked deletion returns URL410", flush=True)
         racing_slug = "test-racing-" + nonce
         racing = save_category(racing_slug, "Тестовая категория для гонки " + nonce)

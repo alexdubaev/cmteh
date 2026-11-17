@@ -171,6 +171,7 @@ final class Cmteh extends Controller
     {
         $handler = 'extension/cmteh/event/cmteh_catalog';
         $events = [
+            'cmteh_native_guard_product_save' => ['admin/controller/catalog/product.save/before', $handler . '.guardProductSave'],
             'cmteh_native_guard_category_delete' => ['admin/controller/catalog/category.delete/before', $handler . '.guardCategoryDelete'],
             'cmteh_native_guard_category_save' => ['admin/controller/catalog/category.save/before', $handler . '.guardCategoryController'],
         ];

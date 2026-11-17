@@ -41,6 +41,34 @@ final class CmtehCatalog extends Controller
         if ($this->user->isLogged() && $this->user->hasPermission('modify','catalog/product')) $route='extension/cmteh/event/cmteh_catalog.inventoryDelete';
     }
 
+    public function guardProductSave(string &$route, array &$args): void
+    {
+        if ($route !== 'catalog/product.save' || !$this->user->isLogged()
+            || !$this->user->hasPermission('modify', 'catalog/product')) {
+            return;
+        }
+        $this->registry->set('cmteh_native_product_save', new \stdClass());
+        $route = 'extension/cmteh/event/cmteh_catalog.productSave';
+    }
+
+    public function productSave(): void
+    {
+        if (!$this->registry->has('cmteh_native_product_save')) {
+            $this->formError(['warning' => 'Недостаточно прав.'], 403);
+            return;
+        }
+        $this->registry->unset('cmteh_native_product_save');
+        try {
+            $this->factory->controller('catalog/product')->save();
+            $this->reportSyncFailure();
+        } catch (\Cmteh\InventoryException $error) {
+            if ($error->reason !== 'category_missing') {
+                throw $error;
+            }
+            $this->formError(['warning' => $error->getMessage()]);
+        }
+    }
+
     public function inventoryDelete(): void
     {
         require_once DIR_EXTENSION . 'cmteh/system/InventoryNativeGuard.php';
@@ -100,14 +128,14 @@ final class CmtehCatalog extends Controller
     public function categorySave(): void
     {
         if (($this->registry->get('cmteh_category_controller')->action ?? '') !== 'categorySave') {
-            $this->categoryError('Недостаточно прав.', 403);
+            $this->formError('Недостаточно прав.', 403);
             return;
         }
         try {
             $this->factory->controller('catalog/category')->save();
             $this->reportSyncFailure();
         } catch (\Cmteh\InventoryException $error) {
-            $this->categoryError(['warning' => $error->getMessage()]);
+            $this->formError(['warning' => $error->getMessage()]);
         }
     }
 
@@ -115,18 +143,18 @@ final class CmtehCatalog extends Controller
     {
         $context = $this->registry->get('cmteh_category_controller');
         if (($context->action ?? '') !== 'categoryDelete') {
-            $this->categoryError('Недостаточно прав.', 403);
+            $this->formError('Недостаточно прав.', 403);
             return;
         }
         if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') {
             $this->response->addHeader('Allow: POST');
-            $this->categoryError('Для удаления категории требуется POST.', 405);
+            $this->formError('Для удаления категории требуется POST.', 405);
             return;
         }
         $ids = [];
         foreach ((array) ($this->request->post['selected'] ?? []) as $id) {
             if (!is_scalar($id) || !ctype_digit((string) $id) || (int) $id < 1 || (int) $id > 2147483647) {
-                $this->categoryError('Некорректный список категорий для удаления.');
+                $this->formError('Некорректный список категорий для удаления.');
                 return;
             }
             $ids[] = (int) $id;
@@ -142,11 +170,11 @@ final class CmtehCatalog extends Controller
                 }
             });
         } catch (\Cmteh\InventoryException $error) {
-            $this->categoryError($error->getMessage(), $error->status);
+            $this->formError($error->getMessage(), $error->status);
             return;
         } catch (Throwable $error) {
             $this->log->write('СМ ТЕХНО: не удалось удалить категории (' . get_class($error) . ')');
-            $this->categoryError('Не удалось удалить категории. Повторите попытку.');
+            $this->formError('Не удалось удалить категории. Повторите попытку.');
             return;
         }
         foreach (array_unique($ids) as $id) {
@@ -156,7 +184,7 @@ final class CmtehCatalog extends Controller
         $this->reportSyncFailure();
     }
 
-    private function categoryError(string|array $error, int $status = 200): void
+    private function formError(string|array $error, int $status = 200): void
     {
         if ($status !== 200) http_response_code($status);
         $this->response->addHeader('Content-Type: application/json; charset=utf-8');
