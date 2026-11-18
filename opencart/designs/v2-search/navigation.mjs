@@ -345,6 +345,11 @@ if (main && search && input && dock && status && supported(new URL(location.href
     if (!supported(url) || (url.hash && routeKey(url) === routeKey(new URL(location.href)))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (link.hasAttribute('data-v2-search-example')) {
+      input.value = url.searchParams.get('q') || '';
+      searchFor(input.value);
+      return;
+    }
     if (link.closest('.search-popover')) rememberQuery(input.value.trim());
     navigate(url, { motion: pointerAction });
   }, true);

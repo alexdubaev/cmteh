@@ -6,7 +6,7 @@
     {% set headline = home.hero_title|default('') %}
     <h1 id="v2-home-title">{{ headline and headline != 'Запчасти для спецтехники' ? headline : 'Поиск запчастей для спецтехники' }}</h1>
     <div class="v2-home-search-slot" data-v2-search-home>{% include templates ~ 'v2/search.twig' %}</div>
-    <p class="v2-search-example">Например: <a href="/catalog?q=1R-1808">1R-1808</a></p>
+    <p class="v2-search-example">Например: <a href="/catalog?q=1R-1808" data-v2-search-example>1R-1808</a></p>
     <a class="v2-quote-link" href="/parts-list"><img src="{{ assets }}v2-search/images/file-text.svg" width="23" height="23" alt="" aria-hidden="true"><span>Проценить список или файл</span><img src="{{ assets }}v2-search/images/arrow-right.svg" width="20" height="20" alt="" aria-hidden="true"></a>
     {% if partners %}
       <nav class="v2-partners" aria-label="Бренды запчастей">
