@@ -25,6 +25,7 @@ const routeKey = url => url.pathname + url.search;
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const compact = matchMedia('(max-width: 820px), (pointer: coarse)');
   const views = new Map();
   const animations = new Set();
   let sequence = 0, pending, loadingTimer, scrollTimer, clearReveal, pointerAction = false;
@@ -103,16 +104,10 @@ if (main && search && input && dock && status && supported(new URL(location.href
     return animation;
   }
 
-  function reveal(view, previousSearch, previousHeight, fromHome) {
-    const bounds = search.getBoundingClientRect();
+  function revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, options) {
     const height = main.getBoundingClientRect().height;
-    const easing = 'cubic-bezier(.22,1,.36,1)';
-    const duration = 500;
-    if (!main.animate || !bounds.width || !height) return;
-
-    // Expand a frame over fully laid-out content: type and controls never scale.
-    // The height participates in flow, so the footer follows the opening sheet.
-    const opening = view.kind !== 'home';
+    if (!height) return;
+    // On larger screens the height participates in flow so the footer follows the sheet.
     const startHeight = opening && fromHome ? 64 : previousHeight;
     const side = opening && fromHome ? Math.max(0, (main.clientWidth - Math.min(previousSearch.width, bounds.width)) / 2) : 0;
     main.style.setProperty('--v2-reveal-height', `${height}px`);
@@ -128,8 +123,20 @@ if (main && search && input && dock && status && supported(new URL(location.href
     const frame = animate(main, [
       { height: `${startHeight}px`, clipPath: opening ? `inset(0px ${side}px 0px ${side}px round 16px)` : 'none' },
       { height: `${height}px`, clipPath: opening ? 'inset(0px 0px 0px 0px round 0px)' : 'none' },
-    ], { duration, easing, fill: 'both' });
+    ], { ...options, fill: 'both' });
     frame.finished.then(finish, finish);
+  }
+
+  function reveal(view, previousSearch, previousHeight, fromHome) {
+    const bounds = search.getBoundingClientRect();
+    if (!main.animate || !bounds.width) return;
+
+    const opening = view.kind !== 'home';
+    const compactMotion = compact.matches;
+    const easing = 'cubic-bezier(.22,1,.36,1)';
+    const duration = compactMotion ? 220 : 500;
+    // Leave the new page at its final size on touch and narrow screens.
+    if (!compactMotion) revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, { duration, easing });
 
     if (bounds.height) animate(search, [
       { transformOrigin: '0 0', transform: `translate(${previousSearch.left - bounds.left}px, ${previousSearch.top - bounds.top}px) scale(${previousSearch.width / bounds.width},${previousSearch.height / bounds.height})` },
@@ -137,8 +144,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     ], { duration, easing });
     const content = opening ? [...main.children] : [...main.querySelector('.v2-home-content').children].filter(node => !node.matches('[data-v2-search-home]'));
     for (const element of content) animate(element,
-      [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 320, delay: 70, fill: 'backwards', easing });
+      [{ opacity: compactMotion ? 0.5 : 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+      { duration: compactMotion ? duration : 320, delay: compactMotion ? 0 : 70, fill: 'backwards', easing });
   }
 
   function clearLoading() {
@@ -157,7 +164,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
 
   function show(view, { restore = false, motion = false } = {}) {
     const previousBounds = search.getBoundingClientRect();
-    const previousHeight = main.getBoundingClientRect().height;
+    const previousHeight = compact.matches ? 0 : main.getBoundingClientRect().height;
     const fromHome = current.kind === 'home';
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
