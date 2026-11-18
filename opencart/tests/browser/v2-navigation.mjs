@@ -219,28 +219,68 @@ const scenarios = {
     assert.equal(posts[0].request_items[0].quantity, 2);
     await expect(page.locator('[data-cart-empty]')).toBeVisible();
   },
-  'native-transition-motion-preference': async page => {
-    const exercise = async (current, shouldTransition) => {
-      await current.addInitScript(() => window.addEventListener('pagereveal', event => {
-        window.__nativeRevealSeen = true;
-        window.__nativeTransition = Boolean(event.viewTransition);
-      }));
-      await current.goto('/');
-      await current.locator('.v2-footer-nav a[href="/contacts"]').click();
-      await expect(current).toHaveURL(new URL('/contacts', base).href);
-      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
-      await expect(current.locator('body')).toHaveAttribute('data-v2-page', 'page');
-      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
-        'Contact navigation should honor the motion preference');
-      await current.locator('.v2-header .brand').click();
-      await expect(current).toHaveURL(base.href);
-      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
-      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
-        'Return-to-home navigation should honor the motion preference');
-    };
-    await exercise(page, false);
-    const normalPage = await browser.newPage({ baseURL: base.href, reducedMotion: 'no-preference' });
-    try { await exercise(normalPage, true); } finally { await normalPage.close(); }
+  'contacts-soft-reveal': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.waitForFunction(() => history.state?.v2View);
+    await page.evaluate(() => { window.originalSearch = document.querySelector('#article-search'); });
+    await page.locator('.v2-footer-nav a[href="/contacts"]').click();
+    await expect(page).toHaveURL(new URL('/contacts', base).href);
+    const form = page.locator('form[data-lead="contact"]');
+    const name = form.getByLabel('Контактное лицо');
+    await name.fill('Проверка контактов');
+    await form.getByLabel('Телефон').fill('+70000000000');
+    await page.locator('header .brand').click();
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+
+    await page.locator('.menu-toggle').click();
+    await page.locator('#main-navigation [data-open-quick]').click();
+    const dialog = page.locator('dialog[data-quick-dialog]');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('.quick-fallback').click();
+    await expect(dialog).toBeHidden();
+    await expect(name).toHaveValue('Проверка контактов');
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'Contacts should keep the same document and search after a dialog link');
+
+    let submitted;
+    await page.route('**/api/lead', async route => {
+      submitted = route.request().postDataJSON();
+      await route.fulfill({ json: { id: 'synthetic-contact', replayed: false } });
+    });
+    await form.getByRole('button', { name: 'Отправить заявку' }).click();
+    await expect(form.getByText(/Заявка принята/)).toBeVisible();
+    assert.equal(new URL(submitted.page_url).pathname, '/contacts');
+  },
+  'article-parts-list-link': async page => {
+    await page.goto('/articles/zayavka-po-spisku-artikulov');
+    await page.waitForFunction(() => history.state?.v2View);
+    await page.evaluate(() => { window.originalSearch = document.querySelector('#article-search'); });
+    const link = page.getByRole('link', { name: 'заявку по списку', exact: true });
+    await expect(link).toHaveAttribute('href', '/parts-list');
+    await link.click();
+    await expect(page).toHaveURL(new URL('/parts-list', base).href);
+    await expect(page.locator('[data-parts-list]')).toBeVisible();
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')));
+  },
+  'catalog-forms-soft-reveal': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/catalog?q=1R-1808');
+    await page.waitForFunction(() => history.state?.v2View);
+    await page.evaluate(() => { window.originalSearch = document.querySelector('#article-search'); });
+    await page.getByLabel('Сортировка').selectOption('price_desc');
+    await page.getByRole('button', { name: 'Применить', exact: true }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/catalog'
+      && url.searchParams.get('q') === '1R-1808' && url.searchParams.get('sort') === 'price_desc');
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'catalog');
+    await page.locator('.filter-disclosure > summary').click();
+    await page.locator('.facet-form select[name=availability]').selectOption('in_stock');
+    await page.getByRole('button', { name: 'Применить фильтры' }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/catalog'
+      && url.searchParams.get('q') === '1R-1808' && url.searchParams.get('sort') === 'price_desc'
+      && url.searchParams.get('availability') === 'in_stock');
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'Sorting and applying filters should keep the original document');
   },
   'history-error': async page => {
     await openPartsFromProduct(page);
@@ -296,6 +336,31 @@ const scenarios = {
     await expect(page.locator('#parts-list-text')).toHaveValue('');
     await page.goto('/parts-list?article=RE568158');
     await expect(page.locator('#parts-list-text')).toHaveValue('RE568158');
+  },
+  'parts-article-handoff': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const article = 'ABSENT-V2-000';
+    await page.goto('/catalog?q=' + article);
+    await page.waitForFunction(() => history.state?.v2View);
+    await page.evaluate(() => { window.originalSearch = document.querySelector('#article-search'); });
+    const transfer = page.getByRole('link', { name: 'Передать артикул для подбора' });
+    await transfer.click();
+    await expect(page).toHaveURL(new URL('/parts-list?article=' + article, base).href);
+    const list = page.locator('#parts-list-text');
+    await expect(list).toHaveValue(article);
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'Passing an article from empty results should keep the document');
+
+    await page.locator('header .brand').click();
+    await page.locator('.v2-quote-link').click();
+    await expect(list).toHaveValue('');
+    await list.fill('RE568158;2');
+    await page.evaluate(() => history.go(-3));
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'catalog');
+    await transfer.click();
+    await expect(list).toHaveValue('RE568158;2');
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'Prefilled links must share the same working form and preserve the draft');
   },
   'parts-results-viewport': async page => {
     const height = 664;

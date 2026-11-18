@@ -1,10 +1,9 @@
 import { mergeCart, selectedLine, withCartWrite } from "./cart.mjs?v=20261117-2";
 import { inspectText, inspectFile, labels } from "./request-import.mjs?v=20261117-2";
 
-const initialized = new WeakSet();
+const initialized = new WeakMap();
 export function setupPartsList(root, { prefill = new URLSearchParams(location.search).get('article') } = {}) {
-  if (initialized.has(root)) return;
-  initialized.add(root);
+  if (initialized.has(root)) return initialized.get(root);
   const text = root.querySelector('#parts-list-text');
   const upload = root.querySelector('#parts-list-file');
   const modes = [...root.querySelectorAll('[name=list-source]')];
@@ -44,7 +43,8 @@ export function setupPartsList(root, { prefill = new URLSearchParams(location.se
     root.querySelector('[data-source-file]').hidden = mode() !== 'file';
   }
   const draft = get(draftKey);
-  text.value = typeof draft.text === 'string' ? draft.text : prefill || '';
+  let suggestedText = prefill || '';
+  text.value = typeof draft.text === 'string' ? draft.text : suggestedText;
   for (const field of fields) if (typeof draft[field] === 'string') form.elements.namedItem(field).value = draft[field];
   if (draft.input_kind === 'file') {
     modes[1].checked = true;
@@ -75,7 +75,7 @@ export function setupPartsList(root, { prefill = new URLSearchParams(location.se
     check.textContent = checking ? 'Проверяем…' : 'Проверить наличие';
     results.setAttribute('aria-busy', String(Boolean(checking)));
   }
-  function changed() {
+  function clearCheck() {
     checking?.abort();
     checking = undefined;
     syncCheck();
@@ -83,7 +83,18 @@ export function setupPartsList(root, { prefill = new URLSearchParams(location.se
     diagnostics.hidden = true;
     diagnostics.replaceChildren();
     message('[data-list-message]', '');
+  }
+  function changed() {
+    clearCheck();
     saveDraft();
+  }
+  function updatePrefill(value) {
+    const next = value || '';
+    if (next === suggestedText || busy || checking || mode() !== 'text'
+        || text.value !== suggestedText || typeof get(draftKey).text === 'string') return;
+    suggestedText = next;
+    text.value = next;
+    clearCheck();
   }
   text.addEventListener('input', changed);
   for (const radio of modes) radio.addEventListener('change', () => { syncMode(); changed(); });
@@ -216,6 +227,8 @@ export function setupPartsList(root, { prefill = new URLSearchParams(location.se
     }
   });
   check.disabled = false; submit.disabled = false; root.querySelector('[data-list-preparing]').hidden = true;
+  initialized.set(root, updatePrefill);
+  return updatePrefill;
 }
 const root = document.querySelector('[data-parts-list]');
 if (root) setupPartsList(root);

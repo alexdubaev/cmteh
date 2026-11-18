@@ -1,5 +1,6 @@
 import { activateView } from './view-controls.mjs?v=20261117-2';
 import { mountRequestPage } from '../request.mjs?v=20261118-1';
+import { setupPartsList } from '../parts-list.mjs?v=20261118-1';
 
 // A V2 presentation enhancement over normal, server-rendered storefront URLs.
 // No response scripts are executed, and commerce uses the existing shared modules.
@@ -9,13 +10,15 @@ const input = search?.querySelector('input[name=q]');
 const dock = document.querySelector('#v2-search-dock');
 const status = document.querySelector('#v2-navigation-status');
 const headSelector = 'meta[name="description"],meta[name="robots"],link[rel="canonical"],meta[property^="og:"],script[type="application/ld+json"]';
+const isContacts = url => url.pathname === '/contacts';
+const isPartsList = url => url.pathname === '/parts-list' && [...url.searchParams.keys()].every(key => key === 'article');
 const supported = url => url.origin === location.origin && !url.username && !url.password
-  && (url.pathname === '/' || ['/catalog', '/brands', '/articles', '/about', '/delivery', '/payment'].includes(url.pathname)
+  && (url.pathname === '/' || ['/catalog', '/brands', '/articles', '/about', '/delivery', '/payment'].includes(url.pathname) || isContacts(url)
     || /^\/(?:brand|category|articles)\/[^/]+$/.test(url.pathname)
     || /^\/(?!admin(?:\/|$)|api(?:\/|$)|account(?:\/|$)|request(?:\/|$)|parts-list(?:\/|$)|contacts(?:\/|$)|cart(?:\/|$)|checkout(?:\/|$)|extension(?:\/|$)|image(?:\/|$)|information(?:\/|$)|install(?:\/|$)|product(?:\/|$)|sitemap(?:s)?(?:\/|$)|system(?:\/|$)|_cmteh_platform(?:\/|$))[^/]+$/.test(url.pathname)
     || /^\/product\/[^/]+$/.test(url.pathname)
-    // Parameterized links keep the existing server/module prefill and recovery behavior.
-    || (url.pathname === '/parts-list' && !url.search)
+    // The public article handoff is a normal view. Other parameters keep native recovery.
+    || isPartsList(url)
     || (url.pathname === '/request' && !url.search && !['#import', '#request-import'].includes(url.hash)));
 const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catalog' ? 'catalog'
   : url.pathname === '/brands' ? 'brands' : url.pathname === '/articles' ? 'articles'
@@ -25,9 +28,11 @@ const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catal
         : /^\/articles\//.test(url.pathname) ? 'article'
           : /^\/product\//.test(url.pathname) ? 'product' : 'page';
 const routeKey = url => url.pathname + url.search;
+const reusableKey = url => isContacts(url) ? '/contacts' : routeKey(url);
 const reusableRoute = view => (view.kind === 'home' && routeKey(view.url) === '/')
   || (view.kind === 'parts-list' && routeKey(view.url) === '/parts-list')
-  || (view.kind === 'request' && routeKey(view.url) === '/request');
+  || (view.kind === 'request' && routeKey(view.url) === '/request')
+  || isContacts(view.url);
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -45,32 +50,25 @@ if (main && search && input && dock && status && supported(new URL(location.href
     nodes: [...main.childNodes], title: document.title, head: metadata(document.head),
     query: input.value, scroll: window.scrollY, focus: null, initial: true,
   };
-  if (reusableRoute(current)) reusable.set(routeKey(current.url), current);
+  if (reusableRoute(current)) reusable.set(reusableKey(current.url), current);
   history.replaceState(currentState(current), '', location.href);
   history.scrollRestoration = 'manual';
   views.set(current.id, current);
   activateView(main, { bindControls: false });
+  updateArticleLinks(current.kind);
 
   // Keep the original form alive, including FileList, results and in-flight work.
-  // Its unchanged module owns validation, draft storage and quote idempotency.
+  // The shared module owns validation, draft storage and quote idempotency.
   const partsParking = document.createElement('div');
   partsParking.hidden = true;
   partsParking.inert = true;
   main.after(partsParking);
   let partsNodes = current.kind === 'parts-list' ? current.nodes : null;
-  let partsReady = partsNodes ? Promise.resolve() : null;
-  async function preparePartsList(nodes) {
-    if (!partsNodes) {
-      partsNodes = nodes;
-      // Initialize the clean route using its own prefill, even when the fetch
-      // or module import finishes while another URL is still visible.
-      partsReady = import('../parts-list.mjs?v=20261117-2').then(({ setupPartsList }) => {
-        partsParking.replaceChildren(...partsNodes);
-        setupPartsList(partsParking.querySelector('[data-parts-list]'), { prefill: '' });
-      });
+  function updateArticleLinks(kind) {
+    if (kind !== 'article') return;
+    for (const link of main.querySelectorAll('a[href="/request?import=1"],a[href="/request#import"],a[href="/request#request-import"]')) {
+      link.setAttribute('href', '/parts-list');
     }
-    await partsReady;
-    return partsNodes;
   }
 
   function rememberQuery(value) {
@@ -204,7 +202,10 @@ if (main && search && input && dock && status && supported(new URL(location.href
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
     if (current.kind === 'parts-list') partsParking.replaceChildren(...partsNodes);
-    if (view.kind === 'parts-list') view.nodes = partsNodes;
+    if (view.kind === 'parts-list') {
+      partsNodes ||= view.nodes;
+      view.nodes = partsNodes;
+    }
     main.replaceChildren(...view.nodes);
     for (const className of [...document.body.classList]) {
       if (className.startsWith('v2-') && className !== 'v2-storefront') document.body.classList.remove(className);
@@ -219,7 +220,12 @@ if (main && search && input && dock && status && supported(new URL(location.href
     document.head.querySelectorAll(headSelector).forEach(node => node.remove());
     document.head.append(...view.head.map(node => node.cloneNode(true)));
     activateView(main, { bindControls: !view.initial });
-    if (view.kind === 'request') mountRequestPage(main, { refresh: true });
+    if (view.kind === 'request' || isContacts(view.url)) mountRequestPage(main, { refresh: true });
+    if (view.kind === 'parts-list') {
+      const prefill = view.url.searchParams.get('article') || '';
+      const updatePrefill = setupPartsList(main.querySelector('[data-parts-list]'), { prefill });
+      updatePrefill(prefill);
+    }
     const menu = document.querySelector('.catalog-menu');
     if (menu) menu.open = false;
     document.querySelector('.main-nav')?.classList.remove('is-open');
@@ -229,7 +235,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     clearLoading();
     current = view;
     views.set(view.id, view);
-    if (reusableRoute(view)) reusable.set(routeKey(view.url), view);
+    if (reusableRoute(view)) reusable.set(reusableKey(view.url), view);
     window.scrollTo({ top: restore ? view.scroll : 0, behavior: 'instant' });
     if (!restore && view.url.hash) {
       let anchor = view.url.hash.slice(1);
@@ -242,6 +248,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     if (target === input) input.setSelectionRange(input.value.length, input.value.length);
     // Restored deep scroll positions stay immediate rather than being clipped.
     if (motion && !reduced.matches && (!restore || view.scroll === 0)) reveal(view, previousBounds, previousHeight, fromHome);
+    updateArticleLinks(view.kind);
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
 
@@ -275,7 +282,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     }
     // Reuse the already initialized cart and the simple pages used on mobile.
     // The cart module refreshes live prices and offers every time it opens.
-    const cached = !restoreId && (compact.matches || url.pathname === '/request') && reusable.get(routeKey(url));
+    const cached = !restoreId && (compact.matches || url.pathname === '/request' || isContacts(url)) && reusable.get(reusableKey(url));
     if (cached) {
       if (current.url.href === url.href && location.href === url.href) return;
       const view = { ...cached, url, id: nextId(), query: input.value, scroll: 0, focus: null };
@@ -296,7 +303,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
       if (pending !== transition) return;
       status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
         : pageKind(url) === 'parts-list' ? 'Открываем список или файл…'
-          : pageKind(url) === 'request' ? 'Открываем корзину…' : 'Загружаем результаты…';
+          : pageKind(url) === 'request' ? 'Открываем корзину…'
+            : isContacts(url) ? 'Открываем контакты…' : 'Загружаем результаты…';
       status.hidden = false;
       if (!compact.matches) main.classList.add('v2-waiting');
     }, 160);
@@ -322,7 +330,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
       if (!content || !page.body.classList.contains('v2-storefront') || kind !== pageKind(finalUrl)
           || (kind === 'home' && !content.querySelector('[data-v2-search-home]'))
           || (kind === 'parts-list' && !content.querySelector('[data-parts-list]'))
-          || (kind === 'request' && (!content.querySelector('[data-cart]') || !content.querySelector('[data-lead="request"]')))) {
+          || (kind === 'request' && (!content.querySelector('[data-cart]') || !content.querySelector('[data-lead="request"]')))
+          || (isContacts(finalUrl) && !content.querySelector('[data-lead="contact"]'))) {
         openNatively();
         return;
       }
@@ -342,8 +351,9 @@ if (main && search && input && dock && status && supported(new URL(location.href
         scroll: Number.isFinite(saved.scroll) ? Math.max(0, saved.scroll) : 0,
         focus: saved.focus === 'search' ? 'search' : null, initial: false,
       };
-      if (kind === 'parts-list') view.nodes = await preparePartsList(view.nodes);
-      if (kind === 'request' && reusable.has('/request')) view.nodes = reusable.get('/request').nodes;
+      if (kind === 'request' || isContacts(finalUrl)) {
+        view.nodes = reusable.get(reusableKey(finalUrl))?.nodes || view.nodes;
+      }
       if (pending !== transition) return;
       if (kind === 'catalog') view.query = finalUrl.searchParams.get('q') || '';
       if (restoreId) history.replaceState(currentState(view), '', finalUrl.href);
@@ -388,10 +398,26 @@ if (main && search && input && dock && status && supported(new URL(location.href
   input.addEventListener('focus', saveCurrent);
   input.addEventListener('blur', saveCurrent);
   document.addEventListener('submit', event => {
-    if (event.target !== input.form) return;
+    if (event.defaultPrevented) return;
+    const form = event.target;
+    if (form === input.form) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      searchFor(input.value);
+      return;
+    }
+
+    // Apply the server-rendered sort and facets using the browser's successful controls.
+    if (current.kind !== 'catalog' || !main.contains(form) || !form.matches('.facet-form, .catalog-toolbar-right form')) return;
+    const submitter = event.submitter;
+    const method = submitter?.getAttribute('formmethod') || form.method;
+    const target = submitter?.getAttribute('formtarget') || form.target;
+    const url = new URL(submitter?.getAttribute('formaction') || form.action, location.href);
+    if (method.toLowerCase() !== 'get' || (target && target !== '_self') || !supported(url) || url.pathname !== '/catalog') return;
+    url.search = new URLSearchParams(new FormData(form, submitter));
     event.preventDefault();
     event.stopImmediatePropagation();
-    searchFor(input.value);
+    navigate(url, { motion: pointerAction });
   }, true);
   document.addEventListener('click', event => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -404,7 +430,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
       return;
     }
     const link = event.target.closest('a[href]');
-    if (!link || link.hasAttribute('download') || link.dataset.v2Native !== undefined || (link.target && link.target !== '_self')) return;
+    if (!link || link.hasAttribute('download') || link.hasAttribute('data-open-quick')
+        || link.dataset.v2Native !== undefined || (link.target && link.target !== '_self')) return;
     const url = new URL(link.href, location.href);
     if (!supported(url) || (url.hash && routeKey(url) === routeKey(new URL(location.href)))) return;
     event.preventDefault();
@@ -416,9 +443,9 @@ if (main && search && input && dock && status && supported(new URL(location.href
     }
     if (link.closest('.search-popover')) rememberQuery(input.value.trim());
     const motion = pointerAction;
-    const quick = url.pathname === '/request' && link.closest('dialog[data-quick-dialog][open]');
+    const quick = link.closest('dialog[data-quick-dialog][open]');
     if (quick) {
-      // Let the dialog finish restoring focus before the cart takes it.
+      // Let the dialog finish restoring focus before the destination takes it.
       const source = current, previousRequest = pending;
       quick.addEventListener('close', () => {
         if (current === source && pending === previousRequest) navigate(url, { motion });
