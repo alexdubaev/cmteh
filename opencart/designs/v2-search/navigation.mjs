@@ -150,8 +150,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
 
     const opening = view.kind !== 'home';
     const compactMotion = compact.matches;
-    const easing = 'cubic-bezier(.22,1,.36,1)';
-    const duration = compactMotion ? 220 : 500;
+    const easing = compactMotion ? 'cubic-bezier(.25,.65,.35,1)' : 'cubic-bezier(.22,1,.36,1)';
+    const duration = compactMotion ? 250 : 500;
     // Leave the new page at its final size on touch and narrow screens.
     if (!compactMotion) revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, { duration, easing });
 
@@ -161,10 +161,15 @@ if (main && search && input && dock && status && supported(new URL(location.href
     ], { duration, easing }) : null;
 
     if (compactMotion) {
-      // Keep the long content and the backdrop out of the animation.
+      // Move only the small introduction and logo, without animating the page itself.
       const title = main.querySelector('h1');
-      const titleMotion = title && animate(title, [{ opacity: 0.65 }, { opacity: 1 }], { duration, easing });
-      playAfterPaint([searchMotion, titleMotion].filter(Boolean));
+      const intro = title?.closest('.v2-product-heading, .page-title, .collection-heading') || title;
+      const logo = opening ? null : main.querySelector('.v2-home-brand');
+      const introMotion = [intro, logo].filter(Boolean).map(element => animate(element, [
+        { opacity: 0.72, transform: 'translateY(6px)' },
+        { opacity: 1, transform: 'none' },
+      ], { duration, easing }));
+      playAfterPaint([searchMotion, ...introMotion].filter(Boolean));
       return;
     }
 
