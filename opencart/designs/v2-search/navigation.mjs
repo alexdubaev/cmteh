@@ -1,4 +1,5 @@
 import { activateView } from './view-controls.mjs?v=20261117-2';
+import { mountRequestPage } from '../request.mjs?v=20261118-1';
 
 // A V2 presentation enhancement over normal, server-rendered storefront URLs.
 // No response scripts are executed, and commerce uses the existing shared modules.
@@ -14,16 +15,19 @@ const supported = url => url.origin === location.origin && !url.username && !url
     || /^\/(?!admin(?:\/|$)|api(?:\/|$)|account(?:\/|$)|request(?:\/|$)|parts-list(?:\/|$)|contacts(?:\/|$)|cart(?:\/|$)|checkout(?:\/|$)|extension(?:\/|$)|image(?:\/|$)|information(?:\/|$)|install(?:\/|$)|product(?:\/|$)|sitemap(?:s)?(?:\/|$)|system(?:\/|$)|_cmteh_platform(?:\/|$))[^/]+$/.test(url.pathname)
     || /^\/product\/[^/]+$/.test(url.pathname)
     // Parameterized links keep the existing server/module prefill and recovery behavior.
-    || (url.pathname === '/parts-list' && !url.search));
+    || (url.pathname === '/parts-list' && !url.search)
+    || (url.pathname === '/request' && !url.search && !['#import', '#request-import'].includes(url.hash)));
 const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catalog' ? 'catalog'
   : url.pathname === '/brands' ? 'brands' : url.pathname === '/articles' ? 'articles'
     : url.pathname === '/parts-list' ? 'parts-list'
+      : url.pathname === '/request' ? 'request'
       : /^\/brand\//.test(url.pathname) ? 'brand' : /^\/category\//.test(url.pathname) ? 'category'
         : /^\/articles\//.test(url.pathname) ? 'article'
           : /^\/product\//.test(url.pathname) ? 'product' : 'page';
 const routeKey = url => url.pathname + url.search;
 const reusableRoute = view => (view.kind === 'home' && routeKey(view.url) === '/')
-  || (view.kind === 'parts-list' && routeKey(view.url) === '/parts-list');
+  || (view.kind === 'parts-list' && routeKey(view.url) === '/parts-list')
+  || (view.kind === 'request' && routeKey(view.url) === '/request');
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -215,6 +219,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     document.head.querySelectorAll(headSelector).forEach(node => node.remove());
     document.head.append(...view.head.map(node => node.cloneNode(true)));
     activateView(main, { bindControls: !view.initial });
+    if (view.kind === 'request') mountRequestPage(main, { refresh: true });
     const menu = document.querySelector('.catalog-menu');
     if (menu) menu.open = false;
     document.querySelector('.main-nav')?.classList.remove('is-open');
@@ -268,9 +273,9 @@ if (main && search && input && dock && status && supported(new URL(location.href
       show({ ...old, url }, { restore: true, motion });
       return;
     }
-    // Keep the already opened home and clean list available for ordinary mobile taps.
-    // Product, offer and catalogue responses still come from the server.
-    const cached = compact.matches && !restoreId && reusable.get(routeKey(url));
+    // Reuse the already initialized cart and the simple pages used on mobile.
+    // The cart module refreshes live prices and offers every time it opens.
+    const cached = !restoreId && (compact.matches || url.pathname === '/request') && reusable.get(routeKey(url));
     if (cached) {
       if (current.url.href === url.href && location.href === url.href) return;
       const view = { ...cached, url, id: nextId(), query: input.value, scroll: 0, focus: null };
@@ -290,7 +295,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
     loadingTimer = setTimeout(() => {
       if (pending !== transition) return;
       status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
-        : pageKind(url) === 'parts-list' ? 'Открываем список или файл…' : 'Загружаем результаты…';
+        : pageKind(url) === 'parts-list' ? 'Открываем список или файл…'
+          : pageKind(url) === 'request' ? 'Открываем корзину…' : 'Загружаем результаты…';
       status.hidden = false;
       if (!compact.matches) main.classList.add('v2-waiting');
     }, 160);
@@ -315,7 +321,8 @@ if (main && search && input && dock && status && supported(new URL(location.href
       const content = page.querySelector('#main-content');
       if (!content || !page.body.classList.contains('v2-storefront') || kind !== pageKind(finalUrl)
           || (kind === 'home' && !content.querySelector('[data-v2-search-home]'))
-          || (kind === 'parts-list' && !content.querySelector('[data-parts-list]'))) {
+          || (kind === 'parts-list' && !content.querySelector('[data-parts-list]'))
+          || (kind === 'request' && (!content.querySelector('[data-cart]') || !content.querySelector('[data-lead="request"]')))) {
         openNatively();
         return;
       }
@@ -336,6 +343,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
         focus: saved.focus === 'search' ? 'search' : null, initial: false,
       };
       if (kind === 'parts-list') view.nodes = await preparePartsList(view.nodes);
+      if (kind === 'request' && reusable.has('/request')) view.nodes = reusable.get('/request').nodes;
       if (pending !== transition) return;
       if (kind === 'catalog') view.query = finalUrl.searchParams.get('q') || '';
       if (restoreId) history.replaceState(currentState(view), '', finalUrl.href);
@@ -407,7 +415,18 @@ if (main && search && input && dock && status && supported(new URL(location.href
       return;
     }
     if (link.closest('.search-popover')) rememberQuery(input.value.trim());
-    navigate(url, { motion: pointerAction });
+    const motion = pointerAction;
+    const quick = url.pathname === '/request' && link.closest('dialog[data-quick-dialog][open]');
+    if (quick) {
+      // Let the dialog finish restoring focus before the cart takes it.
+      const source = current, previousRequest = pending;
+      quick.addEventListener('close', () => {
+        if (current === source && pending === previousRequest) navigate(url, { motion });
+      }, { once: true });
+      quick.close();
+      return;
+    }
+    navigate(url, { motion });
   }, true);
   window.addEventListener('popstate', event => {
     const url = new URL(location.href);

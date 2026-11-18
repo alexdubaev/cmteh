@@ -150,6 +150,75 @@ const scenarios = {
     await expect(page.locator('#parts-list-text')).toHaveValue('RE568158;2');
     assert.deepEqual(repeats, [], 'Already visited home and list should not require another request');
   },
+  'cart-soft-reveal': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.waitForFunction(() => history.state?.v2View);
+    await page.evaluate(() => { window.originalSearch = document.querySelector('#article-search'); });
+    await page.getByRole('link', { name: '1R-1808', exact: true }).click();
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'product');
+    await page.locator('[data-add-article="1R-1808"]').first().click();
+    const cartLink = page.locator('.request-link');
+    await expect(cartLink.locator('[data-cart-count]')).toHaveText('1');
+    await cartLink.click();
+    await expect(page).toHaveURL(new URL('/request', base).href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'request');
+    await expect(page.locator('#article-search input[name=q]')).toHaveValue('1R-1808');
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'The cart should use the original document and search field');
+    await page.evaluate(() => { location.hash = 'main-content'; });
+    await expect(page).toHaveURL(new URL('/request#main-content', base).href);
+    await page.evaluate(() => history.back());
+    await expect(page).toHaveURL(new URL('/request', base).href);
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'The cart should keep normal in-page anchors without reloading');
+
+    const form = page.locator('form[data-lead="request"]');
+    const name = form.getByLabel('Контактное лицо');
+    await name.fill('Проверка корзины');
+    await form.getByLabel('Телефон').fill('+70000000000');
+    await page.getByRole('button', { name: 'Увеличить количество 1R-1808' }).click();
+    await expect(page.locator('.request-line .qty b')).toHaveText('2');
+    await page.locator('header .brand').click();
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+    await page.locator('.menu-toggle').click();
+    await page.locator('#main-navigation [data-open-quick]').click();
+    const quick = page.locator('dialog[data-quick-dialog]');
+    await expect(quick).toBeVisible();
+    const prices = page.waitForRequest(request => new URL(request.url()).pathname === '/api/product-prices');
+    await quick.getByRole('link', { name: 'корзину', exact: true }).click();
+    await prices;
+    await expect(quick).toBeHidden();
+    assert.ok(await page.evaluate(() => window.originalSearch === document.querySelector('#article-search')),
+      'The cart link in the quick form should also preserve the document');
+    await expect(name).toHaveValue('Проверка корзины');
+    await expect(page.locator('.request-line .qty b')).toHaveText('2');
+
+    const posts = [];
+    await page.route('**/api/lead', async route => {
+      posts.push(route.request().postDataJSON());
+      await route.fulfill({ json: { id: 'synthetic-soft-cart', replayed: false } });
+    });
+    await page.evaluate(() => new Promise(acquired => {
+      navigator.locks.request('smtechno-cart-write', () => new Promise(release => {
+        window.releaseCart = release;
+        acquired();
+      }));
+    }));
+    try {
+      await form.getByRole('button', { name: 'Отправить заявку' }).click();
+      await page.locator('header .brand').click();
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+    } finally {
+      await page.evaluate(() => window.releaseCart());
+    }
+    await cartLink.click();
+    await expect(form.getByText(/Заявка принята/)).toBeVisible();
+    assert.equal(posts.length, 1, 'Opening the cart repeatedly must not attach duplicate send handlers');
+    assert.equal(new URL(posts[0].page_url).pathname, '/request');
+    assert.equal(posts[0].request_items[0].quantity, 2);
+    await expect(page.locator('[data-cart-empty]')).toBeVisible();
+  },
   'native-transition-motion-preference': async page => {
     const exercise = async (current, shouldTransition) => {
       await current.addInitScript(() => window.addEventListener('pagereveal', event => {
@@ -157,12 +226,12 @@ const scenarios = {
         window.__nativeTransition = Boolean(event.viewTransition);
       }));
       await current.goto('/');
-      await current.locator('.v2-header .request-link').click();
-      await expect(current).toHaveURL(new URL('/request', base).href);
+      await current.locator('.v2-footer-nav a[href="/contacts"]').click();
+      await expect(current).toHaveURL(new URL('/contacts', base).href);
       await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
-      await expect(current.locator('body')).toHaveAttribute('data-v2-page', 'request');
+      await expect(current.locator('body')).toHaveAttribute('data-v2-page', 'page');
       assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
-        'Cart navigation should honor the motion preference');
+        'Contact navigation should honor the motion preference');
       await current.locator('.v2-header .brand').click();
       await expect(current).toHaveURL(base.href);
       await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
