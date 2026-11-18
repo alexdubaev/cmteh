@@ -42,6 +42,15 @@ async function openPartsFromProduct(page) {
 }
 
 const scenarios = {
+  'search-example': async page => {
+    await page.goto('/');
+    await page.getByRole('link', { name: '1R-1808', exact: true }).click();
+    await expect(page).toHaveURL(new URL('/product/cat-1r-1808', base).href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'product');
+    await page.evaluate(() => history.back());
+    await expect(page).toHaveURL(base.href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+  },
   'history-error': async page => {
     await openPartsFromProduct(page);
     const text = page.locator('#parts-list-text');
