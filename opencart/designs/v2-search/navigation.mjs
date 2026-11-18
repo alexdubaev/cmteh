@@ -11,7 +11,7 @@ const headSelector = 'meta[name="description"],meta[name="robots"],link[rel="can
 const supported = url => url.origin === location.origin && !url.username && !url.password
   && (url.pathname === '/' || ['/catalog', '/brands', '/articles', '/about', '/delivery', '/payment'].includes(url.pathname)
     || /^\/(?:brand|category|articles)\/[^/]+$/.test(url.pathname)
-    || /^\/(?!admin(?:\/|$)|api(?:\/|$)|account(?:\/|$)|request(?:\/|$)|contacts(?:\/|$)|cart(?:\/|$)|checkout(?:\/|$)|extension(?:\/|$)|image(?:\/|$)|information(?:\/|$)|install(?:\/|$)|product(?:\/|$)|sitemap(?:s)?(?:\/|$)|system(?:\/|$)|_cmteh_platform(?:\/|$))[^/]+$/.test(url.pathname)
+    || /^\/(?!admin(?:\/|$)|api(?:\/|$)|account(?:\/|$)|request(?:\/|$)|parts-list(?:\/|$)|contacts(?:\/|$)|cart(?:\/|$)|checkout(?:\/|$)|extension(?:\/|$)|image(?:\/|$)|information(?:\/|$)|install(?:\/|$)|product(?:\/|$)|sitemap(?:s)?(?:\/|$)|system(?:\/|$)|_cmteh_platform(?:\/|$))[^/]+$/.test(url.pathname)
     || /^\/product\/[^/]+$/.test(url.pathname)
     // Parameterized links keep the existing server/module prefill and recovery behavior.
     || (url.pathname === '/parts-list' && !url.search));
@@ -22,22 +22,26 @@ const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catal
         : /^\/articles\//.test(url.pathname) ? 'article'
           : /^\/product\//.test(url.pathname) ? 'product' : 'page';
 const routeKey = url => url.pathname + url.search;
+const reusableRoute = view => (view.kind === 'home' && routeKey(view.url) === '/')
+  || (view.kind === 'parts-list' && routeKey(view.url) === '/parts-list');
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 820px), (pointer: coarse)');
   const views = new Map();
+  const reusable = new Map();
   const animations = new Set();
   let sequence = 0, pending, loadingTimer, scrollTimer, clearReveal, pointerAction = false;
   const nextId = () => `${Date.now()}-${++sequence}`;
   const metadata = root => [...root.querySelectorAll(headSelector)].map(node => node.cloneNode(true));
-  const currentState = view => ({ ...(history.state && typeof history.state === 'object' ? history.state : {}),
-    v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } });
+  const viewState = view => ({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } });
+  const currentState = view => ({ ...(history.state && typeof history.state === 'object' ? history.state : {}), ...viewState(view) });
   let current = {
     id: nextId(), url: new URL(location.href), kind: document.body.dataset.v2Page,
     nodes: [...main.childNodes], title: document.title, head: metadata(document.head),
     query: input.value, scroll: window.scrollY, focus: null, initial: true,
   };
+  if (reusableRoute(current)) reusable.set(routeKey(current.url), current);
   history.replaceState(currentState(current), '', location.href);
   history.scrollRestoration = 'manual';
   views.set(current.id, current);
@@ -104,6 +108,19 @@ if (main && search && input && dock && status && supported(new URL(location.href
     return animation;
   }
 
+  function playAfterPaint(batch) {
+    for (const animation of batch) {
+      animation.pause();
+      animation.currentTime = 0;
+    }
+    // A costly first paint should not consume the movement's timeline.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const animation of batch) {
+        if (animations.has(animation)) animation.play();
+      }
+    }));
+  }
+
   function revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, options) {
     const height = main.getBoundingClientRect().height;
     if (!height) return;
@@ -138,14 +155,23 @@ if (main && search && input && dock && status && supported(new URL(location.href
     // Leave the new page at its final size on touch and narrow screens.
     if (!compactMotion) revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, { duration, easing });
 
-    if (bounds.height) animate(search, [
+    const searchMotion = bounds.height ? animate(search, [
       { transformOrigin: '0 0', transform: `translate(${previousSearch.left - bounds.left}px, ${previousSearch.top - bounds.top}px) scale(${previousSearch.width / bounds.width},${previousSearch.height / bounds.height})` },
       { transformOrigin: '0 0', transform: 'none' },
-    ], { duration, easing });
+    ], { duration, easing }) : null;
+
+    if (compactMotion) {
+      // Keep the long content and the backdrop out of the animation.
+      const title = main.querySelector('h1');
+      const titleMotion = title && animate(title, [{ opacity: 0.65 }, { opacity: 1 }], { duration, easing });
+      playAfterPaint([searchMotion, titleMotion].filter(Boolean));
+      return;
+    }
+
     const content = opening ? [...main.children] : [...main.querySelector('.v2-home-content').children].filter(node => !node.matches('[data-v2-search-home]'));
     for (const element of content) animate(element,
-      [{ opacity: compactMotion ? 0.5 : 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
-      { duration: compactMotion ? duration : 320, delay: compactMotion ? 0 : 70, fill: 'backwards', easing });
+      [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 320, delay: 70, fill: 'backwards', easing });
   }
 
   function clearLoading() {
@@ -193,6 +219,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     clearLoading();
     current = view;
     views.set(view.id, view);
+    if (reusableRoute(view)) reusable.set(routeKey(view.url), view);
     window.scrollTo({ top: restore ? view.scroll : 0, behavior: 'instant' });
     if (!restore && view.url.hash) {
       let anchor = view.url.hash.slice(1);
@@ -236,6 +263,16 @@ if (main && search && input && dock && status && supported(new URL(location.href
       show({ ...old, url }, { restore: true, motion });
       return;
     }
+    // Keep the already opened home and clean list available for ordinary mobile taps.
+    // Product, offer and catalogue responses still come from the server.
+    const cached = compact.matches && !restoreId && reusable.get(routeKey(url));
+    if (cached) {
+      if (current.url.href === url.href && location.href === url.href) return;
+      const view = { ...cached, url, id: nextId(), query: input.value, scroll: 0, focus: null };
+      history.pushState(viewState(view), '', url.href);
+      show(view, { motion });
+      return;
+    }
     const request = new AbortController();
     const transition = { request, restoring: Boolean(restoreId) };
     pending = transition;
@@ -250,7 +287,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
       status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
         : pageKind(url) === 'parts-list' ? 'Открываем список или файл…' : 'Загружаем результаты…';
       status.hidden = false;
-      main.classList.add('v2-waiting');
+      if (!compact.matches) main.classList.add('v2-waiting');
     }, 160);
     const deadline = setTimeout(() => {
       if (pending !== transition) return;
@@ -297,7 +334,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
       if (pending !== transition) return;
       if (kind === 'catalog') view.query = finalUrl.searchParams.get('q') || '';
       if (restoreId) history.replaceState(currentState(view), '', finalUrl.href);
-      else history.pushState({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } }, '', finalUrl.href);
+      else history.pushState(viewState(view), '', finalUrl.href);
       show(view, { restore: Boolean(restoreId), motion });
     } catch {
       if (pending === transition) showFailure(url, options);
