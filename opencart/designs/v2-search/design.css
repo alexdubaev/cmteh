@@ -1,10 +1,8 @@
 /* V2 is a local presentation overlay. Commerce and interaction modules are reused. */
-@view-transition { navigation: auto; }
-::view-transition-old(root),
-::view-transition-new(root) { animation-duration: 220ms; }
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
   ::view-transition-old(root),
-  ::view-transition-new(root) { animation-duration: 1ms; }
+  ::view-transition-new(root) { animation-duration: 220ms; }
 }
 .v2-storefront {
   --font-heading: Arial, Helvetica, sans-serif;
@@ -40,7 +38,7 @@
 .v2-stage > .v2-inner-search[hidden] { display: none; }
 .v2-stage > .v2-inner-search .v2-search { max-width: 800px; }
 .v2-storefront:not(.v2-home) .v2-stage > .v2-excavator-layer { opacity: .26; }
-.v2-stage > .v2-excavator-layer { height: min(900px, 100dvh); max-height: none; bottom: auto; transition: opacity 220ms ease; }
+.v2-stage > .v2-excavator-layer { max-height: none; bottom: auto; transition: opacity 220ms ease; }
 .v2-navigation-status { width: min(calc(100% - 32px), 800px); margin: 0 auto 16px; color: #656c77; font-size: 14px; }
 .v2-navigation-status a { margin-left: 8px; text-decoration: underline; }
 .v2-waiting { opacity: .5; }

@@ -4,6 +4,24 @@ const stage = document.querySelector('.v2-stage');
 const layer = stage?.querySelector('.v2-excavator-layer');
 const drawing = layer?.querySelector('.v2-excavator');
 
+if (stage && layer) {
+  const header = document.querySelector('.v2-header');
+  const footer = document.querySelector('.v2-footer');
+  const stableDrawingHeight = () => {
+    const homeContentFloor = innerWidth <= 520 ? 622 : innerWidth <= 820 ? 628 : 0;
+    const available = document.documentElement.clientHeight
+      - (header?.getBoundingClientRect().height || 0) - (footer?.getBoundingClientRect().height || 0);
+    layer.style.height = `${Math.min(900, Math.max(available, homeContentFloor))}px`;
+  };
+  stableDrawingHeight();
+  window.addEventListener('resize', stableDrawingHeight, { passive: true });
+  if (header && footer && 'ResizeObserver' in window) {
+    const observer = new ResizeObserver(stableDrawingHeight);
+    observer.observe(header);
+    observer.observe(footer);
+  }
+}
+
 if (drawing && (CSS.supports('mask-image', 'radial-gradient(black, transparent)')
     || CSS.supports('-webkit-mask-image', 'radial-gradient(black, transparent)'))) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');

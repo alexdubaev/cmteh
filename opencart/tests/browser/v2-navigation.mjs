@@ -53,6 +53,7 @@ const scenarios = {
   },
   'brand-return-motion': async page => {
     await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
     const brandLink = page.locator('a[href^="/brand/"]:visible').first();
     await expect(brandLink).toBeVisible();
     const brandUrl = await brandLink.getAttribute('href');
@@ -80,6 +81,29 @@ const scenarios = {
       'Drawing position should stay fixed during the reveal');
     assert.ok(Math.max(...samples.map(point => point.drawingHeight)) - Math.min(...samples.map(point => point.drawingHeight)) < 1,
       'Drawing size should stay fixed during the reveal');
+  },
+  'native-transition-motion-preference': async page => {
+    const exercise = async (current, shouldTransition) => {
+      await current.addInitScript(() => window.addEventListener('pagereveal', event => {
+        window.__nativeRevealSeen = true;
+        window.__nativeTransition = Boolean(event.viewTransition);
+      }));
+      await current.goto('/');
+      await current.locator('.v2-header .request-link').click();
+      await expect(current).toHaveURL(new URL('/request', base).href);
+      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
+      await expect(current.locator('body')).toHaveAttribute('data-v2-page', 'request');
+      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
+        'Cart navigation should honor the motion preference');
+      await current.locator('.v2-header .brand').click();
+      await expect(current).toHaveURL(base.href);
+      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
+      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
+        'Return-to-home navigation should honor the motion preference');
+    };
+    await exercise(page, false);
+    const normalPage = await browser.newPage({ baseURL: base.href, reducedMotion: 'no-preference' });
+    try { await exercise(normalPage, true); } finally { await normalPage.close(); }
   },
   'history-error': async page => {
     await openPartsFromProduct(page);
