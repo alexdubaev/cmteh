@@ -2,19 +2,19 @@ window.STATE =
 {
   "version": 2,
   "slug": "v2-homepage-navigation",
-  "dir": "2026-11-18-v2-homepage-navigation--wip",
+  "dir": "2026-11-18-v2-homepage-navigation",
   "title": "СМ ТЕХНО V2 — переходы с главной",
   "mode": "semi",
   "depth": "normal",
   "tier": "T0",
-  "briefFile": null,
+  "briefFile": "2026-11-18-brief.md",
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": null,
+  "baseCommit": "b62edb7",
   "startedAt": "2026-11-18T15:13:32+03:00",
-  "updatedAt": "2026-11-18T15:17:35+03:00",
-  "finishedAt": null,
+  "updatedAt": "2026-11-18T15:39:06+03:00",
+  "finishedAt": "2026-11-18T15:39:06+03:00",
   "stages": [
     {
       "id": "preflight",
@@ -42,26 +42,33 @@ window.STATE =
     },
     {
       "id": "plan",
-      "status": "active",
-      "startedAt": "2026-11-18T15:17:12+03:00"
+      "status": "done",
+      "startedAt": "2026-11-18T15:17:12+03:00",
+      "finishedAt": "2026-11-18T15:17:39+03:00"
     },
     {
       "id": "build",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-18T15:17:39+03:00",
+      "finishedAt": "2026-11-18T15:22:50+03:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-18T15:22:50+03:00",
+      "finishedAt": "2026-11-18T15:30:13+03:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-11-18T15:30:13+03:00",
+      "finishedAt": "2026-11-18T15:39:06+03:00"
     }
   ],
   "requirements": {
     "total": 5,
-    "done": 0,
-    "inTicket": 5,
+    "done": 5,
+    "inTicket": 0,
     "inSpec": 0,
     "placeholder": 0,
     "deferred": 0,
@@ -86,12 +93,26 @@ window.STATE =
       ],
       "review": "нет",
       "model": "обычная",
-      "status": "pending",
+      "status": "done",
       "retries": 0,
-      "repairs": 0
+      "repairs": 2,
+      "startedAt": "2026-11-18T15:17:40+03:00",
+      "finishedAt": "2026-11-18T15:36:53+03:00",
+      "tests": {
+        "passed": 10,
+        "failed": 0
+      },
+      "commit": "3a16c35",
+      "repairFindings": [
+        "Сохранить положение чертежа на главной и отключить межстраничный переход в reduced motion",
+        "G4: высота мобильной шапки меняется при появлении логотипа, сдвигая фон на 12 px"
+      ]
     }
   ],
-  "tests": null,
+  "tests": {
+    "passed": 10,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [],
     "assumptions": [],
@@ -105,7 +126,11 @@ window.STATE =
     "items": []
   },
   "concerns": [],
-  "blind": null,
+  "blind": {
+    "checked": 5,
+    "matched": 5,
+    "mismatches": []
+  },
   "beats": [
     "2026-11-18T15:13:32+03:00",
     "2026-11-18T15:15:11+03:00",
@@ -116,9 +141,23 @@ window.STATE =
     "2026-11-18T15:17:14+03:00",
     "2026-11-18T15:17:15+03:00",
     "2026-11-18T15:17:34+03:00",
-    "2026-11-18T15:17:35+03:00"
+    "2026-11-18T15:17:35+03:00",
+    "2026-11-18T15:17:37+03:00",
+    "2026-11-18T15:17:39+03:00",
+    "2026-11-18T15:17:40+03:00",
+    "2026-11-18T15:22:49+03:00",
+    "2026-11-18T15:22:50+03:00",
+    "2026-11-18T15:26:01+03:00",
+    "2026-11-18T15:27:15+03:00",
+    "2026-11-18T15:30:12+03:00",
+    "2026-11-18T15:30:13+03:00",
+    "2026-11-18T15:33:47+03:00",
+    "2026-11-18T15:36:53+03:00",
+    "2026-11-18T15:39:03+03:00",
+    "2026-11-18T15:39:04+03:00",
+    "2026-11-18T15:39:06+03:00"
   ],
-  "rev": 11,
+  "rev": 25,
   "waiting": null,
   "waits": [],
   "log": [
@@ -189,33 +228,132 @@ window.STATE =
       "g": "G3",
       "ok": true,
       "problems": 0
+    },
+    {
+      "t": "2026-11-18T15:17:39+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-18T15:17:40+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-18T15:22:49+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 9,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-18T15:22:50+03:00",
+      "k": "stage",
+      "id": "review",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-18T15:26:01+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "repair",
+      "note": "Сохранить положение чертежа на главной и отключить межстраничный переход в reduced motion"
+    },
+    {
+      "t": "2026-11-18T15:30:12+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-18T15:30:13+03:00",
+      "k": "stage",
+      "id": "final",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-18T15:33:47+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "repair",
+      "note": "G4: высота мобильной шапки меняется при появлении логотипа, сдвигая фон на 12 px"
+    },
+    {
+      "t": "2026-11-18T15:36:53+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-18T15:39:03+03:00",
+      "k": "gate",
+      "g": "G4",
+      "ok": true,
+      "checked": 5,
+      "matched": 5
+    },
+    {
+      "t": "2026-11-18T15:39:04+03:00",
+      "k": "tests",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "t": "2026-11-18T15:39:06+03:00",
+      "k": "finish",
+      "result": "Переходы с главной V2 и плавный возврат прошли независимую локальную приёмку"
     }
   ],
   "reqList": [
     {
       "id": "R01",
       "text": "«Проверь остальные ссылки и кнопки на главной V2»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R02",
       "text": "«Если где-то ещё открывается старый каталог вместо нужной страницы V2, исправь»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R03",
       "text": "«обратно нажму на логотип чтоб вернуться на главную, происходит дерганье, трактор на фоне, строка поиска, посмотри что это и исправь»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R04",
       "text": "«если на логтип бренда нажать, то он тоже не открывается плавным раскрытием»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R05",
       "text": "«проверь чтоб все по такому принципу работало»",
-      "status": "in-ticket"
+      "status": "done"
     }
   ],
   "gates": {
@@ -236,7 +374,13 @@ window.STATE =
       "ok": true,
       "at": "2026-11-18T15:17:35+03:00",
       "problems": 0
+    },
+    "G4": {
+      "ok": true,
+      "at": "2026-11-18T15:39:03+03:00",
+      "checked": 5,
+      "matched": 5
     }
   },
-  "result": null
+  "result": "Переходы с главной V2 и плавный возврат прошли независимую локальную приёмку"
 }
