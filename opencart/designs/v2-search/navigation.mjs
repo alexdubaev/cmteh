@@ -9,11 +9,18 @@ const dock = document.querySelector('#v2-search-dock');
 const status = document.querySelector('#v2-navigation-status');
 const headSelector = 'meta[name="description"],meta[name="robots"],link[rel="canonical"],meta[property^="og:"],script[type="application/ld+json"]';
 const supported = url => url.origin === location.origin && !url.username && !url.password
-  && (url.pathname === '/' || url.pathname === '/catalog' || /^\/product\/[^/]+$/.test(url.pathname)
+  && (url.pathname === '/' || ['/catalog', '/brands', '/articles', '/about', '/delivery', '/payment'].includes(url.pathname)
+    || /^\/(?:brand|category|articles)\/[^/]+$/.test(url.pathname)
+    || /^\/(?!admin(?:\/|$)|api(?:\/|$)|account(?:\/|$)|request(?:\/|$)|contacts(?:\/|$)|cart(?:\/|$)|checkout(?:\/|$)|extension(?:\/|$)|image(?:\/|$)|information(?:\/|$)|install(?:\/|$)|product(?:\/|$)|sitemap(?:s)?(?:\/|$)|system(?:\/|$)|_cmteh_platform(?:\/|$))[^/]+$/.test(url.pathname)
+    || /^\/product\/[^/]+$/.test(url.pathname)
     // Parameterized links keep the existing server/module prefill and recovery behavior.
     || (url.pathname === '/parts-list' && !url.search));
 const pageKind = url => url.pathname === '/' ? 'home' : url.pathname === '/catalog' ? 'catalog'
-  : url.pathname === '/parts-list' ? 'parts-list' : 'product';
+  : url.pathname === '/brands' ? 'brands' : url.pathname === '/articles' ? 'articles'
+    : url.pathname === '/parts-list' ? 'parts-list'
+      : /^\/brand\//.test(url.pathname) ? 'brand' : /^\/category\//.test(url.pathname) ? 'category'
+        : /^\/articles\//.test(url.pathname) ? 'article'
+          : /^\/product\//.test(url.pathname) ? 'product' : 'page';
 const routeKey = url => url.pathname + url.search;
 
 if (main && search && input && dock && status && supported(new URL(location.href))) {

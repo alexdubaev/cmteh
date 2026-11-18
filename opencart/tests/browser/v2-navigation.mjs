@@ -11,8 +11,8 @@ const { chromium, expect } = require('@playwright/test');
 const browser = await chromium.launch();
 const product = '/product/jd-re568158';
 
-async function scenario(name, run) {
-  const page = await browser.newPage({ baseURL: base.href, reducedMotion: 'reduce' });
+async function scenario(name, run, reducedMotion = 'reduce') {
+  const page = await browser.newPage({ baseURL: base.href, reducedMotion });
   try {
     await run(page);
     console.log('PASS ' + name);
@@ -50,6 +50,36 @@ const scenarios = {
     await page.evaluate(() => history.back());
     await expect(page).toHaveURL(base.href);
     await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+  },
+  'brand-return-motion': async page => {
+    await page.goto('/');
+    const brandLink = page.locator('a[href^="/brand/"]:visible').first();
+    await expect(brandLink).toBeVisible();
+    const brandUrl = await brandLink.getAttribute('href');
+    await brandLink.click();
+    await expect(page).toHaveURL(new URL(brandUrl, base).href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'brand');
+    await page.locator('.v2-header .brand').click();
+    await expect(page).toHaveURL(base.href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+    const samples = await page.evaluate(async () => {
+      const search = document.querySelector('#article-search');
+      const drawing = document.querySelector('.v2-excavator');
+      const points = [];
+      const end = performance.now() + 650;
+      while (performance.now() < end) {
+        const searchRect = search.getBoundingClientRect();
+        const drawingRect = drawing.getBoundingClientRect();
+        points.push({ searchY: searchRect.y, drawingY: drawingRect.y, drawingHeight: drawingRect.height });
+        await new Promise(requestAnimationFrame);
+      }
+      return points;
+    });
+    assert.ok(new Set(samples.map(point => Math.round(point.searchY))).size > 1, 'Search should move during the reveal');
+    assert.ok(Math.max(...samples.map(point => point.drawingY)) - Math.min(...samples.map(point => point.drawingY)) < 1,
+      'Drawing position should stay fixed during the reveal');
+    assert.ok(Math.max(...samples.map(point => point.drawingHeight)) - Math.min(...samples.map(point => point.drawingHeight)) < 1,
+      'Drawing size should stay fixed during the reveal');
   },
   'history-error': async page => {
     await openPartsFromProduct(page);
@@ -189,7 +219,7 @@ const scenarios = {
 try {
   for (const name of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(scenarios)) {
     assert.ok(scenarios[name], `Unknown scenario ${name}`);
-    await scenario(name, scenarios[name]);
+    await scenario(name, scenarios[name], name === 'brand-return-motion' ? 'no-preference' : 'reduce');
   }
 } finally {
   await browser.close();

@@ -42,7 +42,7 @@
   <script type="module" src="{{ assets }}request.mjs?v=20261117-3"></script>
   <script type="module" src="{{ assets }}parts-list.mjs?v=20261117-2"></script>
   <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261116-3"></script>
-  {% if page in ['home', 'catalog', 'product', 'parts-list'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261118-1"></script>{% endif %}
+  {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261118-2"></script>{% endif %}
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>
@@ -50,7 +50,7 @@
   <a class="skip-link" href="#main-content" tabindex="0">К основному содержимому</a>
   {% include templates ~ 'v2/header.twig' %}
   <div class="v2-stage">
-    {% if page in ['home', 'catalog', 'product', 'parts-list'] %}<div class="v2-excavator-layer" aria-hidden="true"><img class="v2-excavator" src="{{ assets }}v2-search/images/excavator-drawing.webp?v=20261116-2" alt="" width="1536" height="1024" decoding="async"></div>{% endif %}
+    {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page'] %}<div class="v2-excavator-layer" aria-hidden="true"><img class="v2-excavator" src="{{ assets }}v2-search/images/excavator-drawing.webp?v=20261116-2" alt="" width="1536" height="1024" decoding="async"></div>{% endif %}
     <div id="v2-search-dock" class="shell v2-inner-search"{% if page == 'home' %} hidden{% endif %}>{% if page != 'home' %}{% include templates ~ 'v2/search.twig' %}{% endif %}</div>
     <div id="v2-navigation-status" class="v2-navigation-status" role="status" aria-live="polite" hidden></div>
     <main id="main-content" tabindex="-1"{% if page == 'catalog' and model.total|default(0) == 1 and not model.partial|default(false) and model.products|default([])|length == 1 %} data-v2-single-result="/product/{{ (model.products|first).slug|url_encode }}"{% endif %}>
