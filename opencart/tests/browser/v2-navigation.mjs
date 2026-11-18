@@ -52,6 +52,43 @@ const scenarios = {
     await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
   },
   'brand-return-motion': async page => {
+    const drawingGeometry = () => page.evaluate(async () => {
+      const stage = document.querySelector('.v2-stage');
+      const layer = document.querySelector('.v2-excavator-layer');
+      const points = [];
+      const end = performance.now() + 650;
+      while (performance.now() < end) {
+        const stageRect = stage.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
+        points.push({ stageY: stageRect.y, drawingY: layerRect.y, drawingHeight: layerRect.height });
+        await new Promise(requestAnimationFrame);
+      }
+      return points;
+    });
+    const assertStableGeometry = (baseline, samples, size) => {
+      for (const key of ['stageY', 'drawingY', 'drawingHeight']) {
+        assert.ok(Math.max(...samples.map(point => point[key]), baseline[key])
+          - Math.min(...samples.map(point => point[key]), baseline[key]) < 1,
+        `${size} ${key} should stay fixed while the page opens or returns`);
+      }
+    };
+    for (const size of [{ width: 390, height: 844 }, { width: 768, height: 883 }]) {
+      await page.setViewportSize(size);
+      await page.goto('/');
+      await page.evaluate(() => document.fonts.ready);
+      const baseline = await page.evaluate(() => {
+        const stage = document.querySelector('.v2-stage').getBoundingClientRect();
+        const drawing = document.querySelector('.v2-excavator-layer').getBoundingClientRect();
+        return { stageY: stage.y, drawingY: drawing.y, drawingHeight: drawing.height };
+      });
+      await page.getByRole('link', { name: '1R-1808', exact: true }).click();
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'product');
+      assertStableGeometry(baseline, await drawingGeometry(), `${size.width}px product open`);
+      await page.locator('.v2-header .brand').click();
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+      assertStableGeometry(baseline, await drawingGeometry(), `${size.width}px product return`);
+    }
+    await page.setViewportSize({ width: 888, height: 883 });
     await page.goto('/');
     await page.evaluate(() => document.fonts.ready);
     const brandLink = page.locator('a[href^="/brand/"]:visible').first();
