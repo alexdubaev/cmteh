@@ -11,8 +11,8 @@ const { chromium, expect } = require('@playwright/test');
 const browser = await chromium.launch();
 const product = '/product/jd-re568158';
 
-async function scenario(name, run) {
-  const page = await browser.newPage({ baseURL: base.href, reducedMotion: 'reduce' });
+async function scenario(name, run, reducedMotion = 'reduce') {
+  const page = await browser.newPage({ baseURL: base.href, reducedMotion });
   try {
     await run(page);
     console.log('PASS ' + name);
@@ -50,6 +50,97 @@ const scenarios = {
     await page.evaluate(() => history.back());
     await expect(page).toHaveURL(base.href);
     await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+  },
+  'brand-return-motion': async page => {
+    const drawingGeometry = () => page.evaluate(async () => {
+      const stage = document.querySelector('.v2-stage');
+      const layer = document.querySelector('.v2-excavator-layer');
+      const points = [];
+      const end = performance.now() + 650;
+      while (performance.now() < end) {
+        const stageRect = stage.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
+        points.push({ stageY: stageRect.y, drawingY: layerRect.y, drawingHeight: layerRect.height });
+        await new Promise(requestAnimationFrame);
+      }
+      return points;
+    });
+    const assertStableGeometry = (baseline, samples, size) => {
+      for (const key of ['stageY', 'drawingY', 'drawingHeight']) {
+        assert.ok(Math.max(...samples.map(point => point[key]), baseline[key])
+          - Math.min(...samples.map(point => point[key]), baseline[key]) < 1,
+        `${size} ${key} should stay fixed while the page opens or returns`);
+      }
+    };
+    for (const size of [{ width: 390, height: 844 }, { width: 768, height: 883 }]) {
+      await page.setViewportSize(size);
+      await page.goto('/');
+      await page.evaluate(() => document.fonts.ready);
+      const baseline = await page.evaluate(() => {
+        const stage = document.querySelector('.v2-stage').getBoundingClientRect();
+        const drawing = document.querySelector('.v2-excavator-layer').getBoundingClientRect();
+        return { stageY: stage.y, drawingY: drawing.y, drawingHeight: drawing.height };
+      });
+      await page.getByRole('link', { name: '1R-1808', exact: true }).click();
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'product');
+      assertStableGeometry(baseline, await drawingGeometry(), `${size.width}px product open`);
+      await page.locator('.v2-header .brand').click();
+      await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+      assertStableGeometry(baseline, await drawingGeometry(), `${size.width}px product return`);
+    }
+    await page.setViewportSize({ width: 888, height: 883 });
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    const brandLink = page.locator('a[href^="/brand/"]:visible').first();
+    await expect(brandLink).toBeVisible();
+    const brandUrl = await brandLink.getAttribute('href');
+    await brandLink.click();
+    await expect(page).toHaveURL(new URL(brandUrl, base).href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'brand');
+    await page.locator('.v2-header .brand').click();
+    await expect(page).toHaveURL(base.href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+    const samples = await page.evaluate(async () => {
+      const search = document.querySelector('#article-search');
+      const drawing = document.querySelector('.v2-excavator');
+      const points = [];
+      const end = performance.now() + 650;
+      while (performance.now() < end) {
+        const searchRect = search.getBoundingClientRect();
+        const drawingRect = drawing.getBoundingClientRect();
+        points.push({ searchY: searchRect.y, drawingY: drawingRect.y, drawingHeight: drawingRect.height });
+        await new Promise(requestAnimationFrame);
+      }
+      return points;
+    });
+    assert.ok(new Set(samples.map(point => Math.round(point.searchY))).size > 1, 'Search should move during the reveal');
+    assert.ok(Math.max(...samples.map(point => point.drawingY)) - Math.min(...samples.map(point => point.drawingY)) < 1,
+      'Drawing position should stay fixed during the reveal');
+    assert.ok(Math.max(...samples.map(point => point.drawingHeight)) - Math.min(...samples.map(point => point.drawingHeight)) < 1,
+      'Drawing size should stay fixed during the reveal');
+  },
+  'native-transition-motion-preference': async page => {
+    const exercise = async (current, shouldTransition) => {
+      await current.addInitScript(() => window.addEventListener('pagereveal', event => {
+        window.__nativeRevealSeen = true;
+        window.__nativeTransition = Boolean(event.viewTransition);
+      }));
+      await current.goto('/');
+      await current.locator('.v2-header .request-link').click();
+      await expect(current).toHaveURL(new URL('/request', base).href);
+      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
+      await expect(current.locator('body')).toHaveAttribute('data-v2-page', 'request');
+      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
+        'Cart navigation should honor the motion preference');
+      await current.locator('.v2-header .brand').click();
+      await expect(current).toHaveURL(base.href);
+      await expect.poll(() => current.evaluate(() => window.__nativeRevealSeen)).toBe(true);
+      assert.equal(await current.evaluate(() => window.__nativeTransition), shouldTransition,
+        'Return-to-home navigation should honor the motion preference');
+    };
+    await exercise(page, false);
+    const normalPage = await browser.newPage({ baseURL: base.href, reducedMotion: 'no-preference' });
+    try { await exercise(normalPage, true); } finally { await normalPage.close(); }
   },
   'history-error': async page => {
     await openPartsFromProduct(page);
@@ -189,7 +280,7 @@ const scenarios = {
 try {
   for (const name of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(scenarios)) {
     assert.ok(scenarios[name], `Unknown scenario ${name}`);
-    await scenario(name, scenarios[name]);
+    await scenario(name, scenarios[name], name === 'brand-return-motion' ? 'no-preference' : 'reduce');
   }
 } finally {
   await browser.close();

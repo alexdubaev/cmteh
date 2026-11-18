@@ -1,7 +1,9 @@
 <!-- autopilot:progress -->
 # СМ ТЕХНО — локальная поисковая V2
 
-Последняя сборка: `.autopilot/2026-11-12-v2-search-local/`, product ddb5f0d. V2 http://127.0.0.1:3162/ работает на synthetic fixtures, выбранный визуал и основные пользовательские сценарии проверены в браузере владельца. T01/T02 PASS, один fresh review без замечаний; финальный clean-clone G4 PASS14/14 в local scope. V1 этот прогон не менял. Принятый параллельно PR26/analytics включён в V2; текущее127filepackage bcc02951… соответствует origin/main8a5ada0. Собственные G4 контейнеры3163 остановлены, основной3162 работает.
+Последняя сборка: `.autopilot/2026-11-18-v2-homepage-navigation/`, продукт 3a16c35. G4 проверил 30 маршрутов и движение поиска и чертежа на 390/768/1440px. Статус экземпляра владельца указан в versions.json.
+
+Предыдущая V2 сборка: `.autopilot/2026-11-12-v2-search-local/`, product ddb5f0d. V2 http://127.0.0.1:3162/ работает на synthetic fixtures, выбранный визуал и основные пользовательские сценарии проверены в браузере владельца. T01/T02 PASS, один fresh review без замечаний; финальный clean-clone G4 PASS14/14 в local scope. V1 этот прогон не менял. Принятый параллельно PR26/analytics включён в V2; текущее127filepackage bcc02951… соответствует origin/main8a5ada0. Собственные G4 контейнеры3163 остановлены, основной3162 работает.
 
 Предыдущая analytics source-acceptance: `.autopilot/2026-11-12-site-analytics/`, c951384, четыре общих поля, прежний G4/MySQL/nativebrowser127hash PASS; host result — D:/codex/_handoffs/cmteh-site-analytics-result-2026-11-12.md. Складской host result — D:/codex/_handoffs/cmteh-warehouses-result-2026-11-11.md. Эти handoff относятся к другим выпускам, текущая V2 приёмка не доказывает deploy.
 
