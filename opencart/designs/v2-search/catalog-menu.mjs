@@ -8,6 +8,7 @@ if (tabs) {
   const viewport = menu.querySelector('.v2-catalog-viewport');
   const indicator = tabs.querySelector('.v2-catalog-indicator');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const compact = matchMedia('(max-width: 820px), (pointer: coarse)');
   const animations = new Set();
   let selected = 0, pointer = false, clearHeight, outgoing;
   const easing = 'cubic-bezier(.2,.75,.25,1)';
@@ -29,11 +30,12 @@ if (tabs) {
   function select(index, motion = false) {
     if (index === selected && !tabs.hidden) return;
     const previous = selected;
-    const height = viewport.getBoundingClientRect().height;
-    const marker = getComputedStyle(indicator).transform;
-    stop();
     const moving = motion && menu.open && !reduced.matches && Boolean(viewport.animate);
-    if (moving) {
+    const compactMotion = compact.matches;
+    const height = moving && !compactMotion ? viewport.getBoundingClientRect().height : 0;
+    const marker = moving ? getComputedStyle(indicator).transform : null;
+    stop();
+    if (moving && !compactMotion) {
       // Visual-only outgoing copy: keep the previous list present while the new
       // one fades in, without duplicate IDs, focus targets or accessible panels.
       outgoing = panels[previous].cloneNode(true);
@@ -54,6 +56,13 @@ if (tabs) {
     tabs.dataset.active = String(index);
     viewport.scrollTop = 0;
     if (!moving) return;
+    animate(indicator, [{ transform: marker }, { transform: getComputedStyle(indicator).transform }],
+      { duration: compactMotion ? 170 : 300, easing });
+    if (compactMotion) {
+      // Paint the new links directly at their final height on mobile.
+      animate(panels[index], [{ opacity: 0.5 }, { opacity: 1 }], { duration: 170, easing });
+      return;
+    }
     const target = viewport.getBoundingClientRect().height;
     viewport.classList.add('is-switching');
     const finish = () => {
@@ -67,7 +76,6 @@ if (tabs) {
     clearHeight = finish;
     const sizing = animate(viewport, [{ height: `${height}px` }, { height: `${target}px` }], { duration: 300, easing, fill: 'both' });
     sizing.finished.then(finish, finish);
-    animate(indicator, [{ transform: marker }, { transform: getComputedStyle(indicator).transform }], { duration: 300, easing });
     animate(outgoing, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
     animate(panels[index], [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'backwards' });
   }

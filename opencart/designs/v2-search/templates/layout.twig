@@ -36,13 +36,13 @@
   <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
-  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261118-1">
+  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261118-2">
   <script type="module" src="{{ assets }}v2-search/parallax.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}storefront.mjs?v=20261117-2"></script>
   <script type="module" src="{{ assets }}request.mjs?v=20261117-3"></script>
   <script type="module" src="{{ assets }}parts-list.mjs?v=20261117-2"></script>
-  <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261116-3"></script>
-  {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261118-2"></script>{% endif %}
+  <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261118-1"></script>
+  {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261118-3"></script>{% endif %}
   {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
   {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
 </head>
