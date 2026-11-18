@@ -119,6 +119,37 @@ const scenarios = {
     assert.ok(Math.max(...samples.map(point => point.drawingHeight)) - Math.min(...samples.map(point => point.drawingHeight)) < 1,
       'Drawing size should stay fixed during the reveal');
   },
+  'mobile-waiting-and-return': async page => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.waitForFunction(() => history.state?.v2View);
+    const search = page.locator('#article-search');
+    const start = await search.boundingBox();
+    const firstList = holdFetch(page, '/parts-list');
+    await firstList.installed;
+    try {
+      await page.locator('.v2-quote-link').click();
+      await firstList.started;
+      await expect(page.getByText('Открываем список или файл…')).toBeVisible();
+      assert.ok(Math.abs((await search.boundingBox()).y - start.y) < 1, 'Loading must not move the search field');
+      await expect(page.locator('#main-content')).toHaveCSS('opacity', '1');
+    } finally {
+      firstList.release();
+    }
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'parts-list');
+    await page.locator('#parts-list-text').fill('RE568158;2');
+
+    const repeats = [];
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname;
+      if (request.resourceType() === 'fetch' && (path === '/' || path === '/parts-list')) repeats.push(path);
+    });
+    await page.locator('header .brand').click();
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+    await page.locator('.v2-quote-link').click();
+    await expect(page.locator('#parts-list-text')).toHaveValue('RE568158;2');
+    assert.deepEqual(repeats, [], 'Already visited home and list should not require another request');
+  },
   'native-transition-motion-preference': async page => {
     const exercise = async (current, shouldTransition) => {
       await current.addInitScript(() => window.addEventListener('pagereveal', event => {
