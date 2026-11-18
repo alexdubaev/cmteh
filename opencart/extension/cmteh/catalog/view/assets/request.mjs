@@ -222,8 +222,8 @@ function setupCart(cart) {
     }
     render();
   }
-  onCartChange(() => update());
-  return () => update(true);
+  onCartChange(() => { if (cart.isConnected) update(); });
+  return () => { if (cart.isConnected) update(true); };
 }
 
 const names = ["company", "name", "phone", "email", "message"];
@@ -293,7 +293,7 @@ function setupLead(form, refreshCart) {
     result.hidden = message === "";
   }
   function fieldError(field, message) {
-    const error = document.getElementById(type + "-" + field.name + "-error");
+    const error = form.querySelector("#" + type + "-" + field.name + "-error");
     if (!error) return;
     field.setAttribute("aria-invalid", String(Boolean(message)));
     error.textContent = message;
@@ -313,6 +313,7 @@ function setupLead(form, refreshCart) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (preparingCart || sending) return;
+    const page_url = location.href;
     let items = [];
     if (rfq) {
       // Queue behind quantity, removal and offer changes already requested.
@@ -348,12 +349,11 @@ function setupLead(form, refreshCart) {
       return;
     }
     const note = [company.trim() && "Компания: " + company.trim(), message.trim()].filter(Boolean).join("\n\n");
-    if (note.length > 3000 || location.href.length > 1000) {
+    if (note.length > 3000 || page_url.length > 1000) {
       show(note.length > 3000 ? "Сократите компанию и комментарий до 3 000 символов вместе." : "Откройте страницу без лишних параметров и повторите отправку.", true);
       return;
     }
     const request_items = items.map(({ article, quantity, productId, offerId, offerVersion }) => ({ article, quantity, ...(productId ? { product_id: productId } : {}), ...(offerId ? { offer_id: offerId, offer_version: offerVersion } : {}) }));
-    const page_url = location.href;
     // Preserve the original field order for pending hashes stored before migration.
     const payload = rfq
       ? { name, phone, email, company, message, request_items, page_url }
@@ -419,6 +419,23 @@ function setupLead(form, refreshCart) {
   if (preparing) preparing.hidden = true;
 }
 
-const cart = document.querySelector("[data-cart]");
-const refreshCart = cart ? setupCart(cart) : undefined;
-for (const form of document.querySelectorAll("[data-lead]")) setupLead(form, refreshCart);
+const carts = new WeakMap();
+const leads = new WeakSet();
+
+export function mountRequestPage(root, { refresh = false } = {}) {
+  const cart = root.querySelector("[data-cart]");
+  let refreshCart = carts.get(cart);
+  if (cart && !refreshCart) {
+    refreshCart = setupCart(cart);
+    carts.set(cart, refreshCart);
+  } else if (refresh) {
+    refreshCart?.();
+  }
+  for (const form of root.querySelectorAll("[data-lead]")) {
+    if (leads.has(form)) continue;
+    setupLead(form, refreshCart);
+    leads.add(form);
+  }
+}
+
+mountRequestPage(document);

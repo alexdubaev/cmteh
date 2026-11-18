@@ -177,12 +177,19 @@ if (backToTop) {
   if ("IntersectionObserver" in window) {
     const submitObserver = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (entry.isIntersecting) visibleSubmits.add(entry.target);
+        if (entry.isIntersecting && entry.target.isConnected) visibleSubmits.add(entry.target);
         else visibleSubmits.delete(entry.target);
       }
       updateBackToTop();
     }, { threshold: 0.1 });
-    for (const submit of document.querySelectorAll(".lead-form button[type=submit]")) submitObserver.observe(submit);
+    const observeSubmits = () => {
+      submitObserver.disconnect();
+      visibleSubmits.clear();
+      for (const submit of document.querySelectorAll(".lead-form button[type=submit]")) submitObserver.observe(submit);
+      updateBackToTop();
+    };
+    observeSubmits();
+    document.addEventListener("v2:navigated", observeSubmits);
   }
   backToTop.addEventListener("click", (event) => {
     event.preventDefault();
