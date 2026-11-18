@@ -212,7 +212,6 @@ html { scrollbar-gutter: stable; }
 .v2-storefront .panel { border-radius: 10px; box-shadow: none; }
 .v2-storefront .button, .v2-storefront .card-action, .v2-storefront input, .v2-storefront textarea, .v2-storefront select { border-radius: 6px; }
 .v2-storefront .product-info h1 { font-size: clamp(26px, 3vw, 36px); line-height: 1.2; }
-.v2-storefront .mobile-actions { display: none; }
 .v2-storefront .back-to-top { border-radius: 50%; }
 .v2-storefront .quote-disclosure, .v2-storefront .list-source { background: #fff; }
 .v2-storefront .list-mode { font-size: 14px; }
