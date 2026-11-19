@@ -227,7 +227,7 @@ html { scrollbar-gutter: stable; }
     line-height: 1.2;
   }
   .v2-storefront .mobile-action-icon { flex: none; }
-  .v2-storefront .mobile-action-call { background: #eef0f2; }
+  .v2-storefront .mobile-action-call { background: #147a46; color: #fff; }
 }
 .v2-storefront .back-to-top { border-radius: 50%; }
 .v2-storefront .quote-disclosure, .v2-storefront .list-source { background: #fff; }
