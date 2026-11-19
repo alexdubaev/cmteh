@@ -5,8 +5,16 @@
     <a class="brand" href="/" aria-label="{{ company ? company ~ ' — главная' : 'Главная' }}">{% if site.logo_url|default('') %}<img class="brand-logo" src="{{ site.logo_url }}" alt="" width="160" height="62">{% else %}{{ company|default('Главная') }}{% endif %}</a>
     {% if tel or site.email|default('') %}
       <div class="v2-header-contacts">
-        {% if tel %}<a href="{{ tel }}">{{ site.phone }}</a>{% endif %}
-        {% if site.email|default('') %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+        {% if tel %}
+          <a class="v2-header-phone" href="{{ tel }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ callIconPath }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ site.phone }}</span>
+          </a>
+        {% endif %}
+        {% if site.email|default('') %}
+          <a class="v2-header-email" href="mailto:{{ site.email }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ emailIconPath }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ site.email }}</span>
+          </a>
+        {% endif %}
       </div>
     {% endif %}
     <div class="header-actions">
