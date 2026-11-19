@@ -72,7 +72,8 @@ html { scrollbar-gutter: stable; }
 .v2-header-contacts { display: flex; align-items: center; gap: 22px; min-width: 0; }
 .v2-header-contacts a, .v2-list-top { font-size: 15px; color: #25272a; }
 .v2-header-contacts a { line-height: 1.4; overflow-wrap: anywhere; }
-.v2-header-contacts a[href^="tel:"] { font-weight: 600; }
+.v2-header-contacts .v2-header-phone { font-weight: 600; }
+.v2-header-contacts svg { display: none; }
 .v2-header-contacts a:hover { text-decoration: underline; text-underline-offset: 3px; }
 @keyframes v2MenuOpen { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .v2-header .header-actions { margin-left: auto; display: flex; gap: 26px; }
@@ -265,10 +266,37 @@ html { scrollbar-gutter: stable; }
   .v2-storefront .v2-header .header-inner { padding: 12px 0; min-height: 76px; gap: 20px; }
   .v2-storefront .v2-header .brand-logo { height: 52px; }
   .v2-header .v2-list-top { display: none; }
-  .v2-header .header-actions { gap: 10px; }
-  .v2-header-contacts { align-items: flex-start; flex-direction: column; gap: 2px; }
-  .v2-header-contacts a { font-size: 14px; }
-  .v2-header .header-actions { flex-shrink: 0; }
+  .v2-header { --header-action-size: 40px; }
+  .v2-header .header-actions { gap: 8px; flex-shrink: 0; }
+  .v2-header-contacts { gap: 12px; }
+  .v2-header-contacts a { display: inline-flex; align-items: center; gap: 5px; min-width: 0; min-height: 36px; font-size: 14px; }
+  .v2-header-contacts a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .v2-header-contacts svg { display: block; flex: none; width: 15px; height: 15px; }
+  .v2-header-phone svg { color: #147a46; }
+  .v2-header-email svg { color: #996800; }
+  .v2-storefront .v2-header :is(.request-link, .menu-toggle) {
+    width: var(--header-action-size);
+    min-width: var(--header-action-size);
+    height: var(--header-action-size);
+    min-height: var(--header-action-size);
+    padding: 0;
+    justify-content: center;
+  }
+  .v2-storefront .v2-header .request-link { background: #ffedac; border-color: #ffedac; }
+  .v2-storefront .v2-header .request-link:hover { background: #ffe38a; border-color: #ffe38a; }
+  .v2-header .request-link .request-label { display: none; }
+  .v2-storefront .v2-header .request-link b {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 3px;
+    border: 1px solid #fff;
+    background: #272522;
+    color: #fff;
+    line-height: 1;
+  }
   .v2-home .v2-excavator { height: 100%; inset: 0; margin: auto; opacity: .19; object-position: center calc(50% - 80px); }
   .v2-storefront .catalog-toolbar .catalog-toolbar-right { flex-basis: 248px; }
   .v2-storefront .catalog-toolbar :is(select, .sort-apply) { font-size: 16px; }
@@ -298,9 +326,6 @@ html { scrollbar-gutter: stable; }
   .v2-storefront .v2-header .brand-logo { height: 46px; }
   .v2-header-contacts a { font-size: 13px; }
   .v2-home .v2-excavator { object-position: center calc(50% - 96px); }
-  .v2-storefront .request-link { min-height: 38px; padding: 0 10px; gap: 6px; font-size: 12px; }
-  .v2-storefront .v2-header .menu-toggle { width: 35px; height: 38px; padding: 6px; }
-  .v2-header .header-actions { gap: 7px; }
   .v2-home-content { padding: 36px 16px 40px; }
   .v2-home-brand { width: 245px; max-width: 68vw; }
   .v2-home-brand img { height: 96px; }
@@ -322,6 +347,14 @@ html { scrollbar-gutter: stable; }
   .v2-inner-search .search-box input { font-size: 16px; }
   .v2-storefront .page-shell { padding-top: 0; }
   .v2-storefront .request-line { padding: 12px; }
+}
+@media (max-width: 380px) {
+  .v2-storefront .v2-header .header-inner { width: calc(100% - 24px); gap: 6px; }
+  .v2-header { --header-action-size: 36px; }
+  .v2-header .header-actions { gap: 5px; }
+  .v2-header-contacts { gap: 6px; }
+  .v2-header-contacts a { gap: 3px; font-size: 12px; }
+  .v2-header-contacts svg { width: 12px; height: 12px; }
 }
 @media (max-width: 450px) {
   .v2-storefront .catalog-toolbar .catalog-toolbar-right { flex-basis: 100%; }

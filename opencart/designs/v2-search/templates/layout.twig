@@ -11,6 +11,8 @@
 {% set company = site.company_name|default('') %}
 {% set digits = site.phone|default('')|replace({' ': '', '+': '', '(': '', ')': '', '-': '', '.': '', ' ': '', ' ': ''}) %}
 {% set tel = digits matches '/^[0-9]+$/' ? 'tel:' ~ (site.phone starts with '+' ? '+' : '') ~ digits : '' %}
+{% set callIconPath = 'M5 3.5h3.2l1.6 4.2-2 1.7a15 15 0 0 0 6.8 6.8l1.7-2 4.2 1.6V19c0 1.1-.9 2-2 2C10 21 3 14 3 5.5c0-1.1.9-2 2-2Z' %}
+{% set emailIconPath = 'M3.5 5.5h17v13h-17zM4 7l8 6 8-6' %}
 {% set title = meta.title|default(company) %}
 <!doctype html>
 <html lang="ru">
@@ -36,7 +38,7 @@
   <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
-  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261119-3">
+  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261119-4">
   <script type="module" src="{{ assets }}v2-search/parallax.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}storefront.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}request.mjs?v=20261118-1"></script>
@@ -60,10 +62,10 @@
   {% include templates ~ 'v2/footer.twig' %}
   <nav class="mobile-actions" aria-label="Связаться с компанией">
     <a class="mobile-action mobile-action-call" href="{{ tel ?: '/contacts' }}" aria-label="{{ tel ? 'Позвонить' : 'Контакты' }}">
-      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h3.2l1.6 4.2-2 1.7a15 15 0 0 0 6.8 6.8l1.7-2 4.2 1.6V19c0 1.1-.9 2-2 2C10 21 3 14 3 5.5c0-1.1.9-2 2-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ tel ? 'Позвонить' : 'Контакты' }}</span>
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ callIconPath }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>{{ tel ? 'Позвонить' : 'Контакты' }}</span>
     </a>
     <a class="mobile-action mobile-action-request" href="/contacts" data-open-quick>
-      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h17v13h-17zM4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Запрос</span>
+      <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ emailIconPath }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Запрос</span>
     </a>
   </nav>
   <a class="back-to-top" href="#site-header" data-back-to-top aria-label="Наверх" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 14 7-7 7 7M12 8v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Наверх</span></a>
