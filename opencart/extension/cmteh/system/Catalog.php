@@ -79,7 +79,8 @@ final class Catalog
         $offset = ($page - 1) * $limit;
         return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order): array {
             $base = $this->productFrom() . " WHERE $where";
-            $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $base, $params)->fetchColumn();
+            // Category and image joins enrich rows, but do not affect which products match.
+            $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $this->publicProductFrom() . " WHERE $where", $params)->fetchColumn();
             $rows = $this->run(
                 $this->productSelect() . $base . " ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
                 array_merge($params, $rankParams)
@@ -287,8 +288,19 @@ final class Catalog
             WHERE c.status = 1 AND x.published_at <= UTC_TIMESTAMP() AND d.language_id = ? AND s.store_id = ?
                 AND ' . $this->publicCategoryAncestors('c') . '
             ORDER BY c.sort_order, c.category_id';
-        return array_map(function (array $row): array {
-            $media = $this->approvedMedia('category', $row['source_id']);
+        $rows = $this->run($sql, [$this->languageId, $this->storeId])->fetchAll(PDO::FETCH_ASSOC);
+        $categoryMedia = [];
+        foreach (array_chunk(array_column($rows, 'source_id'), 500) as $ids) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $links = $this->run('SELECT l.owner_id, m.uuid, m.mime ' . $this->approvedMediaFrom()
+                . " AND l.owner_id IN ($placeholders)", ['category', ...$ids]);
+            foreach ($links as $link) {
+                $categoryMedia[$link['owner_id']][$link['uuid']] = $link['mime'];
+            }
+        }
+
+        return array_map(function (array $row) use ($categoryMedia): array {
+            $media = $categoryMedia[$row['source_id']] ?? [];
             $data = self::decode($row['data']);
             return array_replace($data, [
                 'id' => $row['source_id'], 'slug' => $row['slug'], 'title' => self::nativeText($row['name'], $data),
@@ -299,7 +311,7 @@ final class Catalog
                 'image' => isset($media[$data['image'] ?? '']) ? $data['image'] : null,
                 'image_url' => self::publicImageUrl($row['image']),
             ]);
-        }, $this->run($sql, [$this->languageId, $this->storeId])->fetchAll(PDO::FETCH_ASSOC));
+        }, $rows);
     }
 
     public function content(string $type, ?string $slug = null, int $page = 1): ?array
@@ -661,10 +673,15 @@ final class Catalog
 
     private function approvedMedia(string $type, string $id): array
     {
-        $sql = 'SELECT m.uuid, m.mime FROM ' . $this->table('cmteh_media_link') . ' l
-            JOIN ' . $this->table('cmteh_media') . ' m USING (uuid)
-            WHERE l.owner_type = ? AND l.owner_id = ? AND m.status = 1';
+        $sql = 'SELECT m.uuid, m.mime ' . $this->approvedMediaFrom() . ' AND l.owner_id = ?';
         return $this->run($sql, [$type, $id])->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    private function approvedMediaFrom(): string
+    {
+        return 'FROM ' . $this->table('cmteh_media_link') . ' l
+            JOIN ' . $this->table('cmteh_media') . ' m USING (uuid)
+            WHERE l.owner_type = ? AND m.status = 1';
     }
 
     private function isPublicOwner(string $type, string $id): bool

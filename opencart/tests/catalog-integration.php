@@ -164,10 +164,14 @@ try {
     $draft = 'c978f504-4728-4c03-9d8a-de670f741a47';
     $unapproved = 'e41fba43-f946-4de9-9d59-f3a2ad38466b';
     $baseMedia = ['path' => $imagePath, 'mime' => 'image/png', 'status' => 'published'];
-    $catalog->save('media', $baseMedia + ['uuid' => $approved, 'owners' => [['type' => 'product', 'id' => 'mock-11']]]);
+    $catalog->save('media', $baseMedia + ['uuid' => $approved, 'owners' => [
+        ['type' => 'product', 'id' => 'mock-11'], ['type' => 'category', 'id' => 'mock-category-filters'],
+    ]]);
     $catalog->save('media', $baseMedia + ['uuid' => $draft, 'owners' => [['type' => 'article', 'id' => 'draft-article']]]);
     $catalog->save('media', array_replace($baseMedia, ['status' => 'draft']) + [
-        'uuid' => $unapproved, 'owners' => [['type' => 'product', 'id' => 'mock-11']],
+        'uuid' => $unapproved, 'owners' => [
+            ['type' => 'product', 'id' => 'mock-11'], ['type' => 'category', 'id' => 'mock-category-engine'],
+        ],
     ]);
     $catalog->save('product', array_replace($item, [
         'main_image' => $unapproved,
@@ -181,6 +185,17 @@ try {
         && array_column($mediaProduct['images'], 'image') === [$approved] && !str_contains($mediaProduct['full_description'], $unapproved)
         && str_contains($mediaProduct['full_description'], 'href="/catalog"'),
         'Only approved files of published owners appear in asset lookups, details and safe HTML');
+
+    foreach (['filters' => $approved, 'cooling' => $approved, 'engine' => $unapproved] as $slug => $uuid) {
+        $category = $catalog->editRecord('category', 'mock-category-' . $slug);
+        $category['description'] = '<p><a href="/api/assets/' . $uuid . '">Файл</a></p>';
+        $catalog->save('category', $category);
+    }
+    $categories = array_column($catalog->categories(), null, 'slug');
+    expect(str_contains($categories['filters']['description'], $approved)
+        && !str_contains($categories['cooling']['description'], $approved)
+        && !str_contains($categories['engine']['description'], $unapproved),
+        'Category listings only include approved links for the owning category');
 
     $catalog->save('route', ['path' => '/legacy/re568158', 'target' => '/product/jd-re568158', 'status' => 301]);
     $catalog->save('route', ['path' => '/legacy/removed', 'status' => 410]);

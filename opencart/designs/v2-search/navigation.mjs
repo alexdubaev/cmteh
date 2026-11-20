@@ -124,7 +124,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
 
   function reveal(view, previousSearch) {
     const bounds = search.getBoundingClientRect();
-    const duration = compact.matches ? 250 : 320;
+    const duration = 250;
     const easing = 'cubic-bezier(.22,1,.36,1)';
     const moved = bounds.height && bounds.width && previousSearch.height && previousSearch.width
       && (Math.abs(previousSearch.left - bounds.left) >= 1 || Math.abs(previousSearch.top - bounds.top) >= 1
@@ -148,7 +148,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
   function clearLoading() {
     clearTimeout(loadingTimer);
     main.removeAttribute('aria-busy');
-    main.classList.remove('v2-waiting');
     status.hidden = true;
     status.replaceChildren();
   }
@@ -159,10 +158,17 @@ if (main && search && input && dock && status && supported(new URL(location.href
     clearLoading();
   }
 
+  function closeMenu() {
+    const menu = document.querySelector('.catalog-menu');
+    if (menu) menu.open = false;
+    document.querySelector('.main-nav')?.classList.remove('is-open');
+    const button = document.querySelector('.menu-toggle');
+    button?.setAttribute('aria-expanded', 'false');
+    button?.setAttribute('aria-label', 'Открыть меню');
+  }
+
   function show(view, { restore = false, motion = false } = {}) {
-    // Category and filter changes on desktop update the results without moving the page.
-    const revealMotion = motion && !reduced.matches && (!restore || view.scroll === 0)
-      && (compact.matches || current.kind === 'home' || view.kind === 'home');
+    const revealMotion = compact.matches && motion && !reduced.matches && (!restore || view.scroll === 0);
     const previousSearch = revealMotion ? search.getBoundingClientRect() : null;
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
@@ -191,12 +197,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
       const updatePrefill = setupPartsList(main.querySelector('[data-parts-list]'), { prefill });
       updatePrefill(prefill);
     }
-    const menu = document.querySelector('.catalog-menu');
-    if (menu) menu.open = false;
-    document.querySelector('.main-nav')?.classList.remove('is-open');
-    const menuButton = document.querySelector('.menu-toggle');
-    menuButton?.setAttribute('aria-expanded', 'false');
-    menuButton?.setAttribute('aria-label', 'Открыть меню');
+    closeMenu();
     clearLoading();
     current = view;
     views.set(view.id, view);
@@ -270,7 +271,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
           : pageKind(url) === 'request' ? 'Открываем корзину…'
             : isContacts(url) ? 'Открываем контакты…' : 'Загружаем результаты…';
       status.hidden = false;
-      if (!compact.matches) main.classList.add('v2-waiting');
     }, 160);
     const deadline = setTimeout(() => {
       if (pending !== transition) return;
@@ -331,7 +331,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
         pending = null;
         clearTimeout(loadingTimer);
         main.removeAttribute('aria-busy');
-        main.classList.remove('v2-waiting');
       }
     }
   }
@@ -406,6 +405,10 @@ if (main && search && input && dock && status && supported(new URL(location.href
       return;
     }
     if (link.closest('.search-popover')) rememberQuery(input.value.trim());
+    if (!compact.matches && link.closest('.v2-header .main-nav')) {
+      closeMenu();
+      document.querySelector('.v2-header .menu-toggle')?.focus({ preventScroll: true });
+    }
     const motion = pointerAction;
     const quick = link.closest('dialog[data-quick-dialog][open]');
     if (quick) {
