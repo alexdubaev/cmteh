@@ -14,7 +14,11 @@
 {% set relationLabels = {'analog': 'Аналог', 'oem_cross': 'Перекрёстный OEM-номер', 'compatible': 'Совместимая позиция', 'superseded_by': 'Замена'} %}
 {% set managed = product.inventory_managed|default(false) %}
 <div class="shell page-shell v2-product-shell">
-  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span>{% if categoryTrail %}{% for category in categoryTrail %}<a href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a><span>/</span>{% endfor %}{% elseif brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span>/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span>/</span>{% endif %}<span>{{ product.sku }}</span></div>
+  <nav class="breadcrumbs" aria-label="Хлебные крошки">
+    <a href="/">Главная</a><span aria-hidden="true">/</span><a href="/catalog">Каталог</a><span aria-hidden="true">/</span>
+    {% if categoryTrail %}{% for category in categoryTrail %}<a href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a><span aria-hidden="true">/</span>{% endfor %}{% elseif brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span aria-hidden="true">/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span aria-hidden="true">/</span>{% endif %}
+    <span aria-current="page">{{ product.sku }}</span>
+  </nav>
   <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}">
     <header class="v2-product-heading">
       <h1>{{ heading }}</h1>
@@ -34,17 +38,6 @@
           </div>
         {% else %}<div class="v2-product-no-photo" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(32) }}<span>Фото не предоставлено</span></div>{% endif %}
       </div>
-      <section class="v2-product-facts" aria-label="Описание и характеристики">
-        {% if product.short_description|default(site.product_missing_description|default('')) %}<p class="v2-product-summary">{{ product.short_description|default(site.product_missing_description) }}</p>{% endif %}
-        <h2 class="v2-product-section-title">Характеристики</h2>
-        <dl class="v2-spec-list">
-          <div><dt>Бренд</dt><dd>{{ product.brand ?: '—' }}</dd></div><div><dt>Артикул</dt><dd>{{ product.sku }}</dd></div>
-          {% if product.mpn|default('') %}<div><dt>Номер производителя</dt><dd>{{ product.mpn }}</dd></div>{% endif %}
-          <div><dt>Категория</dt><dd>{% if product.category|default(null) %}<a href="/category/{{ product.category.slug|url_encode }}">{{ product.category.title }}</a>{% else %}—{% endif %}</dd></div>
-          {% for spec in product.specification_items|default([]) %}<div><dt>{{ spec.name }}</dt><dd>{{ spec.value }}{% if spec.unit|default('') %} {{ spec.unit }}{% endif %}</dd></div>{% else %}{% for name, value in product.specifications|default({}) %}<div><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}{% endfor %}
-        </dl>
-        {% if product.full_description_html|default('') %}<div class="v2-product-description prose">{{ product.full_description_html|raw }}</div>{% elseif not product.short_description|default('') and site.product_no_detail_text|default('') %}<p>{{ site.product_no_detail_text }}</p>{% endif %}
-      </section>
       <aside class="v2-product-buy" aria-label="Цена и покупка">
         {% if managed %}
           <section id="warehouse-offers" class="v2-warehouse-offers" aria-labelledby="warehouse-offers-title">
@@ -72,12 +65,25 @@
           {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
         </div>{% endif %}
       </aside>
+      <section class="v2-product-facts" aria-label="Описание и характеристики">
+        {% set summary = product.short_description|default('') %}
+        {% if not summary and not product.full_description_html|default('') %}{% set summary = site.product_missing_description|default('') %}{% endif %}
+        {% if summary %}<p class="v2-product-summary">{{ summary }}</p>{% endif %}
+        <h2 class="v2-product-section-title">Характеристики</h2>
+        <dl class="v2-spec-list">
+          <div><dt>Бренд</dt><dd>{{ product.brand ?: '—' }}</dd></div><div><dt>Артикул</dt><dd>{{ product.sku }}</dd></div>
+          {% if product.mpn|default('') %}<div><dt>Номер производителя</dt><dd>{{ product.mpn }}</dd></div>{% endif %}
+          <div><dt>Категория</dt><dd>{% if product.category|default(null) %}<a href="/category/{{ product.category.slug|url_encode }}">{{ product.category.title }}</a>{% else %}—{% endif %}</dd></div>
+          {% for spec in product.specification_items|default([]) %}<div><dt>{{ spec.name }}</dt><dd>{{ spec.value }}{% if spec.unit|default('') %} {{ spec.unit }}{% endif %}</dd></div>{% else %}{% for name, value in product.specifications|default({}) %}<div><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}{% endfor %}
+        </dl>
+        {% if product.full_description_html|default('') %}<div class="v2-product-description prose">{{ product.full_description_html|raw }}</div>{% elseif not product.short_description|default('') and site.product_no_detail_text|default('') %}<p>{{ site.product_no_detail_text }}</p>{% endif %}
+      </section>
     </div>
     {% set documents = product.documents|default([])|filter(item => ui.asset(item.file|default(''))) %}
-    <div class="v2-product-extra">
+    {% if product.codes|default([]) or documents %}<div class="v2-product-extra">
       {% if product.codes|default([]) %}<section><h2>Дополнительные коды</h2><div class="v2-product-codes">{% for code in product.codes %}<div><strong>{{ code.code }}</strong><span>{{ codes[code.code_type]|default('Дополнительный номер') }}</span></div>{% endfor %}</div></section>{% endif %}
-      <section><h2>Файлы товара</h2>{% if documents %}<div class="v2-product-documents">{% for document in documents %}<a href="{{ ui.asset(document.file) }}" target="_blank" rel="noopener noreferrer">{{ document.title|default('Документ ' ~ loop.index) }} ↗</a>{% endfor %}</div>{% else %}<span class="v2-product-note">Нет файлов</span>{% endif %}</section>
-    </div>
+      {% if documents %}<section><h2>Файлы товара</h2><div class="v2-product-documents">{% for document in documents %}<a href="{{ ui.asset(document.file) }}" target="_blank" rel="noopener noreferrer">{{ document.title|default('Документ ' ~ loop.index) }} ↗</a>{% endfor %}</div></section>{% endif %}
+    </div>{% endif %}
     {% set related = {} %}
     {% for relation in product.relations|default([]) %}{% if relation.product.slug != product.slug %}{% set entry = related[relation.product.slug]|default({product: relation.product, kinds: []}) %}{% set kinds = relation.relation_type in entry.kinds ? entry.kinds : entry.kinds|merge([relation.relation_type]) %}{% set related = related|merge({(relation.product.slug): {product: relation.product, kinds: kinds}}) %}{% endif %}{% endfor %}
     {% for kind in ['analog', 'other'] %}{% set analogous = kind == 'analog' %}{% set entries = related|filter(entry => ('analog' in entry.kinds) == analogous) %}
