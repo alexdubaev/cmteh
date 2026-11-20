@@ -6,6 +6,7 @@ const filterLayout = new WeakMap();
 const mobileCatalog = matchMedia("(max-width: 820px)");
 let activeFilters = [];
 let activePhotos = [];
+let openViewer;
 
 function temporaryFeedback(button, label, message) {
   const announcement = button.nextElementSibling;
@@ -68,7 +69,6 @@ function bindGallery(button) {
 }
 
 function fitProductPhoto(image) {
-  if (!mobileCatalog.matches) return;
   image.style.removeProperty("--v2-photo-origin");
   image.style.removeProperty("--v2-photo-transform");
   const { naturalWidth, naturalHeight } = image;
@@ -109,13 +109,103 @@ function fitProductPhoto(image) {
 }
 
 function bindProductPhoto(image) {
-  const fit = () => requestAnimationFrame(() => fitProductPhoto(image));
+  const fit = () => requestAnimationFrame(() => {
+    if (mobileCatalog.matches) fitProductPhoto(image);
+  });
   if (!bound.has(image)) {
     bound.add(image);
     image.addEventListener("load", fit);
     image.addEventListener("error", fit);
   }
   if (image.complete) fit();
+}
+
+function bindPhotoViewer(gallery) {
+  if (bound.has(gallery)) return;
+  const dialog = gallery.querySelector(".v2-photo-viewer");
+  const photos = JSON.parse(gallery.dataset.v2PhotoGallery).flatMap((photo) => {
+    try {
+      const url = new URL(photo.url, location.href);
+      return ["http:", "https:"].includes(url.protocol) ? [{ ...photo, url: url.href }] : [];
+    } catch { return []; }
+  });
+  if (!photos.length) return;
+  const opener = gallery.querySelector("[data-photo-open]");
+  const preview = opener.querySelector("img");
+  bound.add(gallery);
+  gallery.addEventListener("click", (event) => {
+    const thumb = event.target.closest("[data-gallery-src]");
+    const photo = thumb && photos.find((item) => item.url === thumb.querySelector("img")?.src);
+    if (photo) opener.href = photo.url;
+  });
+  if (typeof dialog?.showModal !== "function") return;
+  const image = dialog.querySelector("[data-photo-full]");
+  const original = dialog.querySelector("[data-photo-original]");
+  const count = dialog.querySelector("[data-photo-count]");
+  const thumbnails = [...gallery.querySelectorAll("[data-gallery-src]")];
+  let position = 0;
+  let touchStart;
+  opener.setAttribute("aria-haspopup", "dialog");
+
+  function show(offset) {
+    position = (position + offset + photos.length) % photos.length;
+    const photo = photos[position];
+    image.style.removeProperty("--v2-photo-transform");
+    image.alt = photo.alt_text || preview.alt;
+    image.src = photo.url;
+    original.href = photo.url;
+    if (count) count.textContent = (position + 1) + " / " + photos.length;
+    if (image.complete) fitProductPhoto(image);
+  }
+
+  opener.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (dialog.open) return;
+    position = Math.max(photos.findIndex((photo) => photo.url === preview.src), 0);
+    show(0);
+    dialog.showModal();
+    openViewer = dialog;
+  });
+  dialog.querySelector("[data-photo-close]").addEventListener("click", () => dialog.close());
+  dialog.querySelector("[data-photo-previous]")?.addEventListener("click", () => show(-1));
+  dialog.querySelector("[data-photo-next]")?.addEventListener("click", () => show(1));
+  image.addEventListener("load", () => fitProductPhoto(image));
+  dialog.addEventListener("close", () => {
+    if (dialog.open) return;
+    if (openViewer === dialog) openViewer = undefined;
+    if (!opener.isConnected) return;
+    const photo = photos[position];
+    preview.alt = image.alt;
+    preview.src = photo.url;
+    opener.href = photo.url;
+    for (const thumb of thumbnails) {
+      const selected = thumb.querySelector("img")?.src === photo.url;
+      thumb.classList.toggle("active", selected);
+      thumb.setAttribute("aria-pressed", String(selected));
+    }
+    opener.focus({ preventScroll: true });
+  });
+  if (photos.length < 2) return;
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    show(event.key === "ArrowLeft" ? -1 : 1);
+  });
+  const stage = image.parentElement;
+  stage.addEventListener("touchstart", (event) => {
+    touchStart = event.touches.length === 1 ? event.touches[0] : undefined;
+  }, { passive: true });
+  stage.addEventListener("touchcancel", () => { touchStart = undefined; }, { passive: true });
+  stage.addEventListener("touchend", (event) => {
+    const start = touchStart;
+    touchStart = undefined;
+    const end = event.changedTouches[0];
+    if (!start || !end || start.identifier !== end.identifier || event.touches.length) return;
+    const x = end.clientX - start.clientX;
+    const y = end.clientY - start.clientY;
+    if (Math.abs(x) >= 45 && Math.abs(x) > 1.4 * Math.abs(y)) show(x < 0 ? 1 : -1);
+  }, { passive: true });
 }
 
 function bindCopy(button) {
@@ -159,7 +249,12 @@ function within(root, selector) {
 export function activateView(root, { bindControls = true } = {}) {
   if (!root?.querySelectorAll) return;
   activeFilters = within(root, ".filter-disclosure, .v2-category-disclosure");
-  activePhotos = within(root, ".v2-product-image-slot > img");
+  activePhotos = within(root, ".v2-product-image-slot .product-main-image");
+  if (openViewer && !root.contains(openViewer)) {
+    openViewer.close();
+    openViewer = undefined;
+  }
+  for (const gallery of within(root, "[data-v2-photo-gallery]")) bindPhotoViewer(gallery);
   syncViewLayout();
   if (!bindControls) return;
   for (const button of within(root, "[data-add-article]")) bindAddToCart(button);
