@@ -214,8 +214,8 @@ final class Storefront
             return;
         }
         $suggestions = $mode === 'suggestions';
-        $result = $this->catalog()->products(['q' => $q, 'limit' => $suggestions ? 6 : 10]);
-        $meta = ['total' => $suggestions ? count($result['products']) : $result['total']];
+        $result = $this->catalog()->products(['q' => $q, 'limit' => $suggestions ? 6 : 10], includeTotal: !$suggestions);
+        $meta = ['total' => $result['total']];
         if (!$suggestions && $result['partial']) {
             $meta['partial'] = true;
         }

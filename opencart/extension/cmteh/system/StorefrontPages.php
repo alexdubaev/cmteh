@@ -369,7 +369,7 @@ final class StorefrontPages
         foreach ($product['relations'] as $relation) {
             $seen[] = $relation['product']['id'];
         }
-        $result = $this->catalog->products(['category' => $product['category']['slug'] ?? null, 'limit' => 5]);
+        $result = $this->catalog->products(['category' => $product['category']['slug'] ?? null, 'limit' => 5], includeTotal: false);
         $candidates = array_filter($result['products'], static fn(array $item): bool => !in_array($item['id'], $seen, true));
 
         return array_slice(array_values($candidates), 0, 4);

@@ -50,7 +50,7 @@ final class Catalog
         CatalogSchema::migrate($this->pdo, $this->prefix);
     }
 
-    public function products(array $query): array
+    public function products(array $query, bool $includeTotal = true): array
     {
         $limit = max(1, min(100, (int) ($query['limit'] ?? 12)));
         $page = max(1, min(intdiv(1000000, $limit) + 1, (int) ($query['page'] ?? 1)));
@@ -64,11 +64,11 @@ final class Catalog
         [$where, $params] = $this->productFilters($query, $needle);
         $rankParams = [];
         $effectivePrice = $this->effectivePrice();
-        $order = match ($query['sort'] ?? '') {
-            'price_asc' => "($effectivePrice) IS NULL, ($effectivePrice) ASC",
-            'price_desc' => "($effectivePrice) IS NULL, ($effectivePrice) DESC",
-            'title' => 'd.name ASC',
-            default => "public_image IS NULL AND p.image = '', p.sort_order ASC",
+        [$order, $sortByImage] = match ($query['sort'] ?? '') {
+            'price_asc' => ["($effectivePrice) IS NULL, ($effectivePrice) ASC", false],
+            'price_desc' => ["($effectivePrice) IS NULL, ($effectivePrice) DESC", false],
+            'title' => ['d.name ASC', false],
+            default => ["image.uuid IS NULL AND p.image = '', p.sort_order ASC", true],
         };
         if ($needle !== '' && empty($query['sort'])) {
             $order = 'CASE WHEN x.sku_norm = ? THEN 0 WHEN x.mpn_norm = ? THEN 1
@@ -77,15 +77,35 @@ final class Catalog
         }
 
         $offset = ($page - 1) * $limit;
-        return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order): array {
-            $base = $this->productFrom() . " WHERE $where";
-            // Category and image joins enrich rows, but do not affect which products match.
-            $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $this->publicProductFrom() . " WHERE $where", $params)->fetchColumn();
-            $rows = $this->run(
-                $this->productSelect() . $base . " ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
-                array_merge($params, $rankParams)
-            )->fetchAll(PDO::FETCH_ASSOC);
+        return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order, $sortByImage, $needle, $includeTotal): array {
+            $publicFrom = $this->publicProductFrom();
+            if ($includeTotal) {
+                $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $publicFrom . " WHERE $where", $params)->fetchColumn();
+                if ($offset >= $result['total']) return $result;
+            }
+
+            // Filtering by an article or text uses the existing indexed search plan.
+            if ($needle !== '') {
+                $rows = $this->run(
+                    $this->productSelect() . $this->productFrom() . " WHERE $where ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
+                    array_merge($params, $rankParams)
+                )->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                // Sort only IDs and ranking columns. Load descriptions and media after pagination.
+                $rankFrom = $publicFrom . ($sortByImage ? $this->productImageJoin() : '');
+                $ids = $this->run("SELECT p.product_id $rankFrom WHERE $where ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
+                    $params)->fetchAll(PDO::FETCH_COLUMN);
+                if (!$ids) return $result;
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $page = $this->run(
+                    $this->productSelect() . $this->productFrom() . " WHERE p.product_id IN ($placeholders)",
+                    $ids
+                )->fetchAll(PDO::FETCH_ASSOC);
+                $byId = array_column($page, null, 'product_id');
+                $rows = array_map(static fn ($id) => $byId[$id], $ids);
+            }
             $result['products'] = $this->productDtos($rows);
+            if (!$includeTotal) $result['total'] = count($rows);
             return $result;
         });
     }
@@ -464,8 +484,13 @@ final class Catalog
             LEFT JOIN ' . $this->table('category_to_store') . " cs ON cs.category_id = nc.category_id AND cs.store_id = $store
             LEFT JOIN " . $this->table('cmteh_category') . ' c ON c.category_id = cs.category_id AND c.published_at <= UTC_TIMESTAMP()
                 AND ' . $this->publicCategoryAncestors('nc') . '
-            LEFT JOIN ' . $this->table('category_description') . " cd ON cd.category_id = c.category_id AND cd.language_id = $language
-            LEFT JOIN " . $this->table('cmteh_media_link') . " imlink
+            LEFT JOIN ' . $this->table('category_description') . " cd ON cd.category_id = c.category_id AND cd.language_id = $language"
+            . $this->productImageJoin();
+    }
+
+    private function productImageJoin(): string
+    {
+        return ' LEFT JOIN ' . $this->table('cmteh_media_link') . " imlink
                 ON imlink.uuid = x.main_image AND imlink.owner_type = 'product' AND imlink.owner_id = x.source_id
             LEFT JOIN " . $this->table('cmteh_media') . " image
                 ON image.uuid = imlink.uuid AND image.status = 1 AND image.mime LIKE 'image/%'";

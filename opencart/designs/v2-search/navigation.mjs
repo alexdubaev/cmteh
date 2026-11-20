@@ -271,7 +271,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
           : pageKind(url) === 'request' ? 'Открываем корзину…'
             : isContacts(url) ? 'Открываем контакты…' : 'Загружаем результаты…';
       status.hidden = false;
-    }, 160);
+    }, compact.matches ? 600 : 160);
     const deadline = setTimeout(() => {
       if (pending !== transition) return;
       cancelNavigation();
