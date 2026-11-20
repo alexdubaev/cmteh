@@ -11,9 +11,9 @@ window.STATE =
   "memoryFile": "AGENTS.md",
   "memoryOwner": "user",
   "skillDir": "C:/Users/Alexandr/.codex/skills/autopilot",
-  "baseCommit": null,
+  "baseCommit": "62a9692",
   "startedAt": "2026-11-20T12:46:13+03:00",
-  "updatedAt": "2026-11-20T13:00:46+03:00",
+  "updatedAt": "2026-11-20T13:42:47+03:00",
   "finishedAt": null,
   "stages": [
     {
@@ -42,12 +42,14 @@ window.STATE =
     },
     {
       "id": "plan",
-      "status": "active",
-      "startedAt": "2026-11-20T12:59:38+03:00"
+      "status": "done",
+      "startedAt": "2026-11-20T12:59:38+03:00",
+      "finishedAt": "2026-11-20T13:01:03+03:00"
     },
     {
       "id": "build",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-11-20T13:01:03+03:00"
     },
     {
       "id": "review",
@@ -60,8 +62,8 @@ window.STATE =
   ],
   "requirements": {
     "total": 9,
-    "done": 0,
-    "inTicket": 9,
+    "done": 1,
+    "inTicket": 8,
     "inSpec": 0,
     "placeholder": 0,
     "deferred": 0,
@@ -81,9 +83,16 @@ window.STATE =
       ],
       "review": "нет",
       "model": "сильная",
-      "status": "pending",
+      "status": "done",
+      "startedAt": "2026-11-20T13:01:05+03:00",
+      "finishedAt": "2026-11-20T13:33:27+03:00",
       "retries": 0,
-      "repairs": 0
+      "repairs": 0,
+      "tests": {
+        "passed": 5,
+        "failed": 0
+      },
+      "commit": "0ac7bf3"
     },
     {
       "id": "02",
@@ -98,21 +107,23 @@ window.STATE =
         "R08",
         "G01"
       ],
-      "blockedBy": [
-        "01"
-      ],
-      "wave": 2,
+      "blockedBy": [],
+      "wave": 1,
       "zone": [
         ".autopilot/2026-11-20-v2-catalog-migration--wip/evidence/"
       ],
       "review": "да — миграция каталога",
       "model": "сильная",
-      "status": "pending",
+      "status": "in-progress",
+      "startedAt": "2026-11-20T13:09:01+03:00",
       "retries": 0,
       "repairs": 0
     }
   ],
-  "tests": null,
+  "tests": {
+    "passed": 5,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [],
     "assumptions": [],
@@ -142,9 +153,17 @@ window.STATE =
     "2026-11-20T13:00:17+03:00",
     "2026-11-20T13:00:18+03:00",
     "2026-11-20T13:00:45+03:00",
-    "2026-11-20T13:00:46+03:00"
+    "2026-11-20T13:00:46+03:00",
+    "2026-11-20T13:01:02+03:00",
+    "2026-11-20T13:01:03+03:00",
+    "2026-11-20T13:01:05+03:00",
+    "2026-11-20T13:08:59+03:00",
+    "2026-11-20T13:09:00+03:00",
+    "2026-11-20T13:09:01+03:00",
+    "2026-11-20T13:33:27+03:00",
+    "2026-11-20T13:42:47+03:00"
   ],
-  "rev": 16,
+  "rev": 25,
   "waiting": null,
   "waits": [
     {
@@ -244,6 +263,59 @@ window.STATE =
       "g": "G3",
       "ok": true,
       "problems": 0
+    },
+    {
+      "t": "2026-11-20T13:01:03+03:00",
+      "k": "stage",
+      "id": "build",
+      "act": "start"
+    },
+    {
+      "t": "2026-11-20T13:01:05+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-20T13:08:59+03:00",
+      "k": "tickets",
+      "n": 2
+    },
+    {
+      "t": "2026-11-20T13:09:00+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
+    },
+    {
+      "t": "2026-11-20T13:09:01+03:00",
+      "k": "ticket",
+      "ids": [
+        "02"
+      ],
+      "act": "start"
+    },
+    {
+      "t": "2026-11-20T13:33:27+03:00",
+      "k": "ticket",
+      "ids": [
+        "01"
+      ],
+      "act": "done",
+      "tests": {
+        "passed": 5,
+        "failed": 0
+      }
+    },
+    {
+      "t": "2026-11-20T13:42:47+03:00",
+      "k": "gate",
+      "g": "G3",
+      "ok": true,
+      "problems": 0
     }
   ],
   "reqList": [
@@ -270,7 +342,7 @@ window.STATE =
     {
       "id": "R05",
       "text": "«хлебными крошками»",
-      "status": "in-ticket"
+      "status": "done"
     },
     {
       "id": "R06",
@@ -309,7 +381,7 @@ window.STATE =
     },
     "G3": {
       "ok": true,
-      "at": "2026-11-20T13:00:46+03:00",
+      "at": "2026-11-20T13:42:47+03:00",
       "problems": 0
     }
   },
