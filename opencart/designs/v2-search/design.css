@@ -1,5 +1,6 @@
 /* V2 is a local presentation overlay. Commerce and interaction modules are reused. */
-@media (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) and (max-width: 820px),
+       (prefers-reduced-motion: no-preference) and (pointer: coarse) {
   @view-transition { navigation: auto; }
   ::view-transition-old(root),
   ::view-transition-new(root) { animation-duration: 220ms; }
@@ -37,20 +38,18 @@ html { scrollbar-gutter: stable; }
 .v2-stage > .v2-inner-search[hidden] { display: none; }
 .v2-stage > .v2-inner-search .v2-search { max-width: 800px; }
 .v2-storefront:not(.v2-home) .v2-stage > .v2-excavator-layer { opacity: .26; }
-.v2-stage > .v2-excavator-layer { max-height: none; bottom: auto; transition: opacity 220ms ease; }
-.v2-navigation-status { width: min(calc(100% - 32px), 800px); margin: 0 auto 16px; color: #656c77; font-size: 14px; }
-.v2-navigation-status a { margin-left: 8px; text-decoration: underline; }
-.v2-waiting { opacity: .5; }
+.v2-stage > .v2-excavator-layer { max-height: none; bottom: auto; }
+.v2-navigation-status {
+  position: absolute; inset: 0 0 auto; z-index: 3;
+  width: max-content; max-width: calc(100% - 32px); margin: 0 auto;
+  padding: 4px 10px; border-radius: var(--radius-sm); background: #fff;
+  color: #656c77; font-size: 14px;
+  box-shadow: 0 1px 6px #17191c1a; text-align: center; pointer-events: none;
+}
+.v2-inner-search:not([hidden]) + .v2-navigation-status { top: 76px; }
+.v2-navigation-status a { margin-left: 8px; text-decoration: underline; pointer-events: auto; }
 @media (max-width: 820px), (pointer: coarse) {
-  .v2-navigation-status {
-    position: absolute; inset: 0 0 auto; z-index: 3;
-    width: max-content; max-width: calc(100% - 32px); margin: 0 auto;
-    padding: 4px 10px; border-radius: var(--radius-sm); background: #fff;
-    box-shadow: 0 1px 6px #17191c1a; text-align: center; pointer-events: none;
-  }
-  .v2-inner-search:not([hidden]) + .v2-navigation-status { top: 76px; }
-  .v2-navigation-status a { pointer-events: auto; }
-  .v2-waiting { opacity: 1; }
+  .v2-stage > .v2-excavator-layer { transition: opacity 220ms ease; }
 }
 .v2-stage h1[tabindex="-1"]:focus { outline: none; }
 .v2-storefront :where(h1,h2,h3) { font-family: var(--font-sans); letter-spacing: -.025em; }
@@ -92,7 +91,8 @@ html { scrollbar-gutter: stable; }
   max-height: calc(100dvh - 100px); overflow: auto;
   visibility: visible; opacity: 1; transform: none; pointer-events: auto;
 }
-@media (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) and (max-width: 820px),
+       (prefers-reduced-motion: no-preference) and (pointer: coarse) {
   .v2-storefront .v2-header .main-nav.is-open.v2-menu-motion { animation: v2MenuOpen 280ms cubic-bezier(.2,.75,.25,1) both; }
 }
 .v2-header .main-nav-inner { display: grid; width: 100%; gap: 2px; }

@@ -113,7 +113,8 @@ const scenarios = {
       }
       return points;
     });
-    assert.ok(new Set(samples.map(point => Math.round(point.searchY))).size > 1, 'Search should move during the reveal');
+    assert.ok(Math.max(...samples.map(point => point.searchY)) - Math.min(...samples.map(point => point.searchY)) < 1,
+      'The desktop search should start in its final position');
     assert.ok(Math.max(...samples.map(point => point.drawingY)) - Math.min(...samples.map(point => point.drawingY)) < 1,
       'Drawing position should stay fixed during the reveal');
     assert.ok(Math.max(...samples.map(point => point.drawingHeight)) - Math.min(...samples.map(point => point.drawingHeight)) < 1,
