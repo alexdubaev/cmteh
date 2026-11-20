@@ -40,7 +40,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   const views = new Map();
   const reusable = new Map();
   const animations = new Set();
-  let sequence = 0, pending, loadingTimer, scrollTimer, clearReveal, pointerAction = false;
+  let sequence = 0, pending, loadingTimer, scrollTimer, pointerAction = false;
   const nextId = () => `${Date.now()}-${++sequence}`;
   const metadata = root => [...root.querySelectorAll(headSelector)].map(node => node.cloneNode(true));
   const viewState = view => ({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } });
@@ -98,7 +98,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
   function stopAnimations() {
     for (const animation of animations) animation.cancel();
     animations.clear();
-    clearReveal?.();
   }
   reduced.addEventListener('change', () => { if (reduced.matches) stopAnimations(); });
 
@@ -123,62 +122,27 @@ if (main && search && input && dock && status && supported(new URL(location.href
     }));
   }
 
-  function revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, options) {
-    const height = main.getBoundingClientRect().height;
-    if (!height) return;
-    // On larger screens the height participates in flow so the footer follows the sheet.
-    const startHeight = opening && fromHome ? 64 : previousHeight;
-    const side = opening && fromHome ? Math.max(0, (main.clientWidth - Math.min(previousSearch.width, bounds.width)) / 2) : 0;
-    main.style.setProperty('--v2-reveal-height', `${height}px`);
-    main.classList.add('v2-expanding');
-    const finish = () => {
-      if (clearReveal !== finish) return;
-      clearReveal = null;
-      main.classList.remove('v2-expanding');
-      main.style.removeProperty('--v2-reveal-height');
-      frame?.cancel();
-    };
-    clearReveal = finish;
-    const frame = animate(main, [
-      { height: `${startHeight}px`, clipPath: opening ? `inset(0px ${side}px 0px ${side}px round 16px)` : 'none' },
-      { height: `${height}px`, clipPath: opening ? 'inset(0px 0px 0px 0px round 0px)' : 'none' },
-    ], { ...options, fill: 'both' });
-    frame.finished.then(finish, finish);
-  }
-
-  function reveal(view, previousSearch, previousHeight, fromHome) {
+  function reveal(view, previousSearch) {
     const bounds = search.getBoundingClientRect();
-    if (!main.animate || !bounds.width) return;
-
-    const opening = view.kind !== 'home';
-    const compactMotion = compact.matches;
-    const easing = compactMotion ? 'cubic-bezier(.25,.65,.35,1)' : 'cubic-bezier(.22,1,.36,1)';
-    const duration = compactMotion ? 250 : 500;
-    // Leave the new page at its final size on touch and narrow screens.
-    if (!compactMotion) revealFrame(opening, previousSearch, previousHeight, fromHome, bounds, { duration, easing });
-
-    const searchMotion = bounds.height ? animate(search, [
+    const duration = compact.matches ? 250 : 320;
+    const easing = 'cubic-bezier(.22,1,.36,1)';
+    const moved = bounds.height && bounds.width && previousSearch.height && previousSearch.width
+      && (Math.abs(previousSearch.left - bounds.left) >= 1 || Math.abs(previousSearch.top - bounds.top) >= 1
+        || Math.abs(previousSearch.width - bounds.width) >= 1 || Math.abs(previousSearch.height - bounds.height) >= 1);
+    const searchMotion = moved ? animate(search, [
       { transformOrigin: '0 0', transform: `translate(${previousSearch.left - bounds.left}px, ${previousSearch.top - bounds.top}px) scale(${previousSearch.width / bounds.width},${previousSearch.height / bounds.height})` },
       { transformOrigin: '0 0', transform: 'none' },
     ], { duration, easing }) : null;
 
-    if (compactMotion) {
-      // Move only the small introduction and logo, without animating the page itself.
-      const title = main.querySelector('h1');
-      const intro = title?.closest('.v2-product-heading, .page-title, .collection-heading') || title;
-      const logo = opening ? null : main.querySelector('.v2-home-brand');
-      const introMotion = [intro, logo].filter(Boolean).map(element => animate(element, [
-        { opacity: 0.72, transform: 'translateY(6px)' },
-        { opacity: 1, transform: 'none' },
-      ], { duration, easing }));
-      playAfterPaint([searchMotion, ...introMotion].filter(Boolean));
-      return;
-    }
-
-    const content = opening ? [...main.children] : [...main.querySelector('.v2-home-content').children].filter(node => !node.matches('[data-v2-search-home]'));
-    for (const element of content) animate(element,
-      [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 320, delay: 70, fill: 'backwards', easing });
+    // The page is already laid out at its final size. Keep motion on small elements.
+    const title = main.querySelector('h1');
+    const intro = title?.closest('.v2-product-heading, .page-title, .collection-heading') || title;
+    const logo = view.kind === 'home' ? main.querySelector('.v2-home-brand') : null;
+    const introMotion = [intro, logo].filter(Boolean).map(element => animate(element, [
+      { opacity: 0.72, transform: 'translateY(6px)' },
+      { opacity: 1, transform: 'none' },
+    ], { duration, easing }));
+    playAfterPaint([searchMotion, ...introMotion].filter(Boolean));
   }
 
   function clearLoading() {
@@ -196,9 +160,10 @@ if (main && search && input && dock && status && supported(new URL(location.href
   }
 
   function show(view, { restore = false, motion = false } = {}) {
-    const previousBounds = search.getBoundingClientRect();
-    const previousHeight = compact.matches ? 0 : main.getBoundingClientRect().height;
-    const fromHome = current.kind === 'home';
+    // Category and filter changes on desktop update the results without moving the page.
+    const revealMotion = motion && !reduced.matches && (!restore || view.scroll === 0)
+      && (compact.matches || current.kind === 'home' || view.kind === 'home');
+    const previousSearch = revealMotion ? search.getBoundingClientRect() : null;
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
     if (current.kind === 'parts-list') partsParking.replaceChildren(...partsNodes);
@@ -246,8 +211,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
     if (target !== input) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
     if (target === input) input.setSelectionRange(input.value.length, input.value.length);
-    // Restored deep scroll positions stay immediate rather than being clipped.
-    if (motion && !reduced.matches && (!restore || view.scroll === 0)) reveal(view, previousBounds, previousHeight, fromHome);
+    if (previousSearch) reveal(view, previousSearch);
     updateArticleLinks(view.kind);
     document.dispatchEvent(new CustomEvent('v2:navigated', { detail: { url: view.url.href } }));
   }
