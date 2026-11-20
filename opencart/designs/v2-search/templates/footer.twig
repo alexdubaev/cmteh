@@ -1,6 +1,9 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
 <footer class="site-footer v2-footer">
+  <div class="shell v2-footer-tools">
+    <a class="v2-footer-top" href="#site-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 11 6-6 6 6M12 5v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>К началу страницы</span></a>
+  </div>
   <div class="shell v2-footer-row">
     {% if site.footer_copyright|default('') %}<span>{{ site.footer_copyright }}</span>{% elseif company %}<span>© {{ 'now'|date('Y') }} {{ company }}</span>{% endif %}
     <nav class="v2-footer-nav" aria-label="Информация">{% for item in footerNav %}{{ ui.nav(item) }}{% endfor %}</nav>
