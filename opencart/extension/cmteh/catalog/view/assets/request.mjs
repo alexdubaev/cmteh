@@ -1,4 +1,4 @@
-import { acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, withCartWrite, writeCart } from "./cart.mjs?v=20261117-2";
+import { MAX_QUANTITY, acknowledgeCart, articleKey, hasBrand, lineKey, normalizeQuantity, onCartChange, readCart, withCartWrite, writeCart } from "./cart.mjs?v=20261117-2";
 
 const element = (tag, text = "", className = "") => {
   const node = document.createElement(tag);
@@ -70,6 +70,71 @@ function batchLookups(path, ids, signal) {
 async function lookup(lookups, id) {
   const data = await lookups.get(id)();
   return Object.hasOwn(data, id) ? data[id] : null;
+}
+
+const retiredFilterId = "mock-1";
+const publishedFilterId = "storeland-product-195589389";
+const oilFilter = { article: "1R1808", brand: "Caterpillar" };
+let filterLookup;
+
+function matchesFilterRow(item, id) {
+  return !item.warehouseSelection && !item.offerId && item.productId === id
+    && articleKey(item.article) === oilFilter.article
+    && item.brand.trim().toLocaleLowerCase("ru") === oilFilter.brand.toLocaleLowerCase("ru");
+}
+
+const retiredFilterRow = (item) => matchesFilterRow(item, retiredFilterId);
+class FilterMigrationError extends Error {}
+
+function lookupFilterReplacement() {
+  if (filterLookup) return filterLookup;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  const lookups = batchLookups("/api/product-prices", [retiredFilterId, publishedFilterId], controller.signal);
+  filterLookup = lookups.get(publishedFilterId)().then((data) => {
+    if (Object.hasOwn(data, retiredFilterId)) return null;
+    const product = data[publishedFilterId];
+    if (product?.id !== publishedFilterId || !matchesItem(oilFilter, product)
+        || product.inventory_managed !== false || typeof product.title !== "string" || !product.title.trim()) {
+      throw new Error("Replacement unavailable");
+    }
+    return product;
+  }).finally(() => {
+    clearTimeout(timeout);
+    filterLookup = undefined;
+  });
+  return filterLookup;
+}
+
+async function readRequestCart() {
+  const items = await withCartWrite(readCart);
+  if (!document.body.classList.contains("v2-storefront") || !items.some(retiredFilterRow)) return items;
+
+  let replacement;
+  try {
+    replacement = await lookupFilterReplacement();
+  } catch {
+    const latest = await withCartWrite(readCart);
+    if (!latest.some(retiredFilterRow)) return latest;
+    throw new FilterMigrationError("Не удалось проверить артикул 1R1808. Повторите отправку или удалите эту позицию из корзины.");
+  }
+
+  return withCartWrite(() => {
+    const latest = readCart();
+    if (!replacement || !latest.some(retiredFilterRow)) return latest;
+    const sameFilter = (item) => retiredFilterRow(item) || matchesFilterRow(item, publishedFilterId);
+    const quantity = latest.filter(sameFilter).reduce((sum, item) => sum + item.quantity, 0);
+    if (quantity > MAX_QUANTITY) {
+      throw new FilterMigrationError("Уменьшите суммарное количество фильтров 1R1808 до 100 000 штук и повторите отправку.");
+    }
+    const first = latest.findIndex(sameFilter);
+    const migrated = latest.filter((item) => !sameFilter(item));
+    migrated.splice(first, 0, {
+      productId: replacement.id, article: replacement.sku, brand: replacement.brand, title: replacement.title, quantity,
+    });
+    writeCart(migrated);
+    return migrated;
+  });
 }
 
 function fixedPrice(product) {
@@ -258,6 +323,10 @@ function setupLead(form, refreshCart) {
   const progress = form.querySelector("[data-lead-loading]");
   const empty = form.querySelector("[data-cart-required]");
   const result = form.querySelector("[data-lead-result]");
+  const quickContext = form.querySelector("[data-v2-quick-context]");
+  const readQuickArticle = () => quickContext
+    ? document.querySelector("#main-content [data-v2-quick-article]")?.dataset.v2QuickArticle.trim() || ""
+    : "";
   let sending = false;
   let preparingCart = false;
   let draftKey;
@@ -278,7 +347,19 @@ function setupLead(form, refreshCart) {
     if (!initial) show("", false);
   }
   syncDraft();
-  if (type === "quick") document.addEventListener("v2:navigated", syncDraft);
+  if (type === "quick") {
+    const syncContext = () => {
+      if (!quickContext) return;
+      const article = readQuickArticle();
+      quickContext.querySelector("strong").textContent = article;
+      quickContext.hidden = !article;
+    };
+    syncContext();
+    document.addEventListener("v2:navigated", () => {
+      syncDraft();
+      syncContext();
+    });
+  }
   function sync() {
     const required = rfq && readCart().length === 0;
     if (empty) empty.hidden = !required;
@@ -320,7 +401,11 @@ function setupLead(form, refreshCart) {
       preparingCart = true;
       sync();
       try {
-        items = await withCartWrite(readCart);
+        items = await readRequestCart();
+      } catch (error) {
+        if (!(error instanceof FilterMigrationError)) throw error;
+        show(error.message, true);
+        return;
       } finally {
         preparingCart = false;
         sync();
@@ -348,16 +433,24 @@ function setupLead(form, refreshCart) {
       form.elements.namedItem("phone").focus();
       return;
     }
-    const note = [company.trim() && "Компания: " + company.trim(), message.trim()].filter(Boolean).join("\n\n");
+    const article = readQuickArticle();
+    const submittedMessage = article ? ["Артикул: " + article, message.trim()].filter(Boolean).join("\n\n") : message;
+    const note = [company.trim() && "Компания: " + company.trim(), submittedMessage.trim()].filter(Boolean).join("\n\n");
     if (note.length > 3000 || page_url.length > 1000) {
-      show(note.length > 3000 ? "Сократите компанию и комментарий до 3 000 символов вместе." : "Откройте страницу без лишних параметров и повторите отправку.", true);
+      if (note.length > 3000) {
+        const limit = article ? "Сократите комментарий: артикул тоже входит в лимит 3 000 символов."
+          : "Сократите компанию и комментарий до 3 000 символов вместе.";
+        show(limit, true);
+      } else {
+        show("Откройте страницу без лишних параметров и повторите отправку.", true);
+      }
       return;
     }
     const request_items = items.map(({ article, quantity, productId, offerId, offerVersion }) => ({ article, quantity, ...(productId ? { product_id: productId } : {}), ...(offerId ? { offer_id: offerId, offer_version: offerVersion } : {}) }));
     // Preserve the original field order for pending hashes stored before migration.
     const payload = rfq
       ? { name, phone, email, company, message, request_items, page_url }
-      : { company, name, phone, email, message, request_items, page_url };
+      : { company, name, phone, email, message: submittedMessage, request_items, page_url };
     if (type === "quick") payload.intent = "quick";
     const website = form.elements.namedItem("website").value;
     const submittedDraftKey = draftKey;
@@ -425,6 +518,9 @@ const leads = new WeakSet();
 export function mountRequestPage(root, { refresh = false } = {}) {
   const cart = root.querySelector("[data-cart]");
   let refreshCart = carts.get(cart);
+  if (cart && (!refreshCart || refresh) && document.body.classList.contains("v2-storefront") && readCart().some(retiredFilterRow)) {
+    void readRequestCart().catch(() => {}); // Submission retries verification and shows an error if still unavailable.
+  }
   if (cart && !refreshCart) {
     refreshCart = setupCart(cart);
     carts.set(cart, refreshCart);
