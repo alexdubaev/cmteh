@@ -4,6 +4,49 @@
 {% set screens = {home: 'home', catalog: 'catalog', brands: 'brands', brand: 'collection', category: 'collection', product: 'v2/product', articles: 'articles', article: 'article', page: 'content', request: 'request', 'parts-list': 'parts-list', not_found: 'error', error: 'error'} %}
 {% set brands = model.brands|default([]) %}
 {% set categories = model.categories|default([]) %}
+{% set product = model.product|default({}) %}
+{% set primaryCategory = product.category|default({}) %}
+{% set primaryCategorySlug = primaryCategory.slug|default('') %}
+{% set productCategory = primaryCategorySlug ? (categories|filter(item => item.slug == primaryCategorySlug)|first|default(null)) : null %}
+{% set categoryTrail = [] %}
+{% set categoryPathValid = false %}
+{% if page == 'product' and productCategory and productCategory.slug|default('') %}
+  {% set categoryPathValid = true %}
+  {% set currentCategory = productCategory %}
+  {% for depth in 1..(categories|length + 1) %}
+    {% if currentCategory and currentCategory.slug|default('') and currentCategory.slug not in categoryTrail|map(item => item.slug) %}
+      {% set categoryTrail = categoryTrail|merge([currentCategory]) %}
+      {% set parentSlug = currentCategory.parent_slug|default('') %}
+      {% if parentSlug %}
+        {% set currentCategory = categories|filter(item => item.slug == parentSlug)|first|default(null) %}
+        {% if not currentCategory %}{% set categoryPathValid = false %}{% set categoryTrail = [] %}{% endif %}
+      {% else %}{% set currentCategory = null %}{% endif %}
+    {% else %}
+      {% if currentCategory and currentCategory.slug|default('') and currentCategory.slug in categoryTrail|map(item => item.slug) %}{% set categoryPathValid = false %}{% set categoryTrail = [] %}{% endif %}
+      {% set currentCategory = null %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% set categoryTrail = categoryTrail|reverse %}
+{% set canonicalParts = meta.canonical|default('')|split('/') %}
+{% set canonicalOrigin = canonicalParts|length >= 3 ? canonicalParts|slice(0, 3)|join('/') : '' %}
+{% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
+{% set sourceBreadcrumbGraph = graphs|last|default('') %}
+{% set sourceBreadcrumbGraph = sourceBreadcrumbGraph|replace({'\\/': '/'}) %}
+{% set sourceBreadcrumbChunks = sourceBreadcrumbGraph|split('"item":"') %}
+{% set sourceHomeUrl = sourceBreadcrumbChunks[1]|default('')|split('"')|first|default('') %}
+{% set sourceHomeParts = sourceHomeUrl|split('/') %}
+{% set siteOrigin = sourceHomeParts|length >= 3 ? sourceHomeParts|slice(0, 3)|join('/') : canonicalOrigin %}
+{% set productBreadcrumbs = [
+  {name: 'Главная', url: siteOrigin ~ '/'},
+  {name: 'Каталог', url: siteOrigin ~ '/catalog'}
+] %}
+{% if page == 'product' and categoryPathValid and categoryTrail %}
+  {% for category in categoryTrail %}
+    {% set productBreadcrumbs = productBreadcrumbs|merge([{name: category.title, url: siteOrigin ~ '/category/' ~ (category.slug|url_encode)}]) %}
+  {% endfor %}
+{% endif %}
+{% if page == 'product' and categoryPathValid and categoryTrail %}{% set productBreadcrumbs = productBreadcrumbs|merge([{name: product.sku|default(''), url: meta.canonical|default('')}]) %}{% endif %}
 {% set headerNav = navigation.header ?? navigation|default([])|filter(item => item.location|default('') == 'header') %}
 {% set footerNav = navigation.footer ?? navigation|default([])|filter(item => item.location|default('') == 'footer') %}
 {% set legalNav = navigation.legal ?? navigation|default([])|filter(item => item.location|default('') == 'legal') %}
@@ -45,8 +88,8 @@
   <script type="module" src="{{ assets }}parts-list.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261119-1"></script>
   {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page', 'request'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261118-7"></script>{% endif %}
-  {% set graphs = jsonLd is iterable ? jsonLd : (jsonLd|default('') ? [jsonLd] : []) %}
-  {% for graph in graphs %}<script type="application/ld+json">{{ graph|raw }}</script>{% endfor %}
+  {% for graph in graphs %}{% if not (page == 'product' and categoryPathValid and categoryTrail and graph matches '/"@type":"BreadcrumbList"/') %}<script type="application/ld+json">{{ graph|raw }}</script>{% endif %}{% endfor %}
+  {% if page == 'product' and categoryPathValid and categoryTrail %}<script type="application/ld+json">{{ {'@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: productBreadcrumbs|map((crumb, index) => {'@type': 'ListItem', position: index + 1, name: crumb.name, item: crumb.url})}|json_encode(constant('JSON_HEX_TAG') + constant('JSON_HEX_AMP') + constant('JSON_HEX_APOS') + constant('JSON_HEX_QUOT') + constant('JSON_UNESCAPED_UNICODE'))|raw }}</script>{% endif %}
 </head>
 <body class="v2-storefront v2-{{ page }}" data-v2-page="{{ page }}">
   <a class="skip-link" href="#main-content" tabindex="0">К основному содержимому</a>

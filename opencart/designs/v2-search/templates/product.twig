@@ -14,7 +14,7 @@
 {% set relationLabels = {'analog': 'Аналог', 'oem_cross': 'Перекрёстный OEM-номер', 'compatible': 'Совместимая позиция', 'superseded_by': 'Замена'} %}
 {% set managed = product.inventory_managed|default(false) %}
 <div class="shell page-shell v2-product-shell">
-  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span>{% if brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span>/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span>/</span>{% endif %}<span>{{ product.sku }}</span></div>
+  <div class="breadcrumbs"><a href="/">Главная</a><span>/</span><a href="/catalog">Каталог</a><span>/</span>{% if categoryTrail %}{% for category in categoryTrail %}<a href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a><span>/</span>{% endfor %}{% elseif brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span>/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span>/</span>{% endif %}<span>{{ product.sku }}</span></div>
   <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}">
     <header class="v2-product-heading">
       <h1>{{ heading }}</h1>
