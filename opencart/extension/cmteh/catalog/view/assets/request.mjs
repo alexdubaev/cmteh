@@ -165,7 +165,9 @@ function setupCart(cart) {
   const empty = cart.querySelector("[data-cart-empty]");
   const list = cart.querySelector(".request-lines");
   const totals = cart.querySelector(".cart-totals");
+  const showUnavailable = document.body.classList.contains("v2-storefront");
   let entries = new Map();
+  const unavailable = (item) => showUnavailable && entries.get(lineKey(item))?.unavailable === true;
   let identity;
   let controller;
 
@@ -197,14 +199,19 @@ function setupCart(cart) {
     empty.hidden = items.length > 0;
     list.hidden = items.length === 0;
     const totalsByCurrency = new Map();
-    let loading = false, failed = false, unpriced = 0;
+    let loading = false, failed = false, unpriced = 0, removed = 0;
     const rows = items.map((item) => {
       const key = lineKey(item);
       const row = element("div", "", "request-line");
       const body = element("div");
       const entry = entries.get(key);
       const label = item.article + (item.warehouseSelection ? ", склад " + (item.warehouseName || item.warehouseCode || "не выбран") : "");
-      body.append(element("small", item.brand), element("strong", item.article), element("span", entry?.product?.title || item.title));
+      body.append(element("small", item.brand), element("strong", item.article));
+      if (unavailable(item)) {
+        body.append(element("span", "Позиция недоступна. Удалите её перед отправкой заявки.", "cart-selection-warning"));
+      } else {
+        body.append(element("span", entry?.product?.title || item.title));
+      }
       if (item.warehouseSelection) {
         body.append(element("strong", "Склад: " + item.warehouseName + (item.warehouseCity ? ", " + item.warehouseCity : "")), element("span", "Срок поставки: " + (item.deliveryTerm || "Уточнит менеджер")));
         if (item.selectionInvalid || (entry && !entry.failed && !entry.offer)) {
@@ -224,14 +231,15 @@ function setupCart(cart) {
       }
       const unit = fixedPrice(item.warehouseSelection ? { price_status: "fixed", price: item.price, currency: item.currency } : entry?.product);
       let priceMessage = "Цена по запросу";
-      if (!entry) { priceMessage = "Загружаем цену…"; loading = true; }
+      if (unavailable(item)) { priceMessage = ""; removed++; }
+      else if (!entry) { priceMessage = "Загружаем цену…"; loading = true; }
       else if (entry.failed) { priceMessage = "Не удалось проверить условия. Сохранённый выбор остаётся в корзине."; failed = true; unpriced++; }
       else if (unit) {
         const lineMinor = unit.minor * BigInt(item.quantity);
         totalsByCurrency.set(unit.currency, { ...unit, minor: (totalsByCurrency.get(unit.currency)?.minor ?? 0n) + lineMinor });
         priceMessage = money(unit) + " за шт." + (item.quantity > 1 ? " · " + money(unit, lineMinor) + " за " + item.quantity + " шт." : "");
       } else unpriced++;
-      body.append(element("small", priceMessage, "cart-price-label"));
+      if (priceMessage) body.append(element("small", priceMessage, "cart-price-label"));
       const qty = element("div", "", "qty");
       qty.append(quantityButton("Уменьшить количество " + label, "−", () => updateItem(key, -1)), element("b", item.quantity), quantityButton("Увеличить количество " + label, "+", () => updateItem(key, 1)));
       const remove = quantityButton("Удалить " + label, "×", () => updateItem(key, null)); remove.className = "remove";
@@ -239,7 +247,7 @@ function setupCart(cart) {
     });
     list.replaceChildren(...rows);
     if (focused) Array.from(list.querySelectorAll("button")).find((button) => button.getAttribute("aria-label") === focused)?.focus({ preventScroll: true });
-    totals.hidden = !items.length || loading; totals.replaceChildren();
+    totals.hidden = loading || removed === items.length; totals.replaceChildren();
     if (!totals.hidden) {
       totals.append(element("strong", items.some((item) => item.warehouseSelection) ? "Предварительный расчёт по выбранным условиям" : unpriced ? "Расчёт по позициям с ценой" : "Расчёт по ценам каталога"));
       for (const unit of totalsByCurrency.values()) totals.append(element("b", money(unit)));
@@ -257,7 +265,7 @@ function setupCart(cart) {
       }
       if (item.productId) {
         const product = await lookup(productLookups, item.productId);
-        return { product: matchesItem(item, product) ? product : null };
+        return { product: matchesItem(item, product) ? product : null, unavailable: product === null };
       }
       const query = item.article.trim();
       if (query.length < 2 || query.length > 64) return { product: null };
@@ -287,8 +295,33 @@ function setupCart(cart) {
     }
     render();
   }
+  async function verificationIssue(items) {
+    if (!showUnavailable) return "";
+    const missingMessage = "Удалите недоступные позиции из корзины и повторите отправку.";
+    if (items.some(unavailable)) return missingMessage;
+    const unverifiedIds = new Set(items.filter((item) => item.productId && !item.warehouseSelection
+      && (!entries.has(lineKey(item)) || entries.get(lineKey(item)).failed)).map((item) => item.productId));
+    if (!unverifiedIds.size) return "";
+
+    // A submit can arrive before the cart finishes its price lookups.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const lookups = batchLookups("/api/product-prices", unverifiedIds, controller.signal);
+    try {
+      const products = await Promise.all([...unverifiedIds].map((id) => lookup(lookups, id)));
+      return products.includes(null) ? missingMessage : "";
+    } catch {
+      return "Не удалось проверить позиции корзины. Повторите отправку.";
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   onCartChange(() => { if (cart.isConnected) update(); });
-  return () => { if (cart.isConnected) update(true); };
+  return {
+    refresh: () => { if (cart.isConnected) update(true); },
+    verificationIssue,
+  };
 }
 
 const names = ["company", "name", "phone", "email", "message"];
@@ -315,7 +348,7 @@ async function fingerprint(payload) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function setupLead(form, refreshCart) {
+function setupLead(form, cartView) {
   const type = form.dataset.lead;
   const rfq = type === "request";
   const legacyPendingKey = "smtechno-pending-lead:" + type;
@@ -402,6 +435,8 @@ function setupLead(form, refreshCart) {
       sync();
       try {
         items = await readRequestCart();
+        const issue = await cartView?.verificationIssue(items);
+        if (issue) { show(issue, true); return; }
       } catch (error) {
         if (!(error instanceof FilterMigrationError)) throw error;
         show(error.message, true);
@@ -480,7 +515,7 @@ function setupLead(form, refreshCart) {
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         // A warehouse conflict may be the first notice that the server revised an offer.
-        if (rfq && response.status === 409) refreshCart?.();
+        if (rfq && response.status === 409) cartView?.refresh();
         showSubmission(typeof body?.error === "string" && body.error ? body.error : "Не удалось отправить заявку. Попробуйте ещё раз.", true);
         return;
       }
@@ -517,19 +552,19 @@ const leads = new WeakSet();
 
 export function mountRequestPage(root, { refresh = false } = {}) {
   const cart = root.querySelector("[data-cart]");
-  let refreshCart = carts.get(cart);
-  if (cart && (!refreshCart || refresh) && document.body.classList.contains("v2-storefront") && readCart().some(retiredFilterRow)) {
+  let cartView = carts.get(cart);
+  if (cart && (!cartView || refresh) && document.body.classList.contains("v2-storefront") && readCart().some(retiredFilterRow)) {
     void readRequestCart().catch(() => {}); // Submission retries verification and shows an error if still unavailable.
   }
-  if (cart && !refreshCart) {
-    refreshCart = setupCart(cart);
-    carts.set(cart, refreshCart);
+  if (cart && !cartView) {
+    cartView = setupCart(cart);
+    carts.set(cart, cartView);
   } else if (refresh) {
-    refreshCart?.();
+    cartView?.refresh();
   }
   for (const form of root.querySelectorAll("[data-lead]")) {
     if (leads.has(form)) continue;
-    setupLead(form, refreshCart);
+    setupLead(form, cartView);
     leads.add(form);
   }
 }
