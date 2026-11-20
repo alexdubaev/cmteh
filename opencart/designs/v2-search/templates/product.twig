@@ -32,9 +32,29 @@
       </div>
       <div class="v2-product-media{{ photos ? ' v2-product-with-photo' : '' }}">
         {% if photos %}{% set first = photos|first %}
-          <div class="product-gallery">
-            <div class="v2-product-image-slot"><img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async"></div>
+          <div class="product-gallery" data-v2-photo-gallery="{{ photos|json_encode }}">
+            <div class="v2-product-image-slot">
+              <a class="v2-product-image-open" data-photo-open href="{{ ui.href(first.url) }}" aria-label="Увеличить фото товара">
+                <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
+              </a>
+            </div>
             {% if photos|length > 1 %}<div class="product-thumbs" aria-label="Галерея товара">{% for image in photos|slice(0, 8) %}<button class="{{ loop.first ? 'active' : '' }}" type="button" data-gallery-src="{{ image.url }}" aria-label="Показать изображение {{ loop.index }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}"><img src="{{ image.url }}" alt="{{ image.alt_text|default(product.title ~ ', изображение ' ~ loop.index) }}" width="160" height="120" loading="lazy" decoding="async"></button>{% endfor %}</div>{% endif %}
+            <dialog class="v2-photo-viewer" aria-label="Фото товара">
+              <header class="v2-photo-toolbar">
+                <a data-photo-original href="{{ ui.href(first.url) }}" target="_blank" rel="noopener">Открыть оригинал</a>
+                <button type="button" data-photo-close aria-label="Закрыть просмотр" autofocus>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+              </header>
+              <div class="v2-photo-stage"><img data-photo-full alt="" draggable="false" decoding="async"></div>
+              {% if photos|length > 1 %}
+                <div class="v2-photo-controls">
+                  <button type="button" data-photo-previous aria-label="Предыдущее фото"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+                  <span data-photo-count role="status"></span>
+                  <button type="button" data-photo-next aria-label="Следующее фото"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+                </div>
+              {% endif %}
+            </dialog>
           </div>
         {% else %}<div class="v2-product-no-photo" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(32) }}<span>Фото не предоставлено</span></div>{% endif %}
       </div>
