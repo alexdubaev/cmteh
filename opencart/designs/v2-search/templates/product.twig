@@ -22,15 +22,15 @@
   <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}">
     <header class="v2-product-heading">
       <h1>{{ heading }}</h1>
+    </header>
+    <div class="v2-product-main{{ photos|length > 1 ? ' v2-product-has-thumbs' : '' }}">
       <div class="v2-product-labels">
-        {% if product.brand %}<span>{{ product.brand }}</span>{% endif %}
+        {% if product.brand %}<span class="v2-product-brand">{{ product.brand }}</span>{% endif %}
         {% if ui.part(product.part_type|default('')) %}<span>{{ ui.part(product.part_type) }}</span>{% endif %}
         <span class="{{ product.availability_status == 'in_stock' ? 'ok' : '' }}">{{ ui.status(product.availability_status) }}</span>
         <div class="v2-product-sku">Артикул: <strong>{{ product.sku }}</strong>{{ ui.copy(product.sku) }}</div>
       </div>
-    </header>
-    <div class="v2-product-main">
-      <div class="v2-product-media">
+      <div class="v2-product-media{{ photos ? ' v2-product-with-photo' : '' }}">
         {% if photos %}{% set first = photos|first %}
           <div class="product-gallery">
             <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
@@ -38,33 +38,37 @@
           </div>
         {% else %}<div class="v2-product-no-photo" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(32) }}<span>Фото не предоставлено</span></div>{% endif %}
       </div>
-      <aside class="v2-product-buy" aria-label="Цена и покупка">
-        {% if managed %}
-          <section id="warehouse-offers" class="v2-warehouse-offers" aria-labelledby="warehouse-offers-title">
-            <h2 id="warehouse-offers-title">Предложения по складам</h2>
-            {% if product.offers %}<div class="v2-offer-columns" aria-hidden="true"><span>Склад</span><span>Наличие · срок</span><span>Цена</span><span></span></div>{% endif %}
-            {% for offer in product.offers %}
-              <article class="v2-offer-row">
-                <div><h3>{{ offer.warehouse.name }}</h3>{% if offer.warehouse.city %}<small>{{ offer.warehouse.city }}</small>{% endif %}</div>
-                <div class="v2-offer-terms"><span class="{{ offer.availability_status == 'in_stock' ? 'ok' : '' }}">{{ ui.status(offer.availability_status) }}</span><small>Срок: {{ offer.delivery_term ?: 'Уточнит менеджер' }}</small></div>
-                <strong class="v2-offer-price">{{ offer.price is not null ? offer.price|replace({'.': ','}) ~ ' ₽' : 'По запросу' }}<small>за шт.</small></strong>
-                <div class="v2-offer-action"><button class="button secondary" type="button"{% if offer.availability_status != 'in_stock' %} disabled{% endif %}
-                  data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}" data-product-id="{{ product.id }}"
-                  data-offer-id="{{ offer.offer_id }}" data-offer-version="{{ offer.offer_version }}" data-warehouse-code="{{ offer.warehouse.code }}"
-                  data-warehouse-name="{{ offer.warehouse.name }}" data-warehouse-city="{{ offer.warehouse.city }}" data-delivery-term="{{ offer.delivery_term }}" data-price="{{ offer.price }}"
-                  aria-label="Добавить {{ product.sku }}, склад {{ offer.warehouse.name }}">В корзину</button><span class="request-announcement" role="status" aria-live="polite"></span></div>
-              </article>
-            {% else %}<p>Опубликованных предложений пока нет. Уточните поставку у менеджера.</p>{% endfor %}
-            {% if product.offers_partial %}<p class="v2-product-note">Показана часть складских предложений. Остальные условия уточните у менеджера.</p>{% endif %}
-            <p class="v2-product-note">Заявка не резервирует товар; условия подтвердит менеджер.</p>
-          </section>
-        {% else %}<div class="v2-product-price">{{ ui.price(product) }}</div><div class="v2-product-primary">{{ ui.add(product, true) }}</div>{% endif %}
-        <div class="v2-product-actions"><a class="button secondary" href="/request">Открыть корзину</a><a href="/parts-list">Проценить список или файл</a></div>
-        {% if (not managed and site.product_delivery_title|default('')) or site.product_documents_title|default('') %}<div class="v2-product-trust">
-          {% if not managed and site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
-          {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
-        </div>{% endif %}
-      </aside>
+      <div class="v2-product-order">
+        <aside class="v2-product-buy" aria-label="Цена и покупка">
+          {% if managed %}
+            <section id="warehouse-offers" class="v2-warehouse-offers" aria-labelledby="warehouse-offers-title">
+              <h2 id="warehouse-offers-title">Предложения по складам</h2>
+              {% if product.offers %}<div class="v2-offer-columns" aria-hidden="true"><span>Склад</span><span>Наличие · срок</span><span>Цена</span><span></span></div>{% endif %}
+              {% for offer in product.offers %}
+                <article class="v2-offer-row">
+                  <div><h3>{{ offer.warehouse.name }}</h3>{% if offer.warehouse.city %}<small>{{ offer.warehouse.city }}</small>{% endif %}</div>
+                  <div class="v2-offer-terms"><span class="{{ offer.availability_status == 'in_stock' ? 'ok' : '' }}">{{ ui.status(offer.availability_status) }}</span><small>Срок: {{ offer.delivery_term ?: 'Уточнит менеджер' }}</small></div>
+                  <strong class="v2-offer-price">{{ offer.price is not null ? offer.price|replace({'.': ','}) ~ ' ₽' : 'По запросу' }}<small>за шт.</small></strong>
+                  <div class="v2-offer-action"><button class="button secondary" type="button"{% if offer.availability_status != 'in_stock' %} disabled{% endif %}
+                    data-add-article="{{ product.sku }}" data-title="{{ product.title }}" data-brand="{{ product.brand }}" data-product-id="{{ product.id }}"
+                    data-offer-id="{{ offer.offer_id }}" data-offer-version="{{ offer.offer_version }}" data-warehouse-code="{{ offer.warehouse.code }}"
+                    data-warehouse-name="{{ offer.warehouse.name }}" data-warehouse-city="{{ offer.warehouse.city }}" data-delivery-term="{{ offer.delivery_term }}" data-price="{{ offer.price }}"
+                    aria-label="Добавить {{ product.sku }}, склад {{ offer.warehouse.name }}">В корзину</button><span class="request-announcement" role="status" aria-live="polite"></span></div>
+                </article>
+              {% else %}<p>Опубликованных предложений пока нет. Уточните поставку у менеджера.</p>{% endfor %}
+              {% if product.offers_partial %}<p class="v2-product-note">Показана часть складских предложений. Остальные условия уточните у менеджера.</p>{% endif %}
+              <p class="v2-product-note">Заявка не резервирует товар; условия подтвердит менеджер.</p>
+            </section>
+          {% else %}<div class="v2-product-price">{{ ui.price(product) }}</div><div class="v2-product-primary">{{ ui.add(product, true) }}</div>{% endif %}
+        </aside>
+        <div class="v2-product-support">
+          <div class="v2-product-actions"><a href="/parts-list">Проценить список или файл</a></div>
+          {% if (not managed and site.product_delivery_title|default('')) or site.product_documents_title|default('') %}<div class="v2-product-trust">
+            {% if not managed and site.product_delivery_title|default('') %}<div><strong>{{ site.product_delivery_title }}</strong><span>{{ site.product_delivery_text }}</span></div>{% endif %}
+            {% if site.product_documents_title|default('') %}<div><strong>{{ site.product_documents_title }}</strong><span>{{ site.product_documents_text }}</span></div>{% endif %}
+          </div>{% endif %}
+        </div>
+      </div>
       <section class="v2-product-facts" aria-label="Описание и характеристики">
         {% set summary = product.short_description|default('') %}
         {% if not summary and not product.full_description_html|default('') %}{% set summary = site.product_missing_description|default('') %}{% endif %}
