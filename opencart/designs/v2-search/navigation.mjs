@@ -1,5 +1,5 @@
 import { activateView } from './view-controls.mjs?v=20261120-2';
-import { mountRequestPage } from '../request.mjs?v=20261120-1';
+import { mountRequestPage } from '../request.mjs?v=20261120-2';
 import { setupPartsList } from '../parts-list.mjs?v=20261118-1';
 
 // A V2 presentation enhancement over normal, server-rendered storefront URLs.
