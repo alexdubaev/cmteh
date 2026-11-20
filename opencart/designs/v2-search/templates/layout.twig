@@ -1,7 +1,7 @@
 {% autoescape 'html' %}
 {% set assets = '/extension/cmteh/catalog/view/assets/' %}
 {% set templates = 'extension/cmteh/catalog/view/template/storefront/' %}
-{% set screens = {home: 'home', catalog: 'catalog', brands: 'brands', brand: 'collection', category: 'collection', product: 'v2/product', articles: 'articles', article: 'article', page: 'content', request: 'request', 'parts-list': 'parts-list', not_found: 'error', error: 'error'} %}
+{% set screens = {home: 'home', catalog: 'v2/catalog', brands: 'brands', brand: 'collection', category: 'collection', product: 'v2/product', articles: 'articles', article: 'article', page: 'content', request: 'request', 'parts-list': 'parts-list', not_found: 'error', error: 'error'} %}
 {% set brands = model.brands|default([]) %}
 {% set categories = model.categories|default([]) %}
 {% set product = model.product|default({}) %}
@@ -81,7 +81,7 @@
   <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
-  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261119-4">
+  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261120-1">
   <script type="module" src="{{ assets }}v2-search/parallax.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}storefront.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}request.mjs?v=20261118-1"></script>
