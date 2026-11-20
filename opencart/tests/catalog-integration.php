@@ -121,6 +121,9 @@ try {
         && $catalog->products(['q' => 'масляный', 'brand' => 'john-deere'])['total'] === 3
         && count($catalog->explain(['q' => 'RE-568158', 'brand' => 'john-deere'])) > 0,
         'SKU, MPN and prefix rank without duplicates, Russian title filters and EXPLAIN run');
+    $suggestions = $catalog->products(['q' => 'RE-568158', 'limit' => 2], includeTotal: false);
+    expect($suggestions['total'] === 2 && array_column($suggestions['products'], 'id') === array_slice($rank, 0, 2),
+        'Suggestions report only the returned rows and preserve the ranked order');
     $exactOnly = $catalog->checkList([['article' => 'RE568158', 'quantity' => 1]]);
     expect(array_column($exactOnly['rows'][0]['products'], 'id') === ['mock-11'],
         'Batch excludes prefix and MPN offers even when search finds them');
