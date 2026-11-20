@@ -77,19 +77,30 @@ final class Catalog
         }
 
         $offset = ($page - 1) * $limit;
-        return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order, $sortByImage, $needle, $includeTotal): array {
+        // For article-like searches, a single page often contains every match.
+        $countFromFirstPage = $includeTotal && $offset === 0 && preg_match('/[0-9]/', $needle) === 1;
+        return Database::readSnapshot($this->pdo, function () use ($result, $where, $params, $rankParams, $limit, $offset, $order, $sortByImage, $needle, $includeTotal, $countFromFirstPage): array {
             $publicFrom = $this->publicProductFrom();
-            if ($includeTotal) {
-                $result['total'] = (int) $this->run('SELECT COUNT(*) ' . $publicFrom . " WHERE $where", $params)->fetchColumn();
+            $countSql = 'SELECT COUNT(*) ' . $publicFrom . " WHERE $where";
+            if ($includeTotal && !$countFromFirstPage) {
+                $result['total'] = (int) $this->run($countSql, $params)->fetchColumn();
                 if ($offset >= $result['total']) return $result;
             }
 
-            // Filtering by an article or text uses the existing indexed search plan.
             if ($needle !== '') {
+                $readLimit = $countFromFirstPage ? $limit + 1 : $limit;
                 $rows = $this->run(
-                    $this->productSelect() . $this->productFrom() . " WHERE $where ORDER BY $order, p.product_id LIMIT $limit OFFSET $offset",
+                    $this->productSelect() . $this->productFrom() . " WHERE $where ORDER BY $order, p.product_id LIMIT $readLimit OFFSET $offset",
                     array_merge($params, $rankParams)
                 )->fetchAll(PDO::FETCH_ASSOC);
+                if ($countFromFirstPage) {
+                    // An extra row tells us when the first page cannot provide the total.
+                    $result['total'] = count($rows);
+                    if ($result['total'] > $limit) {
+                        array_pop($rows);
+                        $result['total'] = (int) $this->run($countSql, $params)->fetchColumn();
+                    }
+                }
             } else {
                 // Sort only IDs and ranking columns. Load descriptions and media after pagination.
                 $rankFrom = $publicFrom . ($sortByImage ? $this->productImageJoin() : '');

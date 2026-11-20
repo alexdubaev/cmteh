@@ -68,7 +68,7 @@ final class StorefrontPages
         return $this->view('/parts-list', []);
     }
 
-    public function view(string $path, array $rawParams): ?array
+    public function view(string $path, array $rawParams, bool $openSingleResult = false): ?array
     {
         $route = $this->record($path);
         if ($route === null) {
@@ -77,6 +77,17 @@ final class StorefrontPages
 
         [$page, $record] = $route;
         $params = $this->params($rawParams);
+        $searchResults = null;
+        if ($page === 'catalog' && $openSingleResult && ($params['q'] ?? '') !== '') {
+            $searchResults = $this->catalog->products($params + ['limit' => 12]);
+            if ($searchResults['total'] === 1 && !$searchResults['partial'] && count($searchResults['products']) === 1) {
+                $productPath = '/product/' . $searchResults['products'][0]['slug'];
+                $productView = $this->view($productPath, []);
+                if ($productView !== null) {
+                    return $productView + ['resolvedProductPath' => StorefrontSeo::encodePath($productPath)];
+                }
+            }
+        }
         $site = self::htmlFields($this->catalog->content('site') ?? []);
         $site['logo_url'] = EditorialDefaults::imageUrl($site['logo'] ?? null);
         try {
@@ -127,7 +138,7 @@ final class StorefrontPages
                 $meta['image'] ??= $home['hero_image_url'] ? (str_starts_with($home['hero_image_url'], '/') ? $this->seo->url($home['hero_image_url']) : $home['hero_image_url']) : null;
                 break;
             case 'catalog':
-                $model += $this->catalog->products($params + ['limit' => 12]);
+                $model += $searchResults ?? $this->catalog->products($params + ['limit' => 12]);
                 if ($this->filtered($rawParams)) {
                     $meta['robots'] = 'noindex,follow';
                 } elseif (!$this->paginate($path, $params['page'], $model, $meta)) {

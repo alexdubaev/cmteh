@@ -51,6 +51,25 @@ const scenarios = {
     await expect(page).toHaveURL(base.href);
     await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
   },
+  'single-result-request': async page => {
+    await page.goto('/');
+    await page.waitForFunction(() => history.state?.v2View);
+    const pageRequests = [];
+    page.on('request', request => {
+      const { pathname } = new URL(request.url());
+      if (request.resourceType() === 'fetch' && (pathname === '/catalog' || pathname.startsWith('/product/'))) {
+        pageRequests.push(pathname);
+      }
+    });
+    await page.locator('#article-search input[name=q]').fill('0000550380');
+    await page.locator('#article-search button[type=submit]').click();
+    await expect(page).toHaveURL(new URL('/product/claas-0000550380', base).href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'product');
+    assert.deepEqual(pageRequests, ['/catalog']);
+    await page.evaluate(() => history.back());
+    await expect(page).toHaveURL(base.href);
+    await expect(page.locator('body')).toHaveAttribute('data-v2-page', 'home');
+  },
   'brand-return-motion': async page => {
     const drawingGeometry = () => page.evaluate(async () => {
       const stage = document.querySelector('.v2-stage');
