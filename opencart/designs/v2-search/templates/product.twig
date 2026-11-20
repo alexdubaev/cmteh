@@ -33,7 +33,7 @@
       <div class="v2-product-media{{ photos ? ' v2-product-with-photo' : '' }}">
         {% if photos %}{% set first = photos|first %}
           <div class="product-gallery">
-            <img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async">
+            <div class="v2-product-image-slot"><img class="product-main-image" src="{{ first.url }}" alt="{{ first.alt_text|default(product.title) }}" width="1200" height="900" decoding="async"></div>
             {% if photos|length > 1 %}<div class="product-thumbs" aria-label="Галерея товара">{% for image in photos|slice(0, 8) %}<button class="{{ loop.first ? 'active' : '' }}" type="button" data-gallery-src="{{ image.url }}" aria-label="Показать изображение {{ loop.index }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}"><img src="{{ image.url }}" alt="{{ image.alt_text|default(product.title ~ ', изображение ' ~ loop.index) }}" width="160" height="120" loading="lazy" decoding="async"></button>{% endfor %}</div>{% endif %}
           </div>
         {% else %}<div class="v2-product-no-photo" aria-label="Для {{ product.brand }} {{ product.sku }} фото не предоставлено">{{ ui.noPhoto(32) }}<span>Фото не предоставлено</span></div>{% endif %}

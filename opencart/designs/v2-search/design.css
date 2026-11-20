@@ -472,7 +472,7 @@ html { scrollbar-gutter: stable; }
     box-shadow: none;
   }
   .v2-product-main {
-    grid-template-columns: clamp(104px, 33vw, 150px) minmax(0, 1fr);
+    grid-template-columns: clamp(120px, 39vw, 172px) minmax(0, 1fr);
     grid-template-areas: "media labels" "media buy" "facts facts" "support support";
     gap: 10px 14px;
   }
@@ -481,13 +481,18 @@ html { scrollbar-gutter: stable; }
   .v2-product-managed .v2-product-has-thumbs { grid-template-areas: "media labels" "thumbs thumbs" "buy buy" "facts facts" "support support"; }
   .v2-product-order, .v2-product-with-photo, .v2-product-media .product-gallery { display: contents; }
   .v2-product-media { min-height: 0; border: 0; background: transparent; overflow: visible; }
-  .v2-product-media .product-main-image {
+  .v2-product-image-slot {
     grid-area: media;
     width: 100%;
-    height: auto;
     aspect-ratio: 1;
     border-radius: var(--radius-sm);
     background: var(--surface);
+    overflow: hidden;
+  }
+  .v2-product-media .product-main-image {
+    height: 100%;
+    transform-origin: var(--v2-photo-origin, center);
+    transform: var(--v2-photo-transform, none);
   }
   .v2-product-media .product-thumbs { grid-area: thumbs; min-width: 0; }
   .v2-product-media .product-thumbs button { width: 44px; height: 44px; flex-basis: 44px; }
@@ -498,7 +503,7 @@ html { scrollbar-gutter: stable; }
   .v2-product-sku { margin-left: 0; flex-basis: 100%; gap: 5px; }
   .v2-product-buy { grid-area: buy; min-width: 0; }
   .v2-product-price { margin: 0 0 7px; font-size: clamp(20px, 6vw, 27px); overflow-wrap: anywhere; }
-  .v2-product-primary > .wide { width: min(100%, 240px); min-width: 0; }
+  .v2-product-primary > .wide { width: max-content; min-width: 0; max-width: 100%; padding-inline: 14px; }
   .v2-product-facts { margin-top: 8px; }
   .v2-product-support { grid-area: support; padding-top: 6px; }
   .v2-product-actions { margin-top: 0; }

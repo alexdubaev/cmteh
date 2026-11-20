@@ -1,4 +1,4 @@
-import { activateView } from './view-controls.mjs?v=20261117-2';
+import { activateView } from './view-controls.mjs?v=20261120-1';
 import { mountRequestPage } from '../request.mjs?v=20261118-1';
 import { setupPartsList } from '../parts-list.mjs?v=20261118-1';
 
