@@ -19,7 +19,7 @@
     {% if categoryTrail %}{% for category in categoryTrail %}<a href="/category/{{ category.slug|url_encode }}">{{ category.title }}</a><span aria-hidden="true">/</span>{% endfor %}{% elseif brand %}<a href="/brand/{{ brand.slug|url_encode }}">{{ product.brand }}</a><span aria-hidden="true">/</span>{% elseif product.brand %}<span>{{ product.brand }}</span><span aria-hidden="true">/</span>{% endif %}
     <span aria-current="page">{{ product.sku }}</span>
   </nav>
-  <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}">
+  <article class="v2-product-sheet{{ managed ? ' v2-product-managed' : '' }}" data-v2-quick-article="{{ product.sku }}">
     <header class="v2-product-heading">
       <h1>{{ heading }}</h1>
     </header>

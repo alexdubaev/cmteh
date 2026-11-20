@@ -158,7 +158,7 @@ function within(root, selector) {
 /** Bind shared storefront behavior on a freshly adopted V2 page fragment. */
 export function activateView(root, { bindControls = true } = {}) {
   if (!root?.querySelectorAll) return;
-  activeFilters = within(root, ".filter-disclosure");
+  activeFilters = within(root, ".filter-disclosure, .v2-category-disclosure");
   activePhotos = within(root, ".v2-product-image-slot > img");
   syncViewLayout();
   if (!bindControls) return;
