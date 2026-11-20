@@ -146,6 +146,14 @@ function bindPhotoViewer(gallery) {
   let position = 0;
   let touchStart;
   opener.setAttribute("aria-haspopup", "dialog");
+  const pointerMode = "v2-photo-pointer";
+  const markPointer = () => gallery.classList.add(pointerMode);
+  const markKeyboard = () => gallery.classList.remove(pointerMode);
+  gallery.addEventListener("pointerdown", markPointer);
+  gallery.addEventListener("keydown", markKeyboard);
+  opener.addEventListener("blur", () => {
+    if (!dialog.open) markKeyboard();
+  });
 
   function show(offset) {
     position = (position + offset + photos.length) % photos.length;
@@ -162,6 +170,7 @@ function bindPhotoViewer(gallery) {
     if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (dialog.open) return;
+    if (event.detail > 0) markPointer();
     position = Math.max(photos.findIndex((photo) => photo.url === preview.src), 0);
     show(0);
     dialog.showModal();

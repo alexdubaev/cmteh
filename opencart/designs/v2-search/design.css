@@ -393,6 +393,8 @@ html { scrollbar-gutter: stable; }
 .v2-product-media { grid-area: media; position: relative; min-height: 210px; border: 1px solid #e3e6ea; border-radius: var(--radius); background: #fafbfc; overflow: hidden; }
 .v2-product-image-open { display: block; width: 100%; height: 100%; cursor: zoom-in; }
 .v2-product-image-open:focus-visible { outline-offset: -3px; }
+.v2-photo-pointer .v2-product-image-open:focus,
+.v2-photo-pointer .v2-photo-viewer :focus { outline: none; }
 .v2-photo-viewer {
   --photo-side: min(calc(100vw - 32px), calc(100vh - 160px), 900px);
   width: 100%;
