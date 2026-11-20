@@ -278,9 +278,15 @@ if (main && search && input && dock && status && supported(new URL(location.href
       showFailure(url, options);
     }, 15000);
     try {
-      const response = await fetch(url.href, { signal: request.signal, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html' } });
+      const headers = { Accept: 'text/html' };
+      if (openSingleResult) headers['X-Cmteh-Navigation'] = 'single-product';
+      const response = await fetch(url.href, { signal: request.signal, credentials: 'same-origin', cache: 'no-store', headers });
       if (pending !== transition) return;
-      const finalUrl = new URL(response.url);
+      const responseUrl = new URL(response.url);
+      const productPath = openSingleResult && responseUrl.pathname === '/catalog' ? response.headers.get('Content-Location') : null;
+      const productUrl = productPath?.startsWith('/product/') ? new URL(productPath, responseUrl) : null;
+      const finalUrl = productUrl && supported(productUrl) && pageKind(productUrl) === 'product' && !productUrl.search && !productUrl.hash
+        ? productUrl : responseUrl;
       finalUrl.hash = url.hash;
       if (!response.ok || !supported(finalUrl) || !response.headers.get('content-type')?.includes('text/html')) {
         openNatively(); // Normal server redirects/404/410 remain authoritative.

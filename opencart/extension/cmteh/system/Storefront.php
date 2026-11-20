@@ -149,9 +149,14 @@ final class Storefront
                 return;
             }
 
-            $view = $path === '/parts-list' ? $this->pages()->partsList() : $this->pages()->view($path, $params);
+            $searchSubmission = $path === '/catalog' && $method === 'GET' && array_keys($params) === ['q'] && is_string($params['q']);
+            $openSingleResult = $searchSubmission && ($this->server['HTTP_X_CMTEH_NAVIGATION'] ?? '') === 'single-product';
+            $view = $path === '/parts-list' ? $this->pages()->partsList()
+                : $this->pages()->view($path, $params, $openSingleResult);
             if ($view !== null) {
-                $this->render(200, $view);
+                $headers = $searchSubmission ? ['Vary' => 'X-Cmteh-Navigation'] : [];
+                if (isset($view['resolvedProductPath'])) $headers['Content-Location'] = $view['resolvedProductPath'];
+                $this->render(200, $view, $headers);
             } else {
                 $this->missing($path);
             }
@@ -369,10 +374,10 @@ final class Storefront
         return true;
     }
 
-    private function render(int $status, array $view): void
+    private function render(int $status, array $view, array $headers = []): void
     {
         $html = $this->registry->get('load')->view('extension/cmteh/storefront/layout', $view);
-        $this->send($status, 'text/html; charset=utf-8', $html);
+        $this->send($status, 'text/html; charset=utf-8', $html, $headers);
     }
 
     private function renderError(int $status): void
