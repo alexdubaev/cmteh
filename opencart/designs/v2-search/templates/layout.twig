@@ -81,7 +81,7 @@
   <link rel="stylesheet" href="{{ assets }}articles.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}responsive-ux.css?v=20261111-1">
   <link rel="stylesheet" href="{{ assets }}storefront.css?v=20261111-1">
-  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261120-6">
+  <link rel="stylesheet" href="{{ assets }}v2-search/design.css?v=20261120-7">
   <script type="module" src="{{ assets }}v2-search/parallax.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}storefront.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}request.mjs?v=20261118-1"></script>
@@ -111,7 +111,6 @@
       <svg class="mobile-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ emailIconPath }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Запрос</span>
     </a>
   </nav>
-  <a class="back-to-top" href="#site-header" data-back-to-top aria-label="Наверх" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 14 7-7 7 7M12 8v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Наверх</span></a>
   <dialog class="quick-dialog" aria-labelledby="quick-dialog-title" data-quick-dialog>
     <button class="quick-dialog-close" type="button" data-close-quick aria-label="Закрыть форму"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     {% include templates ~ 'lead-form.twig' with {leadType: 'quick', compact: true} %}
