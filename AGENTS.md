@@ -6,11 +6,12 @@ This file applies to the standalone storefront repository.
 
 All agents must use these names consistently:
 
-- **V1 — текущий сайт**: the existing site at https://test.cmteh.ru/ with its current design and functionality. The existing local source checkout is `D:/codex/cmteh`.
-- **V2 — поисковая версия**: a separate local copy at `D:/codex/CMTEH.RU/V2-search`. The owner has authorized a local launch only. Record its actual local URL and status in `D:/codex/CMTEH.RU/versions.json` after starting it; do not invent an address before verification.
-- The current search-homepage task targets **V2**. A request naming V1 or V2 applies only to that version. Do not apply or transfer changes to both without an explicit instruction. If a new request's target cannot be determined from its text and active context, clarify it before changing a version.
-- V2 work must preserve V1's files, appearance, data and running environment. Shared source changes must retain V1's existing default behavior unless the owner explicitly authorizes changing it.
-- V2 uses a separate local runtime, port, test database and private storage. Do not copy production secrets or customer data. Publishing V2 or replacing V1 requires a separate owner instruction.
+- **V1 — прежний сайт**: the previous design and functionality. Its local source checkout is `D:/codex/cmteh`. On hosting it has been replaced by V2; the exact prior V1 extension is retained for rollback.
+- **V2 — поисковая версия**: the search-first presentation in `D:/codex/CMTEH.RU/V2-search`. It is the version now served at https://test.cmteh.ru/ (noindex). Record local URLs, hosted releases, rollback and status in `D:/codex/CMTEH.RU/versions.json` (`versions.V2.hosting`); do not invent an address before verification.
+- https://test.cmteh.ru/ is **V2**, not V1. Deploy to test.cmteh.ru only on the owner's instruction. The production domain, DNS and engine migration are out of scope.
+- A request naming V1 or V2 applies only to that version. Do not apply or transfer changes to both without an explicit instruction. If a new request's target cannot be determined from its text and active context, clarify it before changing a version.
+- V2 work must preserve V1's source checkout, local runtime and retained rollback copy. Shared source changes must retain V1's existing default behavior unless the owner explicitly authorizes changing it.
+- Local V2 uses a separate runtime, port, test database and private storage. Do not copy production secrets or customer data.
 - Preserve existing search, catalog, brands, product and warehouse offers, cart, list/file quote workflows and information pages. V2 changes presentation, not the available business functionality.
 - V2's accepted homepage has search as the main element, a subtle grayscale excavator technical drawing, partner logos below search, and a compact gray link **«Проценить список или файл»**. The large colorful list-upload banner was rejected.
 - The working application is OpenCart under `opencart/extension/cmteh`; the root Next.js application is a reference, not the deployed application.
