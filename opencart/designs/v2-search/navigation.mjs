@@ -168,7 +168,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   }
 
   function show(view, { restore = false, motion = false } = {}) {
-    const revealMotion = compact.matches && motion && !reduced.matches && (!restore || view.scroll === 0);
+    const revealMotion = motion && !reduced.matches && (!restore || view.scroll === 0);
     const previousSearch = revealMotion ? search.getBoundingClientRect() : null;
     input.blur(); // Closes existing suggestions and aborts their outstanding request.
     stopAnimations();
