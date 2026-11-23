@@ -40,7 +40,7 @@ if (main && search && input && dock && status && supported(new URL(location.href
   const views = new Map();
   const reusable = new Map();
   const animations = new Set();
-  let sequence = 0, pending, loadingTimer, scrollTimer, pointerAction = false;
+  let sequence = 0, pending, scrollTimer, pointerAction = false;
   const nextId = () => `${Date.now()}-${++sequence}`;
   const metadata = root => [...root.querySelectorAll(headSelector)].map(node => node.cloneNode(true));
   const viewState = view => ({ v2View: view.id, v2Navigation: { query: view.query, scroll: view.scroll, focus: view.focus } });
@@ -146,7 +146,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
   }
 
   function clearLoading() {
-    clearTimeout(loadingTimer);
     main.removeAttribute('aria-busy');
     status.hidden = true;
     status.replaceChildren();
@@ -264,14 +263,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
       else location.assign(url.href);
     };
     main.setAttribute('aria-busy', 'true');
-    loadingTimer = setTimeout(() => {
-      if (pending !== transition) return;
-      status.textContent = pageKind(url) === 'product' ? 'Открываем товар…'
-        : pageKind(url) === 'parts-list' ? 'Открываем список или файл…'
-          : pageKind(url) === 'request' ? 'Открываем корзину…'
-            : isContacts(url) ? 'Открываем контакты…' : 'Загружаем результаты…';
-      status.hidden = false;
-    }, compact.matches ? 600 : 160);
     const deadline = setTimeout(() => {
       if (pending !== transition) return;
       cancelNavigation();
@@ -335,7 +326,6 @@ if (main && search && input && dock && status && supported(new URL(location.href
       clearTimeout(deadline);
       if (pending === transition) {
         pending = null;
-        clearTimeout(loadingTimer);
         main.removeAttribute('aria-busy');
       }
     }
