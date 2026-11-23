@@ -87,7 +87,7 @@
   <script type="module" src="{{ assets }}request.mjs?v=20261120-2"></script>
   <script type="module" src="{{ assets }}parts-list.mjs?v=20261118-1"></script>
   <script type="module" src="{{ assets }}v2-search/catalog-menu.mjs?v=20261119-1"></script>
-  {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page', 'request'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261123-1"></script>{% endif %}
+  {% if page in ['home', 'catalog', 'product', 'parts-list', 'brands', 'brand', 'category', 'articles', 'article', 'page', 'request'] %}<script type="module" src="{{ assets }}v2-search/navigation.mjs?v=20261123-2"></script>{% endif %}
   {% for graph in graphs %}{% if not (page == 'product' and categoryPathValid and categoryTrail and graph matches '/"@type":"BreadcrumbList"/') %}<script type="application/ld+json">{{ graph|raw }}</script>{% endif %}{% endfor %}
   {% if page == 'product' and categoryPathValid and categoryTrail %}<script type="application/ld+json">{{ {'@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: productBreadcrumbs|map((crumb, index) => {'@type': 'ListItem', position: index + 1, name: crumb.name, item: crumb.url})}|json_encode(constant('JSON_HEX_TAG') + constant('JSON_HEX_AMP') + constant('JSON_HEX_APOS') + constant('JSON_HEX_QUOT') + constant('JSON_UNESCAPED_UNICODE'))|raw }}</script>{% endif %}
 </head>
