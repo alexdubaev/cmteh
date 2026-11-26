@@ -45,9 +45,9 @@
 .home-category-link span { font-size: var(--font-body-size); font-weight: 650; overflow-wrap: anywhere; }
 .home-category-link:hover { border-color: var(--border-category-hover); background: var(--surface-accent-open); }
 .home-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.home-order-steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.home-order-steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
 .home-order-steps li { min-width: 0; border-top: 3px solid var(--accent); padding-top: 16px; }
-.home-step-number { color: var(--text-step-number); font-family: var(--font-heading); font-size: 28px; }
+.home-step-icon { display: grid; width: 44px; height: 44px; place-items: center; background: var(--surface-accent-open); }
 .home-order-steps h3 { margin: 8px 0; font-size: 19px; line-height: 1.35; }
 .home-order-steps p, .home-order-next p { margin: 0; color: var(--muted); font-size: var(--font-body-size); }
 .home-order-next { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
@@ -63,6 +63,7 @@
 
 @media (max-width: 1100px) {
   .header-contacts { display: none; }
+  .home-order-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 820px) {
   .home-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -96,8 +97,8 @@
   .brand-strip-heading { margin-bottom: 8px; }
   .home-product-grid { grid-template-columns: 1fr; }
   .home-order-steps { grid-template-columns: 1fr; gap: 20px; }
-  .home-order-steps li { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 3px 14px; padding-top: 12px; }
-  .home-step-number { grid-row: 1 / 3; }
+  .home-order-steps li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; padding-top: 12px; }
+  .home-step-icon { grid-row: 1 / span 2; }
   .home-order-steps h3 { margin: 0; font-size: 17px; }
   .home-order-steps p { grid-column: 2; font-size: var(--font-control-size); }
   .home-order-next { margin-top: 20px; padding-top: 20px; }

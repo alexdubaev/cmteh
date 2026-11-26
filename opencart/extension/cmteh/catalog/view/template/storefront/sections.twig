@@ -8,8 +8,15 @@
     <section class="section shell home-order">
       {% if section.title|default('') %}<div class="section-heading"><h2>{{ section.title }}</h2></div>{% endif %}
       {% if section.items|default([]) is iterable and section.items is not empty %}
-        <ol class="home-order-steps">
-          {% for item in section.items %}<li><span class="home-step-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span><h3>{{ item.title }}</h3>{% if item.text|default('') %}<p>{{ item.text }}</p>{% endif %}</li>{% endfor %}
+        {% set stepIcons = ['request', 'quote', 'documents', 'delivery'] %}
+        <ol class="home-order-steps" role="list">
+          {% for item in section.items %}
+            <li>
+              <span class="home-step-icon"><img src="{{ assets }}images/order/{{ stepIcons[loop.index0]|default('request') }}.png" width="24" height="24" alt="" loading="lazy"></span>
+              <h3>{{ item.title }}</h3>
+              {% if item.text|default('') %}<p>{{ item.text }}</p>{% endif %}
+            </li>
+          {% endfor %}
         </ol>
       {% endif %}
       {% if section.text_html|default('') or href and section.button_text|default('') %}
