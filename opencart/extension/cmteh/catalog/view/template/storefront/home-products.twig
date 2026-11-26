@@ -1,8 +1,10 @@
 {% autoescape 'html' %}
 {% import templates ~ 'ui.twig' as ui %}
+{% set productsTitle = home.products_title|default('') %}
+{% if productsTitle == 'Запчасти из каталога' %}{% set productsTitle = 'Каталог' %}{% endif %}
 <section class="section shell home-products">
   <div class="section-heading">
-    {% if home.products_title|default('') %}<div><h2>{{ home.products_title }}</h2></div>{% endif %}
+    {% if productsTitle %}<div><h2>{{ productsTitle }}</h2></div>{% endif %}
     {% if home.products_link_text|default('') %}<a href="/catalog">{{ home.products_link_text }} →</a>{% endif %}
   </div>
   {% if model.products|default([]) %}

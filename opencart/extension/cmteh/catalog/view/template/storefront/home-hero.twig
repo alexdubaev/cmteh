@@ -17,13 +17,6 @@
       </div>
     {% endif %}
   </div></div>
-  {% if home.hero_article_link_text|default('') or home.hero_brand_link_text|default('') %}
-    <div class="shell hero-quicklinks" aria-label="Быстрый поиск">
-      {% if home.hero_quick_title|default('') %}<strong>{{ home.hero_quick_title }}</strong>{% endif %}
-      {% if home.hero_article_link_text|default('') %}<a href="#article-search" data-focus-search><span aria-hidden="true">⌕</span>{{ home.hero_article_link_text }} <b aria-hidden="true">→</b></a>{% endif %}
-      {% if home.hero_brand_link_text|default('') and brands %}<a href="#brands"><span aria-hidden="true">⚙</span>{{ home.hero_brand_link_text }} <b aria-hidden="true">→</b></a>{% endif %}
-    </div>
-  {% endif %}
 </section>
 {% endif %}
 {% endautoescape %}
