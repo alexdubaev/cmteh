@@ -1,6 +1,20 @@
 {% autoescape 'html' %}
 {% set sections = home.sections|default([]) %}
+{% set previousDefaultSteps = [
+  {title: "Найдите товар или передайте список", text: "Используйте артикул, OEM-номер или список позиций."},
+  {title: "Получите подтверждение условий", text: "Уточните наличие, цену и условия поставки."},
+  {title: "Согласуйте заказ и поставку", text: "Подтвердите состав заказа и согласованные условия."}
+] %}
 {% for section in sections|filter(item => item.section_type|default('') == 'home_order') %}
+  {# Show the new copy for the previously shipped default without replacing edited steps. #}
+  {% if section.items|default([]) == previousDefaultSteps %}
+    {% set section = section|merge({items: [
+      {title: "Отправьте заявку", text: "Найдите детали по артикулу или OEM-номеру и отправьте заявку из корзины. Если список уже готов, вставьте его или загрузите файл. Укажите количество и контакт для ответа."},
+      {title: "Получите расчёт", text: "Менеджер проверит наличие, подтвердит актуальные цены и уточнит сроки для позиций под заказ."},
+      {title: "Согласуйте оплату и документы", text: "Подтвердите состав заказа. Сообщите менеджеру, какие документы нужны вашей бухгалтерии, и согласуйте условия оплаты."},
+      {title: "Получите запчасти", text: "Укажите город и место получения: терминал перевозчика или адрес. Согласуем стоимость и срок доставки, соберём заказ и передадим его перевозчику."}
+    ]}) %}
+  {% endif %}
   {% include templates ~ 'sections.twig' with {sections: [section]} %}
 {% endfor %}
 {% endautoescape %}
