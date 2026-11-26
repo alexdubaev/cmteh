@@ -46,7 +46,7 @@
 .home-category-link:hover { border-color: var(--border-category-hover); background: var(--surface-accent-open); }
 .home-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .home-order-steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
-.home-order-steps li { min-width: 0; border-top: 3px solid var(--accent); padding-top: 16px; }
+.home-order-steps li { min-width: 0; padding-top: 16px; }
 .home-step-icon { display: grid; width: 44px; height: 44px; place-items: center; background: var(--surface-accent-open); }
 .home-order-steps h3 { margin: 8px 0; font-size: 19px; line-height: 1.35; }
 .home-order-steps p, .home-order-next p { margin: 0; color: var(--muted); font-size: var(--font-body-size); }
