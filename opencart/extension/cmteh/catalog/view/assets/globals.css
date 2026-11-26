@@ -1383,7 +1383,7 @@ body { background: var(--bg); color: var(--text); }
 
 /* Industrial v3 home composition and shared storefront finish. */
 .hero { position:relative; min-height:0; overflow:hidden; border:0; background:var(--surface-hero); }
-.hero-background { position:absolute; inset:0 0 76px; display:block; overflow:hidden; }
+.hero-background { position:absolute; inset:0; display:block; overflow:hidden; }
 .hero-background::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,var(--hero-overlay-start),var(--hero-overlay-middle) 45%,transparent 68%); pointer-events:none; }
 .hero-background img { position:absolute; left:0; bottom:0; display:block; width:100%; height:auto; object-fit:contain; object-position:center bottom; /* Black is mask coverage, not a presentation color. */ mask-image:linear-gradient(to bottom,transparent 0%,black 15%); transform:scale(calc(1 - var(--hero-scroll-progress, 0) * .015)); transform-origin:center bottom; will-change:transform; }
 .hero-grid { position:relative; z-index:1; min-height:clamp(480px,40vw,580px); display:flex; align-items:center; padding-block:28px 34px; }
